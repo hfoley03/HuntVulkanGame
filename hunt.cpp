@@ -11,7 +11,7 @@ std::vector<SingleText> outText = {
 };
 
 // The uniform buffer object used in this example
-#define NSHIP 4
+#define NSHIP 1
 struct BlinnUniformBufferObject {
 	alignas(16) glm::mat4 mvpMat[NSHIP];
 	alignas(16) glm::mat4 mMat[NSHIP];
@@ -112,7 +112,7 @@ class HuntGame : public BaseProject {
     TextMaker txt;
 
 	// Models, textures and Descriptor Sets (values assigned to the uniforms)
-	DescriptorSet DSGlobal;
+	DescriptorSet DSGlobal, DSAx;
 	
 	Model Mship;
 	Texture Tship;
@@ -125,6 +125,12 @@ class HuntGame : public BaseProject {
 	Model Mground;
 	Texture Tground;
 	DescriptorSet DSground;
+    
+    // Models
+    Model MAx; //axis
+    
+   // Textures
+    Texture T1, Tanimal;
 	
     
 	
@@ -204,15 +210,20 @@ class HuntGame : public BaseProject {
 
 
 		// Create models
-		Mship.init(this, &VDBlinn, "models/duck_001.mgcg", MGCG);
+        MAx.init(this, &VDBlinn, "models/axis.obj", OBJ);
+		Mship.init(this, &VDBlinn, "models/elephant_001.mgcg", MGCG);
 		Msun.init(this, &VDEmission, "models/Sphere.obj", OBJ);
 		Mground.init(this, &VDBlinn, "models/LargePlane.obj", OBJ);
 // Place here the loading of the model. It should be contained in file "models/Sphere.gltf", it should use the
 //		Vertex descriptor you defined, and be of GLTF format.
-		// Create the textures
+
+        // Create the textures
 		Tship.init(this, "textures/XwingColors.png");
 		Tsun.init(this, "textures/2k_sun.jpg");
 		Tground.init(this, "textures/2k_sun.jpg");
+        T1.init(this,   "textures/Textures.png");
+        Tanimal.init(this,   "textures/Textures-Animals.png");
+
 
 		// Descriptor pool sizes
 		// WARNING!!!!!!!!
@@ -240,9 +251,10 @@ std::cout << "Initializing text\n";
 		PEmission.create();
         
 		// Here you define the data set
-		DSship.init(this, &DSLBlinn, {&Tship});
+		DSship.init(this, &DSLBlinn, {&Tanimal});
 		DSsun.init(this, &DSLEmission, {&Tsun});
 		DSground.init(this, &DSLBlinn, {&Tground});
+        DSAx.init(this, &DSLBlinn, {&T1});
 // Add the descriptor set creation
 // Textures should be passed in the diffuse, specular, normal map, emission and clouds order.
 			
@@ -263,6 +275,7 @@ std::cout << "Initializing text\n";
 		DSsun.cleanup();
 		DSGlobal.cleanup();
 		DSground.cleanup();
+        DSAx.cleanup();
 //  Add the descriptor set cleanup
 
 		txt.pipelinesAndDescriptorSetsCleanup();
@@ -281,6 +294,10 @@ std::cout << "Initializing text\n";
 
 		Tground.cleanup();
 		Mground.cleanup();
+        
+        T1.cleanup();
+        Tanimal.cleanup();
+        MAx.cleanup();
 
 
 //  Add the cleanup for models and textures
@@ -319,11 +336,16 @@ std::cout << "Initializing text\n";
 		vkCmdDrawIndexed(commandBuffer,
 				static_cast<uint32_t>(Mship.indices.size()), NSHIP, 0, 0, 0);	
 
-		Mground.bind(commandBuffer);
-		DSground.bind(commandBuffer, PBlinn, 1, currentImage);	// The Material and Position Descriptor Set (Set 1)
-		vkCmdDrawIndexed(commandBuffer,
-				static_cast<uint32_t>(Mground.indices.size()), 1, 0, 0, 0);	
+		// Mground.bind(commandBuffer);
+		// DSground.bind(commandBuffer, PBlinn, 1, currentImage);	// The Material and Position Descriptor Set (Set 1)
+		// vkCmdDrawIndexed(commandBuffer,
+		// 		static_cast<uint32_t>(Mground.indices.size()), 1, 0, 0, 0);	
 
+        MAx.bind(commandBuffer);
+        DSAx.bind(commandBuffer, PBlinn, 1, currentImage);
+        vkCmdDrawIndexed(commandBuffer,
+                static_cast<uint32_t>(MAx.indices.size()), 1, 0, 0, 0);
+        
 		PEmission.bind(commandBuffer);
 		Msun.bind(commandBuffer);
 		DSsun.bind(commandBuffer, PEmission, 0, currentImage);
@@ -347,7 +369,7 @@ std::cout << "Initializing text\n";
 		bool fire = false;
 		getSixAxis(deltaT, m, r, fire);
 		
-		static float autoTime = true;
+		static float autoTime = false;
 		static float cTime = 0.0;
 		const float turnTime = 72.0f;
 		const float angTurnTimeFact = 2.0f * M_PI / turnTime;
@@ -470,24 +492,28 @@ std::cout << "Initializing text\n";
 		BlinnUniformBufferObject blinnUbo{};
 		BlinnMatParUniformBufferObject blinnMatParUbo{};
 
-		for(int j = 0; j < 2; j++) {
-			for(int k = 0; k < 2; k++) {
-				int i = j*4+k;
-				//blinnUbo.mMat[i] = glm::translate( glm::rotate( glm::radians(0.0f), glm::vec3(0.0f, 0.0f, 1.0f)),glm::vec3(1, i, j)) * glm::scale(glm::mat4(1), glm::vec3(1.5,0.5,0.5)) * baseTr;
-                blinnUbo.mMat[i] = glm::mat4(1);
-                //    M = glm::translate( glm::rotate( glm::radians(-180.0f), glm::vec3(0.0f, 0.0f, 1.0f)), glm::vec3(-2.0f, -0.1f, 1.0f));
-				blinnUbo.mvpMat[i] = ViewPrj * blinnUbo.mMat[i];
-				blinnUbo.nMat[i] = glm::inverse(glm::transpose(blinnUbo.mMat[i]));
+//		for(int j = 0; j < 2; j++) {
+//			for(int k = 0; k < 4; k++) {
+//				int i = j*4+k;
+//                blinnUbo.mMat[i] = glm::translate(glm::mat4(1),glm::vec3(i,j,k)) * glm::scale(glm::mat4(1), glm::vec3(0.5,0.5,0.5)) * baseTr;
+//				blinnUbo.mvpMat[i] = ViewPrj * blinnUbo.mMat[i];
+//				blinnUbo.nMat[i] = glm::inverse(glm::transpose(blinnUbo.mMat[i]));
+//			}
+//		}
+        
+        int i = 0;
+        int j = 2;
+        int k = 2;
 
-			     // M =  glm::translate(glm::rotate(glm::scale(glm::shearZ3D(glm::mat4(1.0f), 0.8f, 0.0f), glm::vec3(2.0f, 2.0f, 1.0f)),
-                 //                    glm::radians(-30.0f), glm::vec3(0.0f, 1.0f, 0.0f)), glm::vec3(0.0f, 2.0f, -1.0f));
-   
-			}
-		}
-		DSship.map(currentImage, &blinnUbo, 0);
+        blinnUbo.mMat[i] = glm::translate(
+                                          glm::rotate(glm::mat4(1.0f), glm::radians(90.0f),glm::vec3(1.0f, 0.0f, 0.0f)),
+                                          glm::vec3(0,0,0)) * glm::scale(glm::mat4(1), glm::vec3(1.0,1.0,1.0)) * baseTr;
+        blinnUbo.mvpMat[i] = ViewPrj * blinnUbo.mMat[i];
+        blinnUbo.nMat[i] = glm::inverse(glm::transpose(blinnUbo.mMat[i]));
+        DSship.map(currentImage, &blinnUbo, 0);
 
 		blinnMatParUbo.Power = 200.0;
-		DSship.map(currentImage, &blinnMatParUbo, 2);
+        DSship.map(currentImage, &blinnMatParUbo, 2);
 
 
 		EmissionUniformBufferObject emissionUbo{};
@@ -504,7 +530,7 @@ std::cout << "Initializing text\n";
              matUbo.nMat = glm::mat4(1);
              matUbo.mvpMat = ViewPrj;
 		// // These informations should be used to fill the Uniform Buffer Object in Binding 0 of your DSL
-             DSground.map(currentImage, &matUbo, 0);
+             DSAx.map(currentImage, &matUbo, 0); //DSground
 
 
         //     normalMapParUbo.pow = 200.0;
