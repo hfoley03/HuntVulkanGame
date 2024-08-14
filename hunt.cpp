@@ -12,10 +12,14 @@ std::vector<SingleText> outText = {
 
 // The uniform buffer object used in this example
 #define NSHIP 1
+#define NANIMAL 10
+
+
+
 struct BlinnUniformBufferObject {
-	alignas(16) glm::mat4 mvpMat[NSHIP];
-	alignas(16) glm::mat4 mMat[NSHIP];
-	alignas(16) glm::mat4 nMat[NSHIP];
+	alignas(16) glm::mat4 mvpMat;
+	alignas(16) glm::mat4 mMat;
+	alignas(16) glm::mat4 nMat;
 };
 
 struct BlinnMatParUniformBufferObject {
@@ -78,14 +82,6 @@ struct skyBoxVertex {
 	glm::vec3 pos;
 };
 
-// Place here the CPP struct for the vertex definition
-
-struct normalMapVertex {
-    glm::vec3 pos;
-    glm::vec3 norm;
-    glm::vec2 UV;
-    glm::vec4 tan;
-};
 
 // MAIN ! 
 class HuntGame : public BaseProject {
@@ -96,42 +92,37 @@ class HuntGame : public BaseProject {
 	DescriptorSetLayout DSLBlinn;	    // For Blinn Objects
 	DescriptorSetLayout DSLEmission;	// For Emission Objects
 
-//  Place here the variable for the DescriptorSetLayout
-
 	// Vertex formats
 	VertexDescriptor VDBlinn;
 	VertexDescriptor VDEmission;
-//  Place here the variable for the VertexDescriptor
 
 	// Pipelines [Shader couples]
 	Pipeline PBlinn;
 	Pipeline PEmission;
-//  Place here the variable for the Pipeline
 
 	// Scenes and texts
     TextMaker txt;
-
-	// Models, textures and Descriptor Sets (values assigned to the uniforms)
-	DescriptorSet DSGlobal, DSAx;
-	
-	Model Mship;
-	Texture Tship;
-	DescriptorSet DSship;
-	
-	Model Msun;
-	Texture Tsun;
-	DescriptorSet DSsun;
-
-	Model Mground;
-	Texture Tground;
-	DescriptorSet DSground;
     
     // Models
     Model MAx; //axis
+    Model Mship;
+    Model Msun;
+    Model Mground;
+
+    Model MAnimals[NANIMAL];
+    
+    // Descriptor Sets
+    DescriptorSet DSGlobal, DSAx;
+    DescriptorSet DSship;
+    DescriptorSet DSsun;
+    DescriptorSet DSground;
+    DescriptorSet DSAnimals[NANIMAL];
     
    // Textures
     Texture T1, Tanimal;
-	
+    Texture Tship;
+    Texture Tsun;
+    Texture Tground;
     
 	
 	// Other application parameters
@@ -178,7 +169,6 @@ class HuntGame : public BaseProject {
 					{1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 0, 1}
 				});
 
-//      Place here the initialization of the the DescriptorSetLayout
 
         
 		// Vertex descriptors
@@ -214,26 +204,36 @@ class HuntGame : public BaseProject {
 		Mship.init(this, &VDBlinn, "models/elephant_001.mgcg", MGCG);
 		Msun.init(this, &VDEmission, "models/Sphere.obj", OBJ);
 		Mground.init(this, &VDBlinn, "models/LargePlane.obj", OBJ);
-// Place here the loading of the model. It should be contained in file "models/Sphere.gltf", it should use the
-//		Vertex descriptor you defined, and be of GLTF format.
+        
+        MAnimals[0].init(this, &VDBlinn, "models/rhinoceros_001.mgcg", MGCG);
+        MAnimals[1].init(this, &VDBlinn, "models/tiger_001.mgcg", MGCG);
+        MAnimals[2].init(this, &VDBlinn, "models/wolf_002.mgcg", MGCG);
+        MAnimals[3].init(this, &VDBlinn, "models/zebra_001.mgcg", MGCG);
+        MAnimals[4].init(this, &VDBlinn, "models/bear_001.mgcg", MGCG);
+        MAnimals[5].init(this, &VDBlinn, "models/bison_001.mgcg", MGCG);
+        MAnimals[6].init(this, &VDBlinn, "models/bull_001.mgcg", MGCG);
+        MAnimals[7].init(this, &VDBlinn, "models/duck_001.mgcg", MGCG);
+        MAnimals[8].init(this, &VDBlinn, "models/elephant_001.mgcg", MGCG);
+        MAnimals[9].init(this, &VDBlinn, "models/lion_female_001.mgcg", MGCG);
+
 
         // Create the textures
 		Tship.init(this, "textures/XwingColors.png");
 		Tsun.init(this, "textures/2k_sun.jpg");
 		Tground.init(this, "textures/2k_sun.jpg");
         T1.init(this,   "textures/Textures.png");
-        Tanimal.init(this,   "textures/Textures-Animals.png");
+        Tanimal.init(this, "textures/Textures-Animals.png");
 
 
 		// Descriptor pool sizes
 		// WARNING!!!!!!!!
 		// Must be set before initializing the text and the scene
-// Update the number of elements to correctly size the descriptor sets pool
+		// Update the number of elements to correctly size the descriptor sets pool
 		DPSZs.uniformBlocksInPool = 500;
 		DPSZs.texturesInPool = 400;
 		DPSZs.setsInPool = 400;
 
-std::cout << "Initializing text\n";
+		std::cout << "Initializing text\n";
 		txt.init(this, &outText);
 
 		std::cout << "Initialization completed!\n";
@@ -255,8 +255,12 @@ std::cout << "Initializing text\n";
 		DSsun.init(this, &DSLEmission, {&Tsun});
 		DSground.init(this, &DSLBlinn, {&Tground});
         DSAx.init(this, &DSLBlinn, {&T1});
-// Add the descriptor set creation
-// Textures should be passed in the diffuse, specular, normal map, emission and clouds order.
+
+        for (DescriptorSet &DSAnimal: DSAnimals) {
+            DSAnimal.init(this, &DSLBlinn, {&Tanimal});
+            std::cout << "DSAnimal.init!\n";
+        };
+
 			
 		DSGlobal.init(this, &DSLGlobal, {});
 
@@ -269,14 +273,16 @@ std::cout << "Initializing text\n";
 		// Cleanup pipelines
 		PBlinn.cleanup();
 		PEmission.cleanup();
-//  Add the pipeline cleanup
-
 		DSship.cleanup();
 		DSsun.cleanup();
 		DSGlobal.cleanup();
 		DSground.cleanup();
         DSAx.cleanup();
-//  Add the descriptor set cleanup
+
+        for (DescriptorSet &DSAnimal: DSAnimals) {
+            DSAnimal.cleanup();
+            std::cout << "DSAnimal.cleanup!\n";
+        }
 
 		txt.pipelinesAndDescriptorSetsCleanup();
 	}
@@ -299,20 +305,21 @@ std::cout << "Initializing text\n";
         Tanimal.cleanup();
         MAx.cleanup();
 
+        for (Model &MAnimal: MAnimals) {
+            MAnimal.cleanup();
+        }
 
-//  Add the cleanup for models and textures
+
 
 		
 		// Cleanup descriptor set layouts
 		DSLBlinn.cleanup();
 		DSLEmission.cleanup();
 		DSLGlobal.cleanup();
-//  Add the cleanup for the descriptor set layout
 		
 		// Destroies the pipelines
 		PBlinn.destroy();
 		PEmission.destroy();
-//  Add the cleanup for the pipeline
 
 		txt.localCleanup();		
 	}
@@ -324,17 +331,20 @@ std::cout << "Initializing text\n";
 	void populateCommandBuffer(VkCommandBuffer commandBuffer, int currentImage) {
 		// binds the pipeline
 		PBlinn.bind(commandBuffer);
-		
 		// The models (both index and vertex buffers)
-		Mship.bind(commandBuffer);
 
 		// The descriptor sets, for each descriptor set specified in the pipeline
 		DSGlobal.bind(commandBuffer, PBlinn, 0, currentImage);	// The Global Descriptor Set (Set 0)
-		DSship.bind(commandBuffer, PBlinn, 1, currentImage);	// The Material and Position Descriptor Set (Set 1)
+		for (int model = 0; model < NANIMAL; model++) {
+            MAnimals[model].bind(commandBuffer);
+            DSAnimals[model].bind(commandBuffer, PBlinn, 1, currentImage);
+            vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(MAnimals[model].indices.size()), 1, 0, 0, 0);
+        }
+		// DSship.bind(commandBuffer, PBlinn, 1, currentImage);	// The Material and Position Descriptor Set (Set 1)
 
-		// The actual draw call.
-		vkCmdDrawIndexed(commandBuffer,
-				static_cast<uint32_t>(Mship.indices.size()), NSHIP, 0, 0, 0);	
+		// // The actual draw call.
+		// vkCmdDrawIndexed(commandBuffer,
+		// 		static_cast<uint32_t>(Mship.indices.size()), 1, 0, 0, 0);	
 
 		// Mground.bind(commandBuffer);
 		// DSground.bind(commandBuffer, PBlinn, 1, currentImage);	// The Material and Position Descriptor Set (Set 1)
@@ -345,6 +355,8 @@ std::cout << "Initializing text\n";
         DSAx.bind(commandBuffer, PBlinn, 1, currentImage);
         vkCmdDrawIndexed(commandBuffer,
                 static_cast<uint32_t>(MAx.indices.size()), 1, 0, 0, 0);
+
+
         
 		PEmission.bind(commandBuffer);
 		Msun.bind(commandBuffer);
@@ -505,15 +517,15 @@ std::cout << "Initializing text\n";
         int j = 2;
         int k = 2;
 
-        blinnUbo.mMat[i] = glm::translate(
-                                          glm::rotate(glm::mat4(1.0f), glm::radians(90.0f),glm::vec3(1.0f, 0.0f, 0.0f)),
-                                          glm::vec3(0,0,0)) * glm::scale(glm::mat4(1), glm::vec3(1.0,1.0,1.0)) * baseTr;
-        blinnUbo.mvpMat[i] = ViewPrj * blinnUbo.mMat[i];
-        blinnUbo.nMat[i] = glm::inverse(glm::transpose(blinnUbo.mMat[i]));
-        DSship.map(currentImage, &blinnUbo, 0);
+        // blinnUbo.mMat[i] = glm::translate(
+        //                                   glm::rotate(glm::mat4(1.0f), glm::radians(90.0f),glm::vec3(1.0f, 0.0f, 0.0f)),
+        //                                   glm::vec3(0,0,0)) * glm::scale(glm::mat4(1), glm::vec3(1.0,1.0,1.0)) * baseTr;
+        // blinnUbo.mvpMat[i] = ViewPrj * blinnUbo.mMat[i];
+        // blinnUbo.nMat[i] = glm::inverse(glm::transpose(blinnUbo.mMat[i]));
+        // DSship.map(currentImage, &blinnUbo, 0);
 
-		blinnMatParUbo.Power = 200.0;
-        DSship.map(currentImage, &blinnMatParUbo, 2);
+		// blinnMatParUbo.Power = 200.0;
+        // DSship.map(currentImage, &blinnMatParUbo, 2);
 
 
 		EmissionUniformBufferObject emissionUbo{};
@@ -531,6 +543,23 @@ std::cout << "Initializing text\n";
              matUbo.mvpMat = ViewPrj;
 		// // These informations should be used to fill the Uniform Buffer Object in Binding 0 of your DSL
              DSAx.map(currentImage, &matUbo, 0); //DSground
+             blinnMatParUbo.Power = 200.0;
+        	 DSAx.map(currentImage, &blinnMatParUbo, 2);
+
+
+        for (int model = 0; model < NANIMAL; model++) {
+
+ 			blinnUbo.mMat = glm::translate(
+                                          glm::rotate(glm::mat4(1.0f), glm::radians(90.0f),glm::vec3(1.0f, 0.0f, 0.0f)),
+                                          glm::vec3( model , 2, 1)) * glm::scale(glm::mat4(1), glm::vec3(0.5,0.5,0.5)) * baseTr;
+        	blinnUbo.mvpMat = ViewPrj * blinnUbo.mMat;
+        	blinnUbo.nMat = glm::inverse(glm::transpose(blinnUbo.mMat));
+
+            DSAnimals[model].map(currentImage, &blinnUbo, 0);
+
+			blinnMatParUbo.Power = 200.0;
+        	DSAnimals[model].map(currentImage, &blinnMatParUbo, 2);
+        }
 
 
         //     normalMapParUbo.pow = 200.0;
