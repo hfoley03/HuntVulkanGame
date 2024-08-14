@@ -3,6 +3,7 @@
 
 #include "modules/Starter.hpp"
 #include "modules/TextMaker.hpp"
+#include <cstdlib> 
 
 
 std::vector<SingleText> outText = {
@@ -110,6 +111,8 @@ class HuntGame : public BaseProject {
     Model Mground;
 
     Model MAnimals[NANIMAL];
+    float animalAngle[NANIMAL];
+
     
     // Descriptor Sets
     DescriptorSet DSGlobal, DSAx;
@@ -216,6 +219,13 @@ class HuntGame : public BaseProject {
         MAnimals[8].init(this, &VDBlinn, "models/elephant_001.mgcg", MGCG);
         MAnimals[9].init(this, &VDBlinn, "models/lion_female_001.mgcg", MGCG);
 
+        std::srand(static_cast<unsigned int>(std::time(nullptr)));
+        for (int i = 0; i < NANIMAL; ++i) 
+        {
+    		animalAngle[i] = static_cast<float>(std::rand()) / RAND_MAX * 360.0f;
+		}
+
+
 
         // Create the textures
 		Tship.init(this, "textures/XwingColors.png");
@@ -253,7 +263,7 @@ class HuntGame : public BaseProject {
 		// Here you define the data set
 		DSship.init(this, &DSLBlinn, {&Tanimal});
 		DSsun.init(this, &DSLEmission, {&Tsun});
-		DSground.init(this, &DSLBlinn, {&Tground});
+		DSground.init(this, &DSLBlinn, {&T1});
         DSAx.init(this, &DSLBlinn, {&T1});
 
         for (DescriptorSet &DSAnimal: DSAnimals) {
@@ -340,16 +350,11 @@ class HuntGame : public BaseProject {
             DSAnimals[model].bind(commandBuffer, PBlinn, 1, currentImage);
             vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(MAnimals[model].indices.size()), 1, 0, 0, 0);
         }
-		// DSship.bind(commandBuffer, PBlinn, 1, currentImage);	// The Material and Position Descriptor Set (Set 1)
 
-		// // The actual draw call.
-		// vkCmdDrawIndexed(commandBuffer,
-		// 		static_cast<uint32_t>(Mship.indices.size()), 1, 0, 0, 0);	
-
-		// Mground.bind(commandBuffer);
-		// DSground.bind(commandBuffer, PBlinn, 1, currentImage);	// The Material and Position Descriptor Set (Set 1)
-		// vkCmdDrawIndexed(commandBuffer,
-		// 		static_cast<uint32_t>(Mground.indices.size()), 1, 0, 0, 0);	
+		Mground.bind(commandBuffer);
+		DSground.bind(commandBuffer, PBlinn, 1, currentImage);
+		vkCmdDrawIndexed(commandBuffer,
+				static_cast<uint32_t>(Mground.indices.size()), 1, 0, 0, 0);	
 
         MAx.bind(commandBuffer);
         DSAx.bind(commandBuffer, PBlinn, 1, currentImage);
@@ -381,7 +386,7 @@ class HuntGame : public BaseProject {
 		bool fire = false;
 		getSixAxis(deltaT, m, r, fire);
 		
-		static float autoTime = false;
+		static float autoTime = true;
 		static float cTime = 0.0;
 		const float turnTime = 72.0f;
 		const float angTurnTimeFact = 2.0f * M_PI / turnTime;
@@ -504,28 +509,12 @@ class HuntGame : public BaseProject {
 		BlinnUniformBufferObject blinnUbo{};
 		BlinnMatParUniformBufferObject blinnMatParUbo{};
 
-//		for(int j = 0; j < 2; j++) {
-//			for(int k = 0; k < 4; k++) {
-//				int i = j*4+k;
-//                blinnUbo.mMat[i] = glm::translate(glm::mat4(1),glm::vec3(i,j,k)) * glm::scale(glm::mat4(1), glm::vec3(0.5,0.5,0.5)) * baseTr;
-//				blinnUbo.mvpMat[i] = ViewPrj * blinnUbo.mMat[i];
-//				blinnUbo.nMat[i] = glm::inverse(glm::transpose(blinnUbo.mMat[i]));
-//			}
-//		}
         
         int i = 0;
         int j = 2;
         int k = 2;
 
-        // blinnUbo.mMat[i] = glm::translate(
-        //                                   glm::rotate(glm::mat4(1.0f), glm::radians(90.0f),glm::vec3(1.0f, 0.0f, 0.0f)),
-        //                                   glm::vec3(0,0,0)) * glm::scale(glm::mat4(1), glm::vec3(1.0,1.0,1.0)) * baseTr;
-        // blinnUbo.mvpMat[i] = ViewPrj * blinnUbo.mMat[i];
-        // blinnUbo.nMat[i] = glm::inverse(glm::transpose(blinnUbo.mMat[i]));
-        // DSship.map(currentImage, &blinnUbo, 0);
 
-		// blinnMatParUbo.Power = 200.0;
-        // DSship.map(currentImage, &blinnMatParUbo, 2);
 
 
 		EmissionUniformBufferObject emissionUbo{};
@@ -533,43 +522,44 @@ class HuntGame : public BaseProject {
 		DSsun.map(currentImage, &emissionUbo, 0);
 		
 		
-//  Add to compute the uniforms and pass them to the shaders. You need two uniforms: one for the matrices, and the other for the material parameters.
-             UniformBufferObject matUbo{};
-        //     NormalMapParUniformBufferObject normalMapParUbo{};
+        UniformBufferObject matUbo{};
             
-		// // World and normal matrix should be the identiy. The World-View-Projection should be variable ViewPrj
-             matUbo.mMat = glm::mat4(1);
-             matUbo.nMat = glm::mat4(1);
-             matUbo.mvpMat = ViewPrj;
-		// // These informations should be used to fill the Uniform Buffer Object in Binding 0 of your DSL
-             DSAx.map(currentImage, &matUbo, 0); //DSground
-             blinnMatParUbo.Power = 200.0;
-        	 DSAx.map(currentImage, &blinnMatParUbo, 2);
+        matUbo.mMat = glm::mat4(1);
+        matUbo.nMat = glm::mat4(1);
+        matUbo.mvpMat = ViewPrj;
+
+        DSAx.map(currentImage, &matUbo, 0); //DSground
+        blinnMatParUbo.Power = 200.0;
+        DSAx.map(currentImage, &blinnMatParUbo, 2);
+
+        //matUbo.mMat = glm::translate(glm::mat4(1),glm::vec3( 0 , 0, 0))  * baseTr;
+        //matUbo.nMat = ViewPrj * matUbo.mMat;
+        //matUbo.mvpMat = glm::inverse(glm::transpose(matUbo.mMat));
+
+        DSground.map(currentImage, &matUbo, 0); //DSground
+        DSground.map(currentImage, &blinnMatParUbo, 2);
 
 
         for (int model = 0; model < NANIMAL; model++) {
 
- 			blinnUbo.mMat = glm::translate(
-                                          glm::rotate(glm::mat4(1.0f), glm::radians(90.0f),glm::vec3(1.0f, 0.0f, 0.0f)),
-                                          glm::vec3( model , 2, 1)) * glm::scale(glm::mat4(1), glm::vec3(0.5,0.5,0.5)) * baseTr;
+ 			// blinnUbo.mMat = glm::translate(
+            //                               glm::rotate(glm::mat4(1.0f), glm::radians(90.0f),glm::vec3(1.0f, 0.0f, 0.0f)),
+            //                               glm::vec3( model , 0, 0)) * glm::scale(glm::mat4(1), glm::vec3(0.5,0.5,0.5)) * baseTr;
+
+ 			blinnUbo.mMat = glm::translate(glm::scale(glm::mat4(1), glm::vec3(0.5,0.5,0.5)),
+                                           glm::vec3( model*2 , 0, 0)) 
+ 											* glm::rotate(glm::mat4(1.0f), glm::radians(90.0f),glm::vec3(1.0f, 0.0f, 0.0f))
+ 											* glm::rotate(glm::mat4(1.0f), glm::radians(animalAngle[model]),glm::vec3(0.0f, 0.0f, 1.0f)) * baseTr;
+
+
         	blinnUbo.mvpMat = ViewPrj * blinnUbo.mMat;
         	blinnUbo.nMat = glm::inverse(glm::transpose(blinnUbo.mMat));
 
             DSAnimals[model].map(currentImage, &blinnUbo, 0);
 
-			blinnMatParUbo.Power = 200.0;
+			blinnMatParUbo.Power = 2000.0;
         	DSAnimals[model].map(currentImage, &blinnMatParUbo, 2);
         }
-
-
-        //     normalMapParUbo.pow = 200.0;
-        //     normalMapParUbo.ang = tTime * TangTurnTimeFact;
-        //     normalMapParUbo.showCloud = ShowCloud;
-
-        //     normalMapParUbo.showTexture = ShowTexture;
-
-        //     // These informations should be used to fill the Uniform Buffer Object in Binding 6 of your DSL
-        //     DSearth.map(currentImage, &normalMapParUbo, 6);
 	}
 };
 
