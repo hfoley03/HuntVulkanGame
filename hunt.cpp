@@ -37,35 +37,11 @@ struct GlobalUniformBufferObject {
 	alignas(16) glm::vec3 eyePos;
 };
 
-struct skyBoxUniformBufferObject {
-	alignas(16) glm::mat4 mvpMat;
-};
-
-
-// Place here the CPP struct for the uniform buffer for the matrices
-
 struct UniformBufferObject {
     alignas(16) glm::mat4 mvpMat;
     alignas(16) glm::mat4 mMat;
     alignas(16) glm::mat4 nMat;
 };
-
-// Place here the CPP struct for the uniform buffer for the parameters
-//
-//struct NormalMapParUniformBufferObject {
-//    alignas(4) float pow;
-//    alignas(4) float ang;
-//    alignas(4) float showCloud;
-//    alignas(4) float showTexture;
-//};
-
-struct alignas(16) NormalMapParUniformBufferObject {
-    float pow;        // Offset: 0, Size: 4 bytes
-    float ang;        // Offset: 4, Size: 4 bytes
-    float showCloud;  // Offset: 8, Size: 4 bytes
-    float showTexture;// Offset: 12, Size: 4 bytes
-};
-
 
 // The vertices data structures
 struct BlinnVertex {
@@ -79,9 +55,7 @@ struct EmissionVertex {
 	glm::vec2 UV;
 };
 
-struct skyBoxVertex {
-	glm::vec3 pos;
-};
+
 
 
 // MAIN ! 
@@ -106,9 +80,9 @@ class HuntGame : public BaseProject {
     
     // Models
     Model MAx; //axis
-    Model Mship;
     Model Msun;
-    Model Mground;
+    Model Mground, MTower;
+
 
     Model MAnimals[NANIMAL];
     float animalAngle[NANIMAL];
@@ -116,16 +90,14 @@ class HuntGame : public BaseProject {
     
     // Descriptor Sets
     DescriptorSet DSGlobal, DSAx;
-    DescriptorSet DSship;
     DescriptorSet DSsun;
-    DescriptorSet DSground;
+    DescriptorSet DSground, DSTower;
     DescriptorSet DSAnimals[NANIMAL];
     
    // Textures
     Texture T1, Tanimal;
-    Texture Tship;
     Texture Tsun;
-    Texture Tground;
+    Texture Tground, Ttower;
     
 	
 	// Other application parameters
@@ -204,9 +176,9 @@ class HuntGame : public BaseProject {
 
 		// Create models
         MAx.init(this, &VDBlinn, "models/axis.obj", OBJ);
-		Mship.init(this, &VDBlinn, "models/elephant_001.mgcg", MGCG);
 		Msun.init(this, &VDEmission, "models/Sphere.obj", OBJ);
 		Mground.init(this, &VDBlinn, "models/LargePlane.obj", OBJ);
+		MTower.init(this, &VDBlinn, "models/tower.obj", OBJ);
         
         MAnimals[0].init(this, &VDBlinn, "models/rhinoceros_001.mgcg", MGCG);
         MAnimals[1].init(this, &VDBlinn, "models/tiger_001.mgcg", MGCG);
@@ -228,11 +200,11 @@ class HuntGame : public BaseProject {
 
 
         // Create the textures
-		Tship.init(this, "textures/XwingColors.png");
 		Tsun.init(this, "textures/2k_sun.jpg");
 		Tground.init(this, "textures/2k_sun.jpg");
         T1.init(this,   "textures/Textures.png");
         Tanimal.init(this, "textures/Textures-Animals.png");
+        Ttower.init(this, "textures/Tower_Col.jpg");
 
 
 		// Descriptor pool sizes
@@ -261,10 +233,10 @@ class HuntGame : public BaseProject {
 		PEmission.create();
         
 		// Here you define the data set
-		DSship.init(this, &DSLBlinn, {&Tanimal});
 		DSsun.init(this, &DSLEmission, {&Tsun});
 		DSground.init(this, &DSLBlinn, {&T1});
         DSAx.init(this, &DSLBlinn, {&T1});
+        DSTower.init(this, &DSLBlinn, {&Ttower});
 
         for (DescriptorSet &DSAnimal: DSAnimals) {
             DSAnimal.init(this, &DSLBlinn, {&Tanimal});
@@ -283,11 +255,11 @@ class HuntGame : public BaseProject {
 		// Cleanup pipelines
 		PBlinn.cleanup();
 		PEmission.cleanup();
-		DSship.cleanup();
 		DSsun.cleanup();
 		DSGlobal.cleanup();
 		DSground.cleanup();
         DSAx.cleanup();
+        DSTower.cleanup();
 
         for (DescriptorSet &DSAnimal: DSAnimals) {
             DSAnimal.cleanup();
@@ -302,19 +274,17 @@ class HuntGame : public BaseProject {
 	// You also have to destroy the pipelines: since they need to be rebuilt, they have two different
 	// methods: .cleanup() recreates them, while .destroy() delete them completely
 	void localCleanup() {	
-		Tship.cleanup();
-		Mship.cleanup();
 
 		Tsun.cleanup();
-		Msun.cleanup();
-
 		Tground.cleanup();
-		Mground.cleanup();
-        
         T1.cleanup();
         Tanimal.cleanup();
-        MAx.cleanup();
+        Ttower.cleanup();
 
+		Msun.cleanup();
+		Mground.cleanup();
+        MAx.cleanup();
+        MTower.cleanup();
         for (Model &MAnimal: MAnimals) {
             MAnimal.cleanup();
         }
@@ -360,6 +330,11 @@ class HuntGame : public BaseProject {
         DSAx.bind(commandBuffer, PBlinn, 1, currentImage);
         vkCmdDrawIndexed(commandBuffer,
                 static_cast<uint32_t>(MAx.indices.size()), 1, 0, 0, 0);
+
+        MTower.bind(commandBuffer);
+        DSTower.bind(commandBuffer, PBlinn, 1, currentImage);
+        vkCmdDrawIndexed(commandBuffer,
+                static_cast<uint32_t>(MTower.indices.size()), 1, 0, 0, 0);
 
 
         
@@ -408,9 +383,6 @@ class HuntGame : public BaseProject {
 		const float ROT_SPEED = glm::radians(120.0f);
 		const float MOVE_SPEED = 2.0f;
 		
-		static float ShowCloud = 1.0f;
-		static float ShowTexture = 1.0f;
-		
 		// The Fly model update proc.
 		ViewMatrix = glm::rotate(glm::mat4(1), ROT_SPEED * r.x * deltaT,
 								 glm::vec3(1, 0, 0)) * ViewMatrix;
@@ -450,8 +422,6 @@ class HuntGame : public BaseProject {
 				printMat4("ViewMatrix  ", ViewMatrix);				
 				std::cout << "cTime    = " << cTime    << ";\n";
 				std::cout << "tTime    = " << tTime    << ";\n";
-				std::cout << "ShowCloud    = " << ShowCloud    << ";\n";
-				std::cout << "ShowTexture    = " << ShowTexture    << ";\n";
 			}
 		} else {
 			if((curDebounce == GLFW_KEY_V) && debounce) {
@@ -522,29 +492,41 @@ class HuntGame : public BaseProject {
 		DSsun.map(currentImage, &emissionUbo, 0);
 		
 		
-        UniformBufferObject matUbo{};
             
-        matUbo.mMat = glm::mat4(1);
-        matUbo.nMat = glm::mat4(1);
-        matUbo.mvpMat = ViewPrj;
-
-        DSAx.map(currentImage, &matUbo, 0); //DSground
+        blinnUbo.mMat = glm::mat4(1);
+        blinnUbo.nMat = glm::mat4(1);
+        blinnUbo.mvpMat = ViewPrj;
         blinnMatParUbo.Power = 200.0;
+
+        DSAx.map(currentImage, &blinnUbo, 0); 
         DSAx.map(currentImage, &blinnMatParUbo, 2);
+
+
 
         //matUbo.mMat = glm::translate(glm::mat4(1),glm::vec3( 0 , 0, 0))  * baseTr;
         //matUbo.nMat = ViewPrj * matUbo.mMat;
         //matUbo.mvpMat = glm::inverse(glm::transpose(matUbo.mMat));
 
-        DSground.map(currentImage, &matUbo, 0); //DSground
+        blinnUbo.mMat = glm::translate(glm::scale(glm::mat4(1), glm::vec3(4,1,4)),
+                                           glm::vec3( 0 , 0, 0)) 
+ 											* glm::rotate(glm::mat4(1.0f), glm::radians(0.0f),glm::vec3(1.0f, 0.0f, 0.0f)) * baseTr;
+        blinnUbo.mvpMat = ViewPrj * blinnUbo.mMat;
+       	blinnUbo.nMat = glm::inverse(glm::transpose(blinnUbo.mMat));
+
+        DSground.map(currentImage, &blinnUbo, 0); //DSground
         DSground.map(currentImage, &blinnMatParUbo, 2);
+
+        blinnUbo.mMat = glm::translate(glm::scale(glm::mat4(1), glm::vec3(0.5,0.5,0.5)),
+                                           glm::vec3( 0 , -0.9, 0)) 
+ 											* glm::rotate(glm::mat4(1.0f), glm::radians(0.0f),glm::vec3(1.0f, 0.0f, 0.0f)) * baseTr;
+        blinnUbo.mvpMat = ViewPrj * blinnUbo.mMat;
+       	blinnUbo.nMat = glm::inverse(glm::transpose(blinnUbo.mMat));
+
+        DSTower.map(currentImage, &blinnUbo, 0); //DSground
+        DSTower.map(currentImage, &blinnMatParUbo, 2);
 
 
         for (int model = 0; model < NANIMAL; model++) {
-
- 			// blinnUbo.mMat = glm::translate(
-            //                               glm::rotate(glm::mat4(1.0f), glm::radians(90.0f),glm::vec3(1.0f, 0.0f, 0.0f)),
-            //                               glm::vec3( model , 0, 0)) * glm::scale(glm::mat4(1), glm::vec3(0.5,0.5,0.5)) * baseTr;
 
  			blinnUbo.mMat = glm::translate(glm::scale(glm::mat4(1), glm::vec3(0.5,0.5,0.5)),
                                            glm::vec3( model*2 , 0, 0)) 
