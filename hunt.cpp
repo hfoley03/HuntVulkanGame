@@ -14,7 +14,7 @@ std::vector<SingleText> outText = {
 // The uniform buffer object used in this example
 #define NSHIP 1
 #define NANIMAL 10
-#define NVEGROCK 8
+#define NVEGROCK 52
 
 
 
@@ -57,6 +57,25 @@ struct EmissionVertex {
 	glm::vec2 UV;
 };
 
+class Instance {
+public:
+    glm::vec3 pos;  
+    int modelID;         
+    glm::vec3 scale;     
+    float angle;         
+    std::string desc;    
+    // Constructor
+    Instance(const glm::vec3& position, int id, const glm::vec3& scl, float ang, const std::string& description)
+        : pos(position), modelID(id), scale(scl), angle(ang), desc(description) {}
+};
+
+float randomFloat(float min, float max) {
+    // Generate a random float between 0 and 1
+    float random = static_cast<float>(std::rand()) / static_cast<float>(RAND_MAX);
+
+    // Scale and shift to the desired range [min, max]
+    return min + random * (max - min);
+}
 
 
 
@@ -86,10 +105,14 @@ class HuntGame : public BaseProject {
     Model Mground, MTower;
 
 
-    Model MVegRocks[8];
+    Model MVegRocks[12];
     int InstanceVegRock[NVEGROCK];
     float AngleVegRock[NVEGROCK];
     glm::vec3 PosVegRock[NVEGROCK];
+    glm::vec3 ScaleVegRock[NVEGROCK];
+    std::vector<Instance> vegRocks;
+
+
 
     Model MAnimals[NANIMAL];
     float animalAngle[NANIMAL];
@@ -126,7 +149,7 @@ class HuntGame : public BaseProject {
 		windowHeight = 600;
 		windowTitle = "A Hunting Game Called Hunt";
     	windowResizable = GLFW_TRUE;
-		initialBackgroundColor = {0.1f, 0.1f, 0.1f, 1.0f};
+		initialBackgroundColor = {0.53f, 0.81f, 0.92f, 1.0f};
 		
 		Ar = (float)windowWidth / (float)windowHeight;
 	}
@@ -205,26 +228,62 @@ class HuntGame : public BaseProject {
         MVegRocks[1].init(this, &VDBlinn, "models/VegRocks/vegetation.018.mgcg", MGCG);
         MVegRocks[2].init(this, &VDBlinn, "models/VegRocks/vegetation.022.mgcg", MGCG);
         MVegRocks[3].init(this, &VDBlinn, "models/VegRocks/vegetation.025.mgcg", MGCG);
-        MVegRocks[4].init(this, &VDBlinn, "models/VegRocks/vegetation.044.mgcg", MGCG);
-        MVegRocks[5].init(this, &VDBlinn, "models/VegRocks/vegetation.045.mgcg", MGCG);
-        MVegRocks[6].init(this, &VDBlinn, "models/VegRocks/vegetation.048.mgcg", MGCG);
-        MVegRocks[7].init(this, &VDBlinn, "models/VegRocks/vegetation.049.mgcg", MGCG);
+        MVegRocks[4].init(this, &VDBlinn, "models/VegRocks/vegetation.044.mgcg", MGCG); //rock tree
+        MVegRocks[5].init(this, &VDBlinn, "models/VegRocks/vegetation.045.mgcg", MGCG); //big rock
+        MVegRocks[6].init(this, &VDBlinn, "models/VegRocks/vegetation.048.mgcg", MGCG); // rock grass
+        MVegRocks[7].init(this, &VDBlinn, "models/VegRocks/vegetation.049.mgcg", MGCG); // rock grass
+        MVegRocks[8].init(this, &VDBlinn, "models/VegRocks/vegetation.mgcg", MGCG); // rock grass
+        MVegRocks[9].init(this, &VDBlinn, "models/VegRocks/vegetation.100.mgcg", MGCG); // rock grass
+        MVegRocks[10].init(this, &VDBlinn, "models/VegRocks/vegetation.103.mgcg", MGCG); // rock grass
+        MVegRocks[11].init(this, &VDBlinn, "models/VegRocks/vegetation.106.mgcg", MGCG); // rock grass
+
 
         std::srand(static_cast<unsigned int>(std::time(nullptr)));
         for (int i = 0; i < NANIMAL; ++i) 
         {
     		animalAngle[i] = static_cast<float>(std::rand()) / RAND_MAX * 360.0f;
 		}
+        for(int index = 0; index < NANIMAL; index++) {
+        	animalPos[index] = glm::vec3(index*2, 0, 0);
+        }
 
-		for (int i = 0; i < NVEGROCK; ++i) 
-        {
-    		AngleVegRock[i] = 0.0f; //static_cast<float>(std::rand()) / RAND_MAX * 360.0f;
-		}		
+		//corner rocks
+        vegRocks.emplace_back(glm::vec3(70.0f, -1.0f, -70.0f), 4, glm::vec3(1.5f, 3.0f, 1.5f), 120.0f, "Top Right");
+        vegRocks.emplace_back(glm::vec3(-70.0f, -3.0f, -70.0f), 4, glm::vec3(2.0f, 3.3f, 2.0f), 120.0f, "Top Left");
+        vegRocks.emplace_back(glm::vec3(70.0f, -1.0f, 70.0f), 4, glm::vec3(2.0f, 2.5f, 2.0f), 120.0f, "Back Right");
+        vegRocks.emplace_back(glm::vec3(-70.0f, -1.0f, 70.0f), 4, glm::vec3(2.5f, 3.5f, 2.5f), 120.0f, "Back Left");
+        
+        float dist = 10.0f;
+        float prev_dist = -60.0f;
+        for(int i = 0; i < 12; i++){
+        	float scaler = 5.0f + randomFloat(-1.0f, 2.0f);
+	        vegRocks.emplace_back(glm::vec3(prev_dist + dist, 0.0f, -60.0f + randomFloat(-10.0f, 10.0f)), (int)randomFloat(8.0f, 11.0f), glm::vec3(scaler, scaler+ randomFloat(0.0f, 2.0f), scaler), randomFloat(0.0f, 360.0f), "Top Right");
+	        prev_dist = prev_dist + dist;
+        }
+        
+        prev_dist = -60.0f;
+        for(int i = 0; i < 12; i++){
+        	float scaler = 5.0f + randomFloat(-1.0f, 2.0f);
+	        vegRocks.emplace_back(glm::vec3(prev_dist + dist, 0.0f, 60.0f + randomFloat(-10.0f, 10.0f)), (int)randomFloat(8.0f, 11.0f), glm::vec3(scaler, scaler+ randomFloat(0.0f, 2.0f), scaler), randomFloat(0.0f, 360.0f), "Top Right");
+	        prev_dist = prev_dist + dist;
+        }
 
-		for (int i = 0; i < NVEGROCK; ++i) 
-        {
-    		InstanceVegRock[i] = i;
-		}
+        prev_dist = -60.0f;
+        for(int i = 0; i < 12; i++){
+        	float scaler = 5.0f + randomFloat(-1.0f, 2.0f);
+	        vegRocks.emplace_back(glm::vec3( 60.0f + randomFloat(-10.0f, 10.0f) , 0.0f, prev_dist + dist), (int)randomFloat(8.0f, 11.0f), glm::vec3(scaler, scaler+ randomFloat(0.0f, 2.0f), scaler), randomFloat(0.0f, 360.0f), "Top Right");
+	        prev_dist = prev_dist + dist;
+        }
+
+        prev_dist = -60.0f;
+        for(int i = 0; i < 12; i++){
+        	float scaler = 5.0f + randomFloat(-1.0f, 2.0f);
+	        vegRocks.emplace_back(glm::vec3( -60.0f + randomFloat(-10.0f, 10.0f) , 0.0f, prev_dist + dist), (int)randomFloat(8.0f, 11.0f), glm::vec3(scaler, scaler + randomFloat(0.0f, 2.0f), scaler), randomFloat(0.0f, 360.0f), "Top Right");
+	        prev_dist = prev_dist + dist;
+        }
+
+
+
 
 
 
@@ -255,12 +314,7 @@ class HuntGame : public BaseProject {
 		ViewMatrix = glm::translate(glm::mat4(1), -CamPos);
 
 
-        for(int index = 0; index < NANIMAL; index++) {
-        	animalPos[index] = glm::vec3(index*2, 0, 0);
-        }
-        for(int index = 0; index < NVEGROCK; index++) {
-        	PosVegRock[index] = glm::vec3(index*2, 0, 4);
-        }
+
 
 
 	}
@@ -372,9 +426,10 @@ class HuntGame : public BaseProject {
         }
 
 		for (int model = 0; model < NVEGROCK; model++) {
-            MVegRocks[InstanceVegRock[model]].bind(commandBuffer);
+		    const Instance& instance = vegRocks[model];
+            MVegRocks[instance.modelID].bind(commandBuffer);
             DSVegRocks[model].bind(commandBuffer, PBlinn, 1, currentImage);
-            vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(MVegRocks[InstanceVegRock[model]].indices.size()), 1, 0, 0, 0);
+            vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(MVegRocks[instance.modelID].indices.size()), 1, 0, 0, 0);
         }
 
 		Mground.bind(commandBuffer);
@@ -437,7 +492,7 @@ class HuntGame : public BaseProject {
 		}
 		
 		const float ROT_SPEED = glm::radians(120.0f);
-		const float MOVE_SPEED = 2.0f;
+		const float MOVE_SPEED = 10.0f;
 		
 		// The Fly model update proc.
 		ViewMatrix = glm::rotate(glm::mat4(1), ROT_SPEED * r.x * deltaT,
@@ -584,10 +639,10 @@ class HuntGame : public BaseProject {
 
         for (int model = 0; model < NANIMAL; model++) {
 
- 			blinnUbo.mMat = glm::translate(glm::scale(glm::mat4(1), glm::vec3(0.5,0.5,0.5)),
+ 			blinnUbo.mMat = glm::translate(glm::mat4(1.0f),
                                            animalPos[model]) 
  											* glm::rotate(glm::mat4(1.0f), glm::radians(90.0f),glm::vec3(1.0f, 0.0f, 0.0f))
- 											* glm::rotate(glm::mat4(1.0f), glm::radians(animalAngle[model]),glm::vec3(0.0f, 0.0f, 1.0f)) * baseTr;
+ 											* glm::rotate(glm::scale(glm::mat4(1), glm::vec3(0.5,0.5,0.5)), glm::radians(animalAngle[model]),glm::vec3(0.0f, 0.0f, 1.0f)) * baseTr;
 
 
         	blinnUbo.mvpMat = ViewPrj * blinnUbo.mMat;
@@ -600,11 +655,12 @@ class HuntGame : public BaseProject {
         }
 
         for (int model = 0; model < NVEGROCK; model++) {
+        	const Instance& instance = vegRocks[model];
 
- 			blinnUbo.mMat = glm::translate(glm::scale(glm::mat4(1), glm::vec3(0.5,0.5,0.5)),
-                                           PosVegRock[model]) 
+ 			blinnUbo.mMat = glm::translate(glm::mat4(1.0f),
+                                           instance.pos) 
  											* glm::rotate(glm::mat4(1.0f), glm::radians(0.0f),glm::vec3(1.0f, 0.0f, 0.0f))
- 											* glm::rotate(glm::mat4(1.0f), glm::radians(AngleVegRock[model]),glm::vec3(0.0f, 0.0f, 1.0f)) * baseTr;
+ 											* glm::rotate(glm::scale(glm::mat4(1), instance.scale), glm::radians(instance.angle),glm::vec3(0.0f, 1.0f, 0.0f)) * baseTr;
 
 
         	blinnUbo.mvpMat = ViewPrj * blinnUbo.mMat;
