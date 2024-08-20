@@ -14,6 +14,8 @@ std::vector<SingleText> outText = {
 // The uniform buffer object used in this example
 #define NSHIP 1
 #define NANIMAL 10
+#define NVEGROCK 8
+
 
 
 
@@ -84,8 +86,14 @@ class HuntGame : public BaseProject {
     Model Mground, MTower;
 
 
+    Model MVegRocks[8];
+    int InstanceVegRock[NVEGROCK];
+    float AngleVegRock[NVEGROCK];
+    glm::vec3 PosVegRock[NVEGROCK];
+
     Model MAnimals[NANIMAL];
     float animalAngle[NANIMAL];
+    glm::vec3 animalPos[NANIMAL];
 
     
     // Descriptor Sets
@@ -93,6 +101,8 @@ class HuntGame : public BaseProject {
     DescriptorSet DSsun;
     DescriptorSet DSground, DSTower;
     DescriptorSet DSAnimals[NANIMAL];
+    DescriptorSet DSVegRocks[NVEGROCK];
+
     
    // Textures
     Texture T1, Tanimal;
@@ -191,10 +201,29 @@ class HuntGame : public BaseProject {
         MAnimals[8].init(this, &VDBlinn, "models/elephant_001.mgcg", MGCG);
         MAnimals[9].init(this, &VDBlinn, "models/lion_female_001.mgcg", MGCG);
 
+        MVegRocks[0].init(this, &VDBlinn, "models/VegRocks/vegetation.001.mgcg", MGCG);
+        MVegRocks[1].init(this, &VDBlinn, "models/VegRocks/vegetation.018.mgcg", MGCG);
+        MVegRocks[2].init(this, &VDBlinn, "models/VegRocks/vegetation.022.mgcg", MGCG);
+        MVegRocks[3].init(this, &VDBlinn, "models/VegRocks/vegetation.025.mgcg", MGCG);
+        MVegRocks[4].init(this, &VDBlinn, "models/VegRocks/vegetation.044.mgcg", MGCG);
+        MVegRocks[5].init(this, &VDBlinn, "models/VegRocks/vegetation.045.mgcg", MGCG);
+        MVegRocks[6].init(this, &VDBlinn, "models/VegRocks/vegetation.048.mgcg", MGCG);
+        MVegRocks[7].init(this, &VDBlinn, "models/VegRocks/vegetation.049.mgcg", MGCG);
+
         std::srand(static_cast<unsigned int>(std::time(nullptr)));
         for (int i = 0; i < NANIMAL; ++i) 
         {
     		animalAngle[i] = static_cast<float>(std::rand()) / RAND_MAX * 360.0f;
+		}
+
+		for (int i = 0; i < NVEGROCK; ++i) 
+        {
+    		AngleVegRock[i] = 0.0f; //static_cast<float>(std::rand()) / RAND_MAX * 360.0f;
+		}		
+
+		for (int i = 0; i < NVEGROCK; ++i) 
+        {
+    		InstanceVegRock[i] = i;
 		}
 
 
@@ -224,6 +253,16 @@ class HuntGame : public BaseProject {
 		std::cout << "Descriptor Sets in the Pool : " << DPSZs.setsInPool << "\n";
 		
 		ViewMatrix = glm::translate(glm::mat4(1), -CamPos);
+
+
+        for(int index = 0; index < NANIMAL; index++) {
+        	animalPos[index] = glm::vec3(index*2, 0, 0);
+        }
+        for(int index = 0; index < NVEGROCK; index++) {
+        	PosVegRock[index] = glm::vec3(index*2, 0, 4);
+        }
+
+
 	}
 	
 	// Here you create your pipelines and Descriptor Sets!
@@ -241,6 +280,11 @@ class HuntGame : public BaseProject {
         for (DescriptorSet &DSAnimal: DSAnimals) {
             DSAnimal.init(this, &DSLBlinn, {&Tanimal});
             std::cout << "DSAnimal.init!\n";
+        };
+
+        for (DescriptorSet &DSVegRock: DSVegRocks) {
+            DSVegRock.init(this, &DSLBlinn, {&T1});
+            std::cout << "DSVegRocks.init!\n";
         };
 
 			
@@ -265,6 +309,10 @@ class HuntGame : public BaseProject {
             DSAnimal.cleanup();
             std::cout << "DSAnimal.cleanup!\n";
         }
+        for (DescriptorSet &DSVegRock: DSVegRocks) {
+            DSVegRock.cleanup();
+            std::cout << "DSVegRock.cleanup!\n";
+        }        
 
 		txt.pipelinesAndDescriptorSetsCleanup();
 	}
@@ -288,7 +336,9 @@ class HuntGame : public BaseProject {
         for (Model &MAnimal: MAnimals) {
             MAnimal.cleanup();
         }
-
+        for (Model &MVegRock: MVegRocks) {
+            MVegRock.cleanup();
+        }
 
 
 		
@@ -319,6 +369,12 @@ class HuntGame : public BaseProject {
             MAnimals[model].bind(commandBuffer);
             DSAnimals[model].bind(commandBuffer, PBlinn, 1, currentImage);
             vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(MAnimals[model].indices.size()), 1, 0, 0, 0);
+        }
+
+		for (int model = 0; model < NVEGROCK; model++) {
+            MVegRocks[InstanceVegRock[model]].bind(commandBuffer);
+            DSVegRocks[model].bind(commandBuffer, PBlinn, 1, currentImage);
+            vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(MVegRocks[InstanceVegRock[model]].indices.size()), 1, 0, 0, 0);
         }
 
 		Mground.bind(commandBuffer);
@@ -529,7 +585,7 @@ class HuntGame : public BaseProject {
         for (int model = 0; model < NANIMAL; model++) {
 
  			blinnUbo.mMat = glm::translate(glm::scale(glm::mat4(1), glm::vec3(0.5,0.5,0.5)),
-                                           glm::vec3( model*2 , 0, 0)) 
+                                           animalPos[model]) 
  											* glm::rotate(glm::mat4(1.0f), glm::radians(90.0f),glm::vec3(1.0f, 0.0f, 0.0f))
  											* glm::rotate(glm::mat4(1.0f), glm::radians(animalAngle[model]),glm::vec3(0.0f, 0.0f, 1.0f)) * baseTr;
 
@@ -541,6 +597,23 @@ class HuntGame : public BaseProject {
 
 			blinnMatParUbo.Power = 2000.0;
         	DSAnimals[model].map(currentImage, &blinnMatParUbo, 2);
+        }
+
+        for (int model = 0; model < NVEGROCK; model++) {
+
+ 			blinnUbo.mMat = glm::translate(glm::scale(glm::mat4(1), glm::vec3(0.5,0.5,0.5)),
+                                           PosVegRock[model]) 
+ 											* glm::rotate(glm::mat4(1.0f), glm::radians(0.0f),glm::vec3(1.0f, 0.0f, 0.0f))
+ 											* glm::rotate(glm::mat4(1.0f), glm::radians(AngleVegRock[model]),glm::vec3(0.0f, 0.0f, 1.0f)) * baseTr;
+
+
+        	blinnUbo.mvpMat = ViewPrj * blinnUbo.mMat;
+        	blinnUbo.nMat = glm::inverse(glm::transpose(blinnUbo.mMat));
+
+            DSVegRocks[model].map(currentImage, &blinnUbo, 0);
+
+			blinnMatParUbo.Power = 2000.0;
+        	DSVegRocks[model].map(currentImage, &blinnMatParUbo, 2);
         }
 	}
 };
