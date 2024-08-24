@@ -11,13 +11,10 @@ std::vector<SingleText> outText = {
 	{1, {"Saving Screenshots. Please wait.", "", "",""}, 0, 0}
 };
 
-// The uniform buffer object used in this example
-#define NSHIP 1
-#define NANIMAL 10
-#define NVEGROCK 52
-
-
-
+// THE NUMBER OF INSTANCES OF ANIMALS, VEGITATION/ROCKS, STRUCTURES
+#define NANIMAL 10 
+#define NVEGROCK 72
+#define NSTRUCTURES 5
 
 struct BlinnUniformBufferObject {
 	alignas(16) glm::mat4 mvpMat;
@@ -57,22 +54,26 @@ struct EmissionVertex {
 	glm::vec2 UV;
 };
 
+
+// class used to create instances of an object
+
 class Instance {
 public:
-    glm::vec3 pos;  
-    int modelID;         
-    glm::vec3 scale;     
-    float angle;         
-    std::string desc;    
+    glm::vec3 pos;  // instance position
+    int modelID;    // model id used to get the model of the object     
+    glm::vec3 scale; // scale    
+    float angle;     // angle can be used to roate object    
+    std::string desc; // description of the instance 
+
     // Constructor
     Instance(const glm::vec3& position, int id, const glm::vec3& scl, float ang, const std::string& description)
         : pos(position), modelID(id), scale(scl), angle(ang), desc(description) {}
 };
 
+
 float randomFloat(float min, float max) {
     // Generate a random float between 0 and 1
     float random = static_cast<float>(std::rand()) / static_cast<float>(RAND_MAX);
-
     // Scale and shift to the desired range [min, max]
     return min + random * (max - min);
 }
@@ -100,37 +101,36 @@ class HuntGame : public BaseProject {
     TextMaker txt;
     
     // Models
-    Model MAx; //axis
+    Model MAx; // xyz axis object
     Model Msun;
-    Model Mground, MTower;
+    Model Mground;
 
-
+	// we have 12 different models of different vegitiation and rocks, but we can have many more instances of these models
     Model MVegRocks[12];
-    int InstanceVegRock[NVEGROCK];
-    float AngleVegRock[NVEGROCK];
-    glm::vec3 PosVegRock[NVEGROCK];
-    glm::vec3 ScaleVegRock[NVEGROCK];
-    std::vector<Instance> vegRocks;
+    std::vector<Instance> vegRocks; // vector holding all instances of the vegrocks
 
+    Model MStructures[4];
+    std::vector<Instance> structures;
 
-
-    Model MAnimals[NANIMAL];
-    float animalAngle[NANIMAL];
-    glm::vec3 animalPos[NANIMAL];
+    Model MAnimals[10];
+    std::vector<Instance> animals;
 
     
     // Descriptor Sets
     DescriptorSet DSGlobal, DSAx;
     DescriptorSet DSsun;
-    DescriptorSet DSground, DSTower;
+    DescriptorSet DSground;
     DescriptorSet DSAnimals[NANIMAL];
     DescriptorSet DSVegRocks[NVEGROCK];
+    DescriptorSet DSStructures[NSTRUCTURES];
+
 
     
    // Textures
     Texture T1, Tanimal;
     Texture Tsun;
-    Texture Tground, Ttower;
+    Texture Tground;
+    Texture TStructures[4];
     
 	
 	// Other application parameters
@@ -211,18 +211,17 @@ class HuntGame : public BaseProject {
         MAx.init(this, &VDBlinn, "models/axis.obj", OBJ);
 		Msun.init(this, &VDEmission, "models/Sphere.obj", OBJ);
 		Mground.init(this, &VDBlinn, "models/LargePlane.obj", OBJ);
-		MTower.init(this, &VDBlinn, "models/tower.obj", OBJ);
         
-        MAnimals[0].init(this, &VDBlinn, "models/rhinoceros_001.mgcg", MGCG);
-        MAnimals[1].init(this, &VDBlinn, "models/tiger_001.mgcg", MGCG);
-        MAnimals[2].init(this, &VDBlinn, "models/wolf_002.mgcg", MGCG);
-        MAnimals[3].init(this, &VDBlinn, "models/zebra_001.mgcg", MGCG);
-        MAnimals[4].init(this, &VDBlinn, "models/bear_001.mgcg", MGCG);
-        MAnimals[5].init(this, &VDBlinn, "models/bison_001.mgcg", MGCG);
-        MAnimals[6].init(this, &VDBlinn, "models/bull_001.mgcg", MGCG);
-        MAnimals[7].init(this, &VDBlinn, "models/duck_001.mgcg", MGCG);
-        MAnimals[8].init(this, &VDBlinn, "models/elephant_001.mgcg", MGCG);
-        MAnimals[9].init(this, &VDBlinn, "models/lion_female_001.mgcg", MGCG);
+        MAnimals[0].init(this, &VDBlinn, "models/animals/rhinoceros_001.mgcg", MGCG);
+        MAnimals[1].init(this, &VDBlinn, "models/animals/tiger_001.mgcg", MGCG);
+        MAnimals[2].init(this, &VDBlinn, "models/animals/wolf_002.mgcg", MGCG);
+        MAnimals[3].init(this, &VDBlinn, "models/animals/zebra_001.mgcg", MGCG);
+        MAnimals[4].init(this, &VDBlinn, "models/animals/bear_001.mgcg", MGCG);
+        MAnimals[5].init(this, &VDBlinn, "models/animals/bison_001.mgcg", MGCG);
+        MAnimals[6].init(this, &VDBlinn, "models/animals/bull_001.mgcg", MGCG);
+        MAnimals[7].init(this, &VDBlinn, "models/animals/duck_001.mgcg", MGCG);
+        MAnimals[8].init(this, &VDBlinn, "models/animals/elephant_001.mgcg", MGCG);
+        MAnimals[9].init(this, &VDBlinn, "models/animals/lion_female_001.mgcg", MGCG);
 
         MVegRocks[0].init(this, &VDBlinn, "models/VegRocks/vegetation.001.mgcg", MGCG);
         MVegRocks[1].init(this, &VDBlinn, "models/VegRocks/vegetation.018.mgcg", MGCG);
@@ -237,15 +236,23 @@ class HuntGame : public BaseProject {
         MVegRocks[10].init(this, &VDBlinn, "models/VegRocks/vegetation.103.mgcg", MGCG); // rock grass
         MVegRocks[11].init(this, &VDBlinn, "models/VegRocks/vegetation.106.mgcg", MGCG); // rock grass
 
+        MStructures[0].init(this, &VDBlinn, "models/structure/cottage.obj", OBJ);
+        MStructures[1].init(this, &VDBlinn, "models/structure/fence.obj", OBJ);
+        MStructures[2].init(this, &VDBlinn, "models/structure/tower.obj", OBJ);
+        MStructures[3].init(this, &VDBlinn, "models/structure/woodhouse.obj", OBJ);
 
-        std::srand(static_cast<unsigned int>(std::time(nullptr)));
-        for (int i = 0; i < NANIMAL; ++i) 
-        {
-    		animalAngle[i] = static_cast<float>(std::rand()) / RAND_MAX * 360.0f;
-		}
-        for(int index = 0; index < NANIMAL; index++) {
-        	animalPos[index] = glm::vec3(index*2, 0, 0);
-        }
+        // Create the textures
+		Tsun.init(this, "textures/2k_sun.jpg");
+		Tground.init(this, "textures/2k_sun.jpg");
+        T1.init(this,   "textures/Textures.png");
+        Tanimal.init(this, "textures/Textures-Animals.png");
+        
+        TStructures[0].init(this, "textures/cottage_diffuse.png");
+        TStructures[1].init(this, "textures/fenceDiffuse.jpg");
+        TStructures[2].init(this, "textures/Tower_Col.jpg");
+        TStructures[3].init(this, "textures/woodenhousediffuse.png");
+
+        // emplace_back creates an instance of an object using it's constructor and then places it into a vector of instances
 
 		//corner rocks
         vegRocks.emplace_back(glm::vec3(70.0f, -1.0f, -70.0f), 4, glm::vec3(1.5f, 3.0f, 1.5f), 120.0f, "Top Right");
@@ -253,6 +260,9 @@ class HuntGame : public BaseProject {
         vegRocks.emplace_back(glm::vec3(70.0f, -1.0f, 70.0f), 4, glm::vec3(2.0f, 2.5f, 2.0f), 120.0f, "Back Right");
         vegRocks.emplace_back(glm::vec3(-70.0f, -1.0f, 70.0f), 4, glm::vec3(2.5f, 3.5f, 2.5f), 120.0f, "Back Left");
         
+
+        // Rocks around perimeter 
+
         float dist = 10.0f;
         float prev_dist = -60.0f;
         for(int i = 0; i < 12; i++){
@@ -282,17 +292,57 @@ class HuntGame : public BaseProject {
 	        prev_dist = prev_dist + dist;
         }
 
+        // TREES
+
+        vegRocks.emplace_back(glm::vec3(40.0f, 0.0f, -32.0f), 1, glm::vec3(1.0f, 1.0f, 1.0f), 0.0f, "Top Right");
+
+        vegRocks.emplace_back(glm::vec3(20.0f, 0.0f, -29.0f), 3, glm::vec3(1.0f, 1.0f, 1.0f), 0.0f, "Top Right");
+        vegRocks.emplace_back(glm::vec3(10.0f, 0.0f, -30.0f), 1, glm::vec3(1.0f, 1.0f, 1.0f), 0.0f, "Top Right");
+        vegRocks.emplace_back(glm::vec3(-5.0f, 0.0f, -38.0f), 2, glm::vec3(1.0f, 1.0f, 1.0f), 0.0f, "Top Right");
+        vegRocks.emplace_back(glm::vec3(-22.0f, 0.0f, -25.0f), 3, glm::vec3(1.0f, 1.0f, 1.0f), 0.0f, "Top Right");
+
+
+        vegRocks.emplace_back(glm::vec3(-43.0f, 0.0f, -40.0f), 1,glm::vec3(1.0f, 1.0f, 1.0f), 0.0f, "Top Left");
+
+        vegRocks.emplace_back(glm::vec3(-33.0f, 0.0f, -30.0f), 2,glm::vec3(1.0f, 1.0f, 1.0f), 0.0f, "Top Left");
+        vegRocks.emplace_back(glm::vec3(-23.0f, 0.0f, -10.0f), 1,glm::vec3(1.5f, 2.0f, 1.5f), 0.0f, "Top Left");
+        vegRocks.emplace_back(glm::vec3(-40.0f, 0.0f, 	6.0f), 3,glm::vec3(1.0f, 1.0f, 1.0f), 0.0f, "Top Left");
+        vegRocks.emplace_back(glm::vec3(-30.0f, 0.0f, 14.0f), 2,glm::vec3(1.0f, 1.0f, 1.0f), 0.0f, "Top Left");
+
+        vegRocks.emplace_back(glm::vec3(-38.0f, 0.0f, 40.0f), 1,glm::vec3(1.0f, 1.0f, 1.0f), 180.0f, "Back Left");
+
+        vegRocks.emplace_back(glm::vec3(-18.0f, 0.0f, 40.0f), 3,glm::vec3(1.0f, 1.0f, 1.0f), 180.0f, "Back Left");
+        vegRocks.emplace_back(glm::vec3( 0.0f, 0.0f, 20.0f), 2,glm::vec3(1.0f, 1.0f, 1.0f), 180.0f, "Back Left");
+        vegRocks.emplace_back(glm::vec3( 8.0f, 0.0f, 33.0f), 3,glm::vec3(1.0f, 1.0f, 1.0f), 180.0f, "Back Left");
+        vegRocks.emplace_back(glm::vec3( 22.0f, 0.0f, 41.0f), 2,glm::vec3(1.0f, 1.0f, 1.0f), 180.0f, "Back Left");
+
+        vegRocks.emplace_back(glm::vec3(40.0f, 0.0f, 20.0f), 1, glm::vec3(1.0f, 1.0f, 1.0f), 90.0f, "Back Right");
+
+        vegRocks.emplace_back(glm::vec3(30.0f, 0.0f, -30.0f), 2,glm::vec3(1.0f, 1.0f, 1.0f), 0.0f, "Top Left");
+        vegRocks.emplace_back(glm::vec3(43.0f, 0.0f, -10.0f), 1,glm::vec3(1.5f, 2.0f, 1.5f), 0.0f, "Top Left");
+        vegRocks.emplace_back(glm::vec3(23.0f, 0.0f, 	6.0f), 3,glm::vec3(1.0f, 1.0f, 1.0f), 0.0f, "Top Left");
+        vegRocks.emplace_back(glm::vec3(43.0f, 0.0f, 14.0f), 2,glm::vec3(1.0f, 1.0f, 1.0f), 0.0f, "Top Left");
+
+        /// STRUCTURES
+
+        structures.emplace_back(glm::vec3(0.0f, 0.0f, 10.0f), 3, glm::vec3(1.0f, 1.0f, 1.0f), 0.0f, "Cottage");
+        structures.emplace_back(glm::vec3(10.0f, 0.0f, -10.0f), 3, glm::vec3(1.0f, 1.0f, 1.0f), 0.0f, "House");
+        structures.emplace_back(glm::vec3(4.0f, 0.0f, -10.0f), 1, glm::vec3(0.01f, 0.01f, 0.01f), -90.0f, "fence");
+        structures.emplace_back(glm::vec3(5.5f, 0.0f, -10.0f), 1, glm::vec3(0.01f, 0.01f, 0.01f), -90.0f, "fence");
+        structures.emplace_back(glm::vec3(0.0f, -1.0f, 0.0f), 2, glm::vec3(1.0f, 1.0f, 1.0f), 0.0f, "TOWER");
+
+
+        // ANIMALS
+
+        for(int i = 0; i < NANIMAL; i ++){
+	        animals.emplace_back(glm::vec3(1.0f + i, 0.0f, 0.0f), i, glm::vec3(1.0f, 1.0f, 1.0f), 0.0f, "animal");
+        }
 
 
 
 
 
-        // Create the textures
-		Tsun.init(this, "textures/2k_sun.jpg");
-		Tground.init(this, "textures/2k_sun.jpg");
-        T1.init(this,   "textures/Textures.png");
-        Tanimal.init(this, "textures/Textures-Animals.png");
-        Ttower.init(this, "textures/Tower_Col.jpg");
+
 
 
 		// Descriptor pool sizes
@@ -329,7 +379,6 @@ class HuntGame : public BaseProject {
 		DSsun.init(this, &DSLEmission, {&Tsun});
 		DSground.init(this, &DSLBlinn, {&T1});
         DSAx.init(this, &DSLBlinn, {&T1});
-        DSTower.init(this, &DSLBlinn, {&Ttower});
 
         for (DescriptorSet &DSAnimal: DSAnimals) {
             DSAnimal.init(this, &DSLBlinn, {&Tanimal});
@@ -341,6 +390,10 @@ class HuntGame : public BaseProject {
             std::cout << "DSVegRocks.init!\n";
         };
 
+        for (int index = 0; index < NSTRUCTURES; index++) {
+        	const Instance& instance = structures[index];
+            DSStructures[index].init(this, &DSLBlinn, {&TStructures[instance.modelID]});
+        }
 			
 		DSGlobal.init(this, &DSLGlobal, {});
 
@@ -357,7 +410,6 @@ class HuntGame : public BaseProject {
 		DSGlobal.cleanup();
 		DSground.cleanup();
         DSAx.cleanup();
-        DSTower.cleanup();
 
         for (DescriptorSet &DSAnimal: DSAnimals) {
             DSAnimal.cleanup();
@@ -367,6 +419,11 @@ class HuntGame : public BaseProject {
             DSVegRock.cleanup();
             std::cout << "DSVegRock.cleanup!\n";
         }        
+
+        for (DescriptorSet &DSStructure: DSStructures) {
+            DSStructure.cleanup();
+            std::cout << "DSStructure.init!\n";
+        };
 
 		txt.pipelinesAndDescriptorSetsCleanup();
 	}
@@ -381,17 +438,22 @@ class HuntGame : public BaseProject {
 		Tground.cleanup();
         T1.cleanup();
         Tanimal.cleanup();
-        Ttower.cleanup();
+
+        for (Texture &Tstruct: TStructures) {
+            Tstruct.cleanup();
+        }
 
 		Msun.cleanup();
 		Mground.cleanup();
         MAx.cleanup();
-        MTower.cleanup();
         for (Model &MAnimal: MAnimals) {
             MAnimal.cleanup();
         }
         for (Model &MVegRock: MVegRocks) {
             MVegRock.cleanup();
+        }
+        for (Model &MStructure: MStructures) {
+            MStructure.cleanup();
         }
 
 
@@ -419,17 +481,26 @@ class HuntGame : public BaseProject {
 
 		// The descriptor sets, for each descriptor set specified in the pipeline
 		DSGlobal.bind(commandBuffer, PBlinn, 0, currentImage);	// The Global Descriptor Set (Set 0)
-		for (int model = 0; model < NANIMAL; model++) {
-            MAnimals[model].bind(commandBuffer);
-            DSAnimals[model].bind(commandBuffer, PBlinn, 1, currentImage);
-            vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(MAnimals[model].indices.size()), 1, 0, 0, 0);
+
+		for (int index = 0; index < NANIMAL; index++) {
+		    const Instance& instance = animals[index];
+            MAnimals[instance.modelID].bind(commandBuffer);
+            DSAnimals[index].bind(commandBuffer, PBlinn, 1, currentImage);
+            vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(MAnimals[instance.modelID].indices.size()), 1, 0, 0, 0);
         }
 
-		for (int model = 0; model < NVEGROCK; model++) {
-		    const Instance& instance = vegRocks[model];
+		for (int index = 0; index < NVEGROCK; index++) {
+		    const Instance& instance = vegRocks[index];
             MVegRocks[instance.modelID].bind(commandBuffer);
-            DSVegRocks[model].bind(commandBuffer, PBlinn, 1, currentImage);
+            DSVegRocks[index].bind(commandBuffer, PBlinn, 1, currentImage);
             vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(MVegRocks[instance.modelID].indices.size()), 1, 0, 0, 0);
+        }
+
+		for (int index = 0; index < NSTRUCTURES; index++) {
+		    const Instance& instance = structures[index];
+            MStructures[instance.modelID].bind(commandBuffer);
+            DSStructures[index].bind(commandBuffer, PBlinn, 1, currentImage);
+            vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(MStructures[instance.modelID].indices.size()), 1, 0, 0, 0);
         }
 
 		Mground.bind(commandBuffer);
@@ -442,10 +513,7 @@ class HuntGame : public BaseProject {
         vkCmdDrawIndexed(commandBuffer,
                 static_cast<uint32_t>(MAx.indices.size()), 1, 0, 0, 0);
 
-        MTower.bind(commandBuffer);
-        DSTower.bind(commandBuffer, PBlinn, 1, currentImage);
-        vkCmdDrawIndexed(commandBuffer,
-                static_cast<uint32_t>(MTower.indices.size()), 1, 0, 0, 0);
+
 
 
         
@@ -567,8 +635,6 @@ class HuntGame : public BaseProject {
 
 					//ViewMatrix = glm::translate(glm::mat4(1), -CamPos);
 
-
-
 		// Here is where you actually update your uniforms
 		glm::mat4 M = glm::perspective(glm::radians(45.0f), Ar, 0.1f, 160.0f);
 		M[1][1] *= -1;
@@ -613,11 +679,6 @@ class HuntGame : public BaseProject {
         DSAx.map(currentImage, &blinnMatParUbo, 2);
 
 
-
-        //matUbo.mMat = glm::translate(glm::mat4(1),glm::vec3( 0 , 0, 0))  * baseTr;
-        //matUbo.nMat = ViewPrj * matUbo.mMat;
-        //matUbo.mvpMat = glm::inverse(glm::transpose(matUbo.mMat));
-
         blinnUbo.mMat = glm::translate(glm::scale(glm::mat4(1), glm::vec3(4,1,4)),
                                            glm::vec3( 0 , 0, 0)) 
  											* glm::rotate(glm::mat4(1.0f), glm::radians(0.0f),glm::vec3(1.0f, 0.0f, 0.0f)) * baseTr;
@@ -627,22 +688,14 @@ class HuntGame : public BaseProject {
         DSground.map(currentImage, &blinnUbo, 0); //DSground
         DSground.map(currentImage, &blinnMatParUbo, 2);
 
-        blinnUbo.mMat = glm::translate(glm::scale(glm::mat4(1), glm::vec3(0.5,0.5,0.5)),
-                                           glm::vec3( 0 , -0.9, 0)) 
- 											* glm::rotate(glm::mat4(1.0f), glm::radians(0.0f),glm::vec3(1.0f, 0.0f, 0.0f)) * baseTr;
-        blinnUbo.mvpMat = ViewPrj * blinnUbo.mMat;
-       	blinnUbo.nMat = glm::inverse(glm::transpose(blinnUbo.mMat));
-
-        DSTower.map(currentImage, &blinnUbo, 0); //DSground
-        DSTower.map(currentImage, &blinnMatParUbo, 2);
-
-
+        //ANIMALS
         for (int model = 0; model < NANIMAL; model++) {
+        	const Instance& instance = animals[model];
 
  			blinnUbo.mMat = glm::translate(glm::mat4(1.0f),
-                                           animalPos[model]) 
+                                           instance.pos) 
  											* glm::rotate(glm::mat4(1.0f), glm::radians(90.0f),glm::vec3(1.0f, 0.0f, 0.0f))
- 											* glm::rotate(glm::scale(glm::mat4(1), glm::vec3(0.5,0.5,0.5)), glm::radians(animalAngle[model]),glm::vec3(0.0f, 0.0f, 1.0f)) * baseTr;
+ 											* glm::rotate(glm::scale(glm::mat4(1), glm::vec3(0.5,0.5,0.5)), glm::radians(instance.angle),glm::vec3(0.0f, 0.0f, 1.0f)) * baseTr;
 
 
         	blinnUbo.mvpMat = ViewPrj * blinnUbo.mMat;
@@ -654,6 +707,7 @@ class HuntGame : public BaseProject {
         	DSAnimals[model].map(currentImage, &blinnMatParUbo, 2);
         }
 
+        // VEG ROCKs
         for (int model = 0; model < NVEGROCK; model++) {
         	const Instance& instance = vegRocks[model];
 
@@ -670,6 +724,25 @@ class HuntGame : public BaseProject {
 
 			blinnMatParUbo.Power = 2000.0;
         	DSVegRocks[model].map(currentImage, &blinnMatParUbo, 2);
+        }
+
+        // STRUCUTRES
+        for (int model = 0; model < NSTRUCTURES; model++) {
+        	const Instance& instance = structures[model];
+
+ 			blinnUbo.mMat = glm::translate(glm::mat4(1.0f),
+                                           instance.pos) 
+ 											* glm::rotate(glm::mat4(1.0f), glm::radians(0.0f),glm::vec3(1.0f, 0.0f, 0.0f))
+ 											* glm::rotate(glm::scale(glm::mat4(1), instance.scale), glm::radians(instance.angle),glm::vec3(1.0f, 0.0f, 0.0f)) * baseTr;
+
+
+        	blinnUbo.mvpMat = ViewPrj * blinnUbo.mMat;
+        	blinnUbo.nMat = glm::inverse(glm::transpose(blinnUbo.mMat));
+
+            DSStructures[model].map(currentImage, &blinnUbo, 0);
+
+			blinnMatParUbo.Power = 2000.0;
+        	DSStructures[model].map(currentImage, &blinnMatParUbo, 2);
         }
 	}
 };
