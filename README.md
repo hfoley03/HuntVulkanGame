@@ -1,6 +1,18 @@
 # Computer Graphics Project: Hunting Game 
 ### Harry Foley & Marcello Grati
 
+#### To Do:
+- finish basic scenery: more tree, rocks etc
+- get colliosion library and get it working
+- create a second camera that willl be the player's camera, keeping the current camera for development/debugging
+- player camera will need a gun object
+- write our own blinnshader
+- add more lights
+- write normal map shader for the objs that have normal maps eg Tower
+- GUI and its shader
+- shooting mechanics
+- and lots more
+
 Idea: simple 3D animal hunting game.
 User is contained in a small area in some part of the map. 
 User has a rifle, can choose between not aiming with scope or aiming with scope.
@@ -21,3 +33,5 @@ Shoot animals that pop up around the map to score points.
 - Gun Smoke
 - Animation for animal hit
 - Day and Night Lighting from a Sun and Moon that orbit the map
+
+
