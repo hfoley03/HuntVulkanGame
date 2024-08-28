@@ -55,6 +55,11 @@ struct EmissionVertex {
 	glm::vec2 UV;
 };
 
+struct HUDVertex {
+    glm::vec2 pos;
+    glm::vec2 UV;
+};
+
 
 // class used to create instances of an object
 
@@ -89,14 +94,17 @@ class HuntGame : public BaseProject {
 	DescriptorSetLayout DSLGlobal;	    // For Global values
 	DescriptorSetLayout DSLBlinn;	    // For Blinn Objects
 	DescriptorSetLayout DSLEmission;	// For Emission Objects
+	DescriptorSetLayout DSLHUD;
 
 	// Vertex formats
 	VertexDescriptor VDBlinn;
 	VertexDescriptor VDEmission;
+	VertexDescriptor VDHUD;
 
 	// Pipelines [Shader couples]
 	Pipeline PBlinn;
 	Pipeline PEmission;
+	Pipeline PHUD;
 
 	// Scenes and texts
     TextMaker txt;
@@ -116,9 +124,21 @@ class HuntGame : public BaseProject {
     Model MAnimals[10];
     std::vector<Instance> animals;
 
+    //HUD
+    // Vertex data for a centered quad
+	HUDVertex HUDvertices[4] = {
+    	{{-0.05f, -0.05f}, {0.0f, 0.0f}},  // Bottom-left
+    	{{ 0.05f, -0.05f}, {1.0f, 0.0f}},  // Bottom-right
+    	{{ 0.05f,  0.05f}, {1.0f, 1.0f}},  // Top-right
+    	{{-0.05f,  0.05f}, {0.0f, 1.0f}},  // Top-left
+	};
+	//HUDVertex HUDvertices[4];
+
+	uint16_t HUDindices[6] = {0, 1, 2, 2, 3, 0};
+
     
     // Descriptor Sets
-    DescriptorSet DSGlobal, DSAx;
+    DescriptorSet DSGlobal, DSAx, DSCrosshair;
     DescriptorSet DSsun;
     DescriptorSet DSground;
     DescriptorSet DSAnimals[NANIMAL];
@@ -132,6 +152,7 @@ class HuntGame : public BaseProject {
     Texture Tsun;
     Texture Tground;
     Texture TStructures[4];
+    Texture TCrosshair;
     
 	
 	// Other application parameters
@@ -177,6 +198,10 @@ class HuntGame : public BaseProject {
 					{0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT, sizeof(EmissionUniformBufferObject), 1},
 					{1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 0, 1}
 				});
+		DSLHUD.init(this, {
+    			{0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 0, 1}  // Crosshairs texture sampler
+				});
+
 
 
         
@@ -200,14 +225,24 @@ class HuntGame : public BaseProject {
 				         sizeof(glm::vec2), UV}
 				});
 
+		VDHUD.init(this, {
+				  {0, sizeof(HUDVertex), VK_VERTEX_INPUT_RATE_VERTEX}
+				}, {
+				  {0, 0, VK_FORMAT_R32G32_SFLOAT, offsetof(HUDVertex, pos),
+				         sizeof(glm::vec3), POSITION},
+				  {0, 1, VK_FORMAT_R32G32_SFLOAT, offsetof(HUDVertex, UV),
+				         sizeof(glm::vec2), UV}
+				});
+
 //  Place here the initialization for the VertexDescriptor
 
               
 		// Pipelines [Shader couples]
 		PBlinn.init(this, &VDBlinn,  "shaders/BlinnVert.spv",    "shaders/BlinnFrag.spv", {&DSLGlobal, &DSLBlinn});
 		PEmission.init(this, &VDEmission,  "shaders/EmissionVert.spv",    "shaders/EmissionFrag.spv", {&DSLEmission});
-
-
+		PHUD.init(this, &VDHUD, "shaders/HUDVert.spv", "shaders/HUDFrag.spv", {&DSLHUD});
+        PHUD.setAdvancedFeatures(VK_COMPARE_OP_LESS_OR_EQUAL, VK_POLYGON_MODE_FILL, VK_CULL_MODE_NONE, false);
+ 
 		// Create models
         MAx.init(this, &VDBlinn, "models/axis.obj", OBJ);
 		Msun.init(this, &VDEmission, "models/Sphere.obj", OBJ);
@@ -242,11 +277,15 @@ class HuntGame : public BaseProject {
         MStructures[2].init(this, &VDBlinn, "models/structure/tower.obj", OBJ);
         MStructures[3].init(this, &VDBlinn, "models/structure/woodhouse.obj", OBJ);
 
+
+
+
         // Create the textures
 		Tsun.init(this, "textures/2k_sun.jpg");
 		Tground.init(this, "textures/2k_sun.jpg");
         T1.init(this,   "textures/Textures.png");
         Tanimal.init(this, "textures/Textures-Animals.png");
+        TCrosshair.init(this, "textures/crosshair.png");
         
         TStructures[0].init(this, "textures/cottage_diffuse.png");
         TStructures[1].init(this, "textures/fenceDiffuse.jpg");
@@ -375,11 +414,13 @@ class HuntGame : public BaseProject {
 		// This creates a new pipeline (with the current surface), using its shaders
 		PBlinn.create();
 		PEmission.create();
+		PHUD.create();
         
 		// Here you define the data set
 		DSsun.init(this, &DSLEmission, {&Tsun});
 		DSground.init(this, &DSLBlinn, {&T1});
         DSAx.init(this, &DSLBlinn, {&T1});
+        DSCrosshair.init(this, &DSLHUD, {&TCrosshair});
 
         for (DescriptorSet &DSAnimal: DSAnimals) {
             DSAnimal.init(this, &DSLBlinn, {&Tanimal});
@@ -407,10 +448,13 @@ class HuntGame : public BaseProject {
 		// Cleanup pipelines
 		PBlinn.cleanup();
 		PEmission.cleanup();
+		PHUD.cleanup();
+
 		DSsun.cleanup();
 		DSGlobal.cleanup();
 		DSground.cleanup();
         DSAx.cleanup();
+        DSCrosshair.cleanup();
 
         for (DescriptorSet &DSAnimal: DSAnimals) {
             DSAnimal.cleanup();
@@ -439,6 +483,7 @@ class HuntGame : public BaseProject {
 		Tground.cleanup();
         T1.cleanup();
         Tanimal.cleanup();
+        TCrosshair.cleanup();
 
         for (Texture &Tstruct: TStructures) {
             Tstruct.cleanup();
@@ -463,10 +508,12 @@ class HuntGame : public BaseProject {
 		DSLBlinn.cleanup();
 		DSLEmission.cleanup();
 		DSLGlobal.cleanup();
+		DSLHUD.cleanup();
 		
 		// Destroies the pipelines
 		PBlinn.destroy();
 		PEmission.destroy();
+		PHUD.destroy();
 
 		txt.localCleanup();		
 	}
@@ -525,6 +572,7 @@ class HuntGame : public BaseProject {
 				static_cast<uint32_t>(Msun.indices.size()), 1, 0, 0, 0);	
 
 
+		PHUD.bind(commandBuffer);
 
             
 		//txt.populateCommandBuffer(commandBuffer, currentImage, currScene);
