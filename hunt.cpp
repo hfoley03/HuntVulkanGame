@@ -113,6 +113,7 @@ class HuntGame : public BaseProject {
     Model MAx; // xyz axis object
     Model Msun;
     Model Mground;
+    Model MCrosshair;
 
 	// we have 12 different models of different vegitiation and rocks, but we can have many more instances of these models
     Model MVegRocks[12];
@@ -127,10 +128,10 @@ class HuntGame : public BaseProject {
     //HUD
     // Vertex data for a centered quad
 	HUDVertex HUDvertices[4] = {
-    	{{-0.05f, -0.05f}, {0.0f, 0.0f}},  // Bottom-left
-    	{{ 0.05f, -0.05f}, {1.0f, 0.0f}},  // Bottom-right
-    	{{ 0.05f,  0.05f}, {1.0f, 1.0f}},  // Top-right
-    	{{-0.05f,  0.05f}, {0.0f, 1.0f}},  // Top-left
+    	{{-0.05f, -0.05f}, {0.0f, 0.0f}},  
+    	{{ 0.05f, -0.05f}, {1.0f, 0.0f}},  
+    	{{ 0.05f,  0.05f}, {1.0f, 1.0f}},  
+    	{{-0.05f,  0.05f}, {0.0f, 1.0f}},  
 	};
 	//HUDVertex HUDvertices[4];
 
@@ -229,7 +230,7 @@ class HuntGame : public BaseProject {
 				  {0, sizeof(HUDVertex), VK_VERTEX_INPUT_RATE_VERTEX}
 				}, {
 				  {0, 0, VK_FORMAT_R32G32_SFLOAT, offsetof(HUDVertex, pos),
-				         sizeof(glm::vec3), POSITION},
+				         sizeof(glm::vec2), POSITION},
 				  {0, 1, VK_FORMAT_R32G32_SFLOAT, offsetof(HUDVertex, UV),
 				         sizeof(glm::vec2), UV}
 				});
@@ -277,7 +278,57 @@ class HuntGame : public BaseProject {
         MStructures[2].init(this, &VDBlinn, "models/structure/tower.obj", OBJ);
         MStructures[3].init(this, &VDBlinn, "models/structure/woodhouse.obj", OBJ);
 
+		// MCrosshair.indices[0] = HUDindices[0];
+		// MCrosshair.indices[1] = HUDindices[1];
+		// MCrosshair.indices[2] = HUDindices[2];
+		// MCrosshair.indices[3] = HUDindices[3];
+		// MCrosshair.indices[4] = HUDindices[4];
+		// MCrosshair.indices[5] = HUDindices[5];
 
+		// MCrosshair.vertices[0] = HUDvertices[0];
+		// MCrosshair.vertices[1] = HUDvertices[1];
+		// MCrosshair.vertices[2] = HUDvertices[2];
+		// MCrosshair.vertices[3] = HUDvertices[3];
+
+		// MCrosshair.vertices.insert( HUDvertices[0].pos, HUDvertices[0].UV );  // Bottom-left
+		// MCrosshair.vertices.insert( MCrosshair.vertices.end(), {0.05f, -0.05f});
+    	// {{ 0.05f, -0.05f}, {1.0f, 0.0f}},  // Bottom-right
+    	// {{ 0.05f,  0.05f}, {1.0f, 1.0f}},  // Top-right
+    	// {{-0.05f,  0.05f}, {0.0f, 1.0f}},
+
+    	int mainStride = sizeof(HUDVertex);  // Assuming TextVertex is the structure used for vertices
+
+		// Define the 4 vertices of the quad
+		std::vector<HUDVertex> quadVertices = {
+		    {{-0.05f, -0.05f}, {0.0f, 0.0f}},  
+		    {{ 0.05f, -0.05f}, {1.0f, 0.0f}},  
+		    {{ 0.05f,  0.05f}, {1.0f, 1.0f}},  
+		    {{-0.05f,  0.05f}, {0.0f, 1.0f}},
+		};
+
+		// Insert the vertices into M.vertices
+		for (const auto& vertex : quadVertices) {
+		    std::vector<unsigned char> vertexData(mainStride, 0);
+		    HUDVertex* V_vertex = (HUDVertex*)(&vertexData[0]);
+		    
+		    // Copy the position and texture coordinates from quadVertices to the vertex data
+		    V_vertex->pos = vertex.pos;
+		    V_vertex->UV = vertex.UV;
+		    
+		    // Add this vertex to M.vertices
+		    MCrosshair.vertices.insert(MCrosshair.vertices.end(), vertexData.begin(), vertexData.end());
+		}
+
+		// Define the indices for the two triangles
+		std::vector<unsigned int> quadIndices = {0, 1, 2, 2, 3, 0};
+
+		// Insert the indices into M.indices
+		MCrosshair.indices.insert(MCrosshair.indices.end(), quadIndices.begin(), quadIndices.end());
+
+
+
+		//MCrosshair.vertics = HUDvertices;
+		MCrosshair.initMesh(this, &VDHUD);
 
 
         // Create the textures
@@ -285,7 +336,7 @@ class HuntGame : public BaseProject {
 		Tground.init(this, "textures/2k_sun.jpg");
         T1.init(this,   "textures/Textures.png");
         Tanimal.init(this, "textures/Textures-Animals.png");
-        TCrosshair.init(this, "textures/crosshair.png");
+        TCrosshair.init(this, "textures/crosshair2.png");
         
         TStructures[0].init(this, "textures/cottage_diffuse.png");
         TStructures[1].init(this, "textures/fenceDiffuse.jpg");
@@ -489,6 +540,9 @@ class HuntGame : public BaseProject {
             Tstruct.cleanup();
         }
 
+
+		MCrosshair.cleanup();
+
 		Msun.cleanup();
 		Mground.cleanup();
         MAx.cleanup();
@@ -501,6 +555,7 @@ class HuntGame : public BaseProject {
         for (Model &MStructure: MStructures) {
             MStructure.cleanup();
         }
+
 
 
 		
@@ -573,6 +628,15 @@ class HuntGame : public BaseProject {
 
 
 		PHUD.bind(commandBuffer);
+		MCrosshair.bind(commandBuffer);
+		DSCrosshair.bind(commandBuffer, PHUD, 0, currentImage);
+		vkCmdDrawIndexed(commandBuffer,
+				static_cast<uint32_t>(MCrosshair.indices.size()), 1, 0, 0, 0);	
+
+		// vkCmdBindVertexBuffers(commandBuffer, 0, 1, &vertexBuffer, &offset);
+		// vkCmdBindIndexBuffer(commandBuffer, indexBuffer, 0, VK_INDEX_TYPE_UINT16);
+		// DSCrosshair.bind(commandBuffer, PHUD, 0, currentImage);
+		// vkCmdDrawIndexed(commandBuffer, 6, 1, 0, 0, 0);  // Assuming 6 indices for the quad
 
             
 		//txt.populateCommandBuffer(commandBuffer, currentImage, currScene);
