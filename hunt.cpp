@@ -5,6 +5,7 @@
 #include "modules/TextMaker.hpp"
 #include <cstdlib> 
 
+bool isDebugMode = false;
 
 std::vector<SingleText> outText = {
 	{2, {"Adding an object", "Press SPACE to save the screenshots","",""}, 0, 0},
@@ -748,7 +749,25 @@ class HuntGame : public BaseProject {
 };
 
 // This is the main: probably you do not need to touch this!
-int main() {
+int main(int argc, char* argv[]) {
+
+    if (argc > 1) { // Check if any arguments are provided
+        std::string arg = argv[1];
+        if (arg == "-debug") {
+            isDebugMode = true;
+        } else {
+            std::cerr << "Unknown argument: " << arg << std::endl;
+            return 1;
+        }
+    }
+    if (isDebugMode) {
+        std::cout << "Running in Debug mode" << std::endl;
+        // Debug-specific code here
+    } else {
+        std::cout << "Running in Release mode" << std::endl;
+        // Release-specific code here
+    }
+
     HuntGame app;
 
     try {
