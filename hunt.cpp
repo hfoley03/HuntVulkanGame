@@ -125,18 +125,6 @@ class HuntGame : public BaseProject {
     Model MAnimals[10];
     std::vector<Instance> animals;
 
-    //HUD
-    // Vertex data for a centered quad
-	HUDVertex HUDvertices[4] = {
-    	{{-0.05f, -0.05f}, {0.0f, 0.0f}},  
-    	{{ 0.05f, -0.05f}, {1.0f, 0.0f}},  
-    	{{ 0.05f,  0.05f}, {1.0f, 1.0f}},  
-    	{{-0.05f,  0.05f}, {0.0f, 1.0f}},  
-	};
-	//HUDVertex HUDvertices[4];
-
-	uint16_t HUDindices[6] = {0, 1, 2, 2, 3, 0};
-
     
     // Descriptor Sets
     DescriptorSet DSGlobal, DSAx, DSCrosshair;
@@ -146,8 +134,6 @@ class HuntGame : public BaseProject {
     DescriptorSet DSVegRocks[NVEGROCK];
     DescriptorSet DSStructures[NSTRUCTURES];
 
-
-    
    // Textures
     Texture T1, Tanimal;
     Texture Tsun;
@@ -242,7 +228,8 @@ class HuntGame : public BaseProject {
 		PBlinn.init(this, &VDBlinn,  "shaders/BlinnVert.spv",    "shaders/BlinnFrag.spv", {&DSLGlobal, &DSLBlinn});
 		PEmission.init(this, &VDEmission,  "shaders/EmissionVert.spv",    "shaders/EmissionFrag.spv", {&DSLEmission});
 		PHUD.init(this, &VDHUD, "shaders/HUDVert.spv", "shaders/HUDFrag.spv", {&DSLHUD});
-        PHUD.setAdvancedFeatures(VK_COMPARE_OP_LESS_OR_EQUAL, VK_POLYGON_MODE_FILL, VK_CULL_MODE_NONE, false);
+        PHUD.setAdvancedFeatures(VK_COMPARE_OP_LESS_OR_EQUAL, VK_POLYGON_MODE_FILL, VK_CULL_MODE_NONE, true);
+
  
 		// Create models
         MAx.init(this, &VDBlinn, "models/axis.obj", OBJ);
@@ -278,35 +265,16 @@ class HuntGame : public BaseProject {
         MStructures[2].init(this, &VDBlinn, "models/structure/tower.obj", OBJ);
         MStructures[3].init(this, &VDBlinn, "models/structure/woodhouse.obj", OBJ);
 
-		// MCrosshair.indices[0] = HUDindices[0];
-		// MCrosshair.indices[1] = HUDindices[1];
-		// MCrosshair.indices[2] = HUDindices[2];
-		// MCrosshair.indices[3] = HUDindices[3];
-		// MCrosshair.indices[4] = HUDindices[4];
-		// MCrosshair.indices[5] = HUDindices[5];
-
-		// MCrosshair.vertices[0] = HUDvertices[0];
-		// MCrosshair.vertices[1] = HUDvertices[1];
-		// MCrosshair.vertices[2] = HUDvertices[2];
-		// MCrosshair.vertices[3] = HUDvertices[3];
-
-		// MCrosshair.vertices.insert( HUDvertices[0].pos, HUDvertices[0].UV );  // Bottom-left
-		// MCrosshair.vertices.insert( MCrosshair.vertices.end(), {0.05f, -0.05f});
-    	// {{ 0.05f, -0.05f}, {1.0f, 0.0f}},  // Bottom-right
-    	// {{ 0.05f,  0.05f}, {1.0f, 1.0f}},  // Top-right
-    	// {{-0.05f,  0.05f}, {0.0f, 1.0f}},
-
-    	int mainStride = sizeof(HUDVertex);  // Assuming TextVertex is the structure used for vertices
-
+    	int mainStride = sizeof(HUDVertex);  
 		// Define the 4 vertices of the quad
 		std::vector<HUDVertex> quadVertices = {
-		    {{-0.05f, -0.05f}, {0.0f, 0.0f}},  
-		    {{ 0.05f, -0.05f}, {1.0f, 0.0f}},  
-		    {{ 0.05f,  0.05f}, {1.0f, 1.0f}},  
-		    {{-0.05f,  0.05f}, {0.0f, 1.0f}},
+		    {{-0.1f, -0.1f}, {0.0f, 0.0f}},  
+		    {{ 0.1f, -0.1f}, {1.0f, 0.0f}},  
+		    {{ 0.1f,  0.1f}, {1.0f, 1.0f}},  
+		    {{-0.1f,  0.1f}, {0.0f, 1.0f}},
 		};
 
-		// Insert the vertices into M.vertices
+		// Insert the vertices
 		for (const auto& vertex : quadVertices) {
 		    std::vector<unsigned char> vertexData(mainStride, 0);
 		    HUDVertex* V_vertex = (HUDVertex*)(&vertexData[0]);
@@ -324,10 +292,6 @@ class HuntGame : public BaseProject {
 
 		// Insert the indices into M.indices
 		MCrosshair.indices.insert(MCrosshair.indices.end(), quadIndices.begin(), quadIndices.end());
-
-
-
-		//MCrosshair.vertics = HUDvertices;
 		MCrosshair.initMesh(this, &VDHUD);
 
 
@@ -336,7 +300,7 @@ class HuntGame : public BaseProject {
 		Tground.init(this, "textures/2k_sun.jpg");
         T1.init(this,   "textures/Textures.png");
         Tanimal.init(this, "textures/Textures-Animals.png");
-        TCrosshair.init(this, "textures/crosshair2.png");
+        TCrosshair.init(this, "textures/cros.png");
         
         TStructures[0].init(this, "textures/cottage_diffuse.png");
         TStructures[1].init(this, "textures/fenceDiffuse.jpg");
