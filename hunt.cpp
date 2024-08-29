@@ -606,6 +606,31 @@ class HuntGame : public BaseProject {
 		//txt.populateCommandBuffer(commandBuffer, currentImage, currScene);
 	}
 
+	glm::mat4 MakeViewProjectionLookInDirection(glm::vec3 Pos, float Yaw, float Pitch, float Roll, float FOVy, float Ar, float nearPlane, float farPlane) {
+	// Create a View Projection Matrix with the following characteristics:
+	// Projection:
+	//	- Perspective with:
+	//	- Fov-y defined in formal parameter >FOVy<
+	//  - Aspect ratio defined in formal parameter >Ar<
+	//  - Near Plane distance defined in formal parameter >nearPlane<
+	//  - Far Plane distance defined in formal parameter >farPlane<
+	// View:
+	//	- Use the Look-In-Direction model with:
+	//	- Camera Positon defined in formal parameter >Pos<
+	//	- Looking direction defined in formal parameter >Yaw<
+	//	- Looking elevation defined in formal parameter >Pitch<
+	//	- Looking rool defined in formal parameter >Roll<
+	glm::mat4 M = glm::perspective(FOVy, Ar, nearPlane, farPlane);
+	M[1][1] *= -1;
+	M = M *
+		glm::rotate(glm::mat4(1.0), -Roll, glm::vec3(0,0,1)) *
+		glm::rotate(glm::mat4(1.0), -Pitch, glm::vec3(1,0,0)) *
+		glm::rotate(glm::mat4(1.0), -Yaw, glm::vec3(0,1,0)) *
+		glm::translate(glm::mat4(1.0), -Pos);
+
+	return M;
+}
+
 	// Here is where you update the uniforms.
 	// Very likely this will be where you will be writing the logic of your application.
 	void updateUniformBuffer(uint32_t currentImage) {
@@ -639,6 +664,8 @@ class HuntGame : public BaseProject {
 		const float ROT_SPEED = glm::radians(120.0f);
 		const float MOVE_SPEED = 10.0f;
 		
+		if (!isDebugMode)
+		{
 		// The Fly model update proc.
 		ViewMatrix = glm::rotate(glm::mat4(1), ROT_SPEED * r.x * deltaT,
 								 glm::vec3(1, 0, 0)) * ViewMatrix;
@@ -649,6 +676,81 @@ class HuntGame : public BaseProject {
 		ViewMatrix = glm::translate(glm::mat4(1), -glm::vec3(
 								   MOVE_SPEED * m.x * deltaT, MOVE_SPEED * m.y * deltaT, MOVE_SPEED * m.z * deltaT))
 													   * ViewMatrix;
+		} else {
+		// Walk Model update proc.
+
+		// float alpha = ROT_SPEED * r.x * deltaT;
+		// float beta = ROT_SPEED * r.y * deltaT;
+		// //rho = ROT_SPEED * r.z * deltaT;
+	
+		// glm::vec3 pos= glm::vec3(0);
+
+		// glm::vec3 ux = glm::vec3(cos(beta), 0.0f, -sin(beta));
+		// glm::vec3 uz = glm::vec3(sin(beta), 0.0f, cos(beta));
+
+		// pos += ux * MOVE_SPEED * m.x * deltaT;
+		// pos += uz * MOVE_SPEED * m.z * deltaT;
+
+		// ViewMatrix = 
+		// 	glm::rotate(glm::mat4(1), beta, glm::vec3(0,1,0)) *
+		// 	glm::rotate(glm::mat4(1), alpha, glm::vec3(1,0,0)) *
+		// 	glm::translate(glm::mat4(1), -pos) *
+		// 	ViewMatrix;
+
+			glm::vec3 Pos= glm::vec3(0);
+			float Yaw = 0;
+
+			static float CamPitch = glm::radians(20.0f);
+			static float CamYaw   = M_PI;
+			static float CamRoll  = 0.0f;
+			
+			const glm::vec3 Cam1stPos = glm::vec3(0.49061f, 2.07f, 2.7445f);
+
+			static float dampedVel = 0.0f;
+			static float dampedVelx = 0.0f;
+
+			glm::vec3 CamPos = Pos;
+
+			dampedVel =  MOVE_SPEED * deltaT * m.z + dampedVel;
+			dampedVelx =  MOVE_SPEED * deltaT * m.x + dampedVelx;
+			
+
+			// dampedVel = 0.0f;
+
+			if(dampedVel != 0.0f) {
+				glm::vec3 oldPos = Pos;
+				
+				Pos.x = Pos.x - dampedVelx;
+				Pos.z = Pos.z - cos(Yaw) * dampedVel;
+				
+				glm::vec3 deltaPos = Pos - oldPos;
+			}
+
+			// CamPitch = glm::radians(0.0f);
+			// CamYaw   = M_PI;
+			// CamRoll  = 0.0f;
+
+			CamYaw -= ROT_SPEED * deltaT * r.y;
+			CamPitch -= ROT_SPEED * deltaT * r.x;
+			CamRoll -= ROT_SPEED * deltaT * r.z;
+		
+			CamYaw = (CamYaw < M_PI_2 ? M_PI_2 : (CamYaw > 1.5*M_PI ? 1.5*M_PI : CamYaw));
+			CamPitch = (CamPitch < -0.25*M_PI ? -0.25*M_PI : (CamPitch > 0.25*M_PI ? 0.25*M_PI : CamPitch));
+			CamRoll = (CamRoll < -M_PI ? -M_PI : (CamRoll > M_PI ? M_PI : CamRoll));
+				
+			// glm::vec3 Cam1Pos = Pos + glm::vec3(glm::rotate(glm::mat4(1), Yaw, glm::vec3(0,1,0)) *
+			// 				 glm::vec4(Cam1stPos,1));
+
+			glm::vec3 Cam1Pos = Pos + Cam1stPos;
+							 
+			// M = MakeViewProjectionLookInDirection(Cam1Pos, Yaw + CamYaw, CamPitch, CamRoll, glm::radians(90.0f), Ar, 0.1f, 500.0f);
+
+			ViewMatrix = glm::rotate(glm::mat4(1.0), -CamRoll, glm::vec3(0,0,1)) *
+				glm::rotate(glm::mat4(1.0), -CamPitch, glm::vec3(1,0,0)) *
+				glm::rotate(glm::mat4(1.0), -(Yaw + CamYaw), glm::vec3(0,1,0)) *
+				glm::translate(glm::mat4(1.0), -Cam1Pos) * glm::mat4(1.0);
+		}
+
 		static float subpassTimer = 0.0;
 
 		if(glfwGetKey(window, GLFW_KEY_SPACE)) {
