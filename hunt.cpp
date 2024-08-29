@@ -13,7 +13,7 @@ std::vector<SingleText> outText = {
 };
 
 // THE NUMBER OF INSTANCES OF ANIMALS, VEGITATION/ROCKS, STRUCTURES
-#define NANIMAL 10 
+#define NANIMAL 1//10 
 #define NVEGROCK 72
 #define NSTRUCTURES 5
 
@@ -43,7 +43,6 @@ struct UniformBufferObject {
     alignas(16) glm::mat4 nMat;
 };
 
-// The vertices data structures
 struct BlinnVertex {
 	glm::vec3 pos;
 	glm::vec3 norm;
@@ -60,21 +59,51 @@ struct HUDVertex {
     glm::vec2 UV;
 };
 
+struct BBoxVertex {
+	glm::vec3 pos;
+}
+
+struct BoundingBox {
+    glm::vec3 min;  // Minimum corner of the box
+    glm::vec3 max;  // Maximum corner of the box
+
+    BoundingBox() : min(0.0f), max(0.0f) {}
+    BoundingBox(const glm::vec3& minCorner, const glm::vec3& maxCorner)
+        : min(minCorner), max(maxCorner) {}
+};
+
 
 // class used to create instances of an object
 
 class Instance {
 public:
-    glm::vec3 pos;  // instance position
-    int modelID;    // model id used to get the model of the object     
-    glm::vec3 scale; // scale    
-    float angle;     // angle can be used to roate object    
-    std::string desc; // description of the instance 
+    glm::vec3 pos;      // Instance position
+    int modelID;        // Model ID used to get the model of the object
+    glm::vec3 scale;    // Scale
+    float angle;        // Angle for rotation
+    std::string desc;   // Description of the instance
+    BoundingBox bbox;   // Bounding box for collision detection
 
     // Constructor
     Instance(const glm::vec3& position, int id, const glm::vec3& scl, float ang, const std::string& description)
-        : pos(position), modelID(id), scale(scl), angle(ang), desc(description) {}
+        : pos(position), modelID(id), scale(scl), angle(ang), desc(description), bbox() {}
+
+    // Function to update the bounding box based on the model dimensions, position, scale, etc.
+    void updateBoundingBox(const glm::vec3& modelMin, const glm::vec3& modelMax);
 };
+
+void Instance::updateBoundingBox(const glm::vec3& modelMin, const glm::vec3& modelMax) {
+    // Step 1: Apply scaling
+    glm::vec3 scaledMin = modelMin * scale;
+    glm::vec3 scaledMax = modelMax * scale;
+
+    // Step 2: Apply rotation (only if necessary; for an AABB, rotation complicates things)
+    // To keep it simple, let's skip rotation for now and assume the AABB is axis-aligned in world space.
+
+    // Step 3: Apply translation
+    bbox.min = pos + scaledMin;
+    bbox.max = pos + scaledMax;
+}
 
 
 float randomFloat(float min, float max) {
@@ -82,6 +111,38 @@ float randomFloat(float min, float max) {
     float random = static_cast<float>(std::rand()) / static_cast<float>(RAND_MAX);
     // Scale and shift to the desired range [min, max]
     return min + random * (max - min);
+}
+
+void shoot(){
+	std::cout << "shoot" << std::endl;
+}
+
+bool rayIntersectsBox(const glm::vec3& rayOrigin, const glm::vec3& rayDirection, const BoundingBox& box) {
+    float tmin = (box.min.x - rayOrigin.x) / rayDirection.x;
+    float tmax = (box.max.x - rayOrigin.x) / rayDirection.x;
+    
+    if (tmin > tmax) std::swap(tmin, tmax);
+    
+    float tymin = (box.min.y - rayOrigin.y) / rayDirection.y;
+    float tymax = (box.max.y - rayOrigin.y) / rayDirection.y;
+    
+    if (tymin > tymax) std::swap(tymin, tymax);
+    
+    if ((tmin > tymax) || (tymin > tmax))
+        return false;
+    
+    tmin = std::max(tmin, tymin);
+    tmax = std::min(tmax, tymax);
+    
+    float tzmin = (box.min.z - rayOrigin.z) / rayDirection.z;
+    float tzmax = (box.max.z - rayOrigin.z) / rayDirection.z;
+    
+    if (tzmin > tzmax) std::swap(tzmin, tzmax);
+    
+    if ((tmin > tzmax) || (tzmin > tmax))
+        return false;
+    
+    return true;
 }
 
 
@@ -148,6 +209,13 @@ class HuntGame : public BaseProject {
 		
 	glm::vec3 CamPos = glm::vec3(0.0, 0.1, 5.0);
 	glm::mat4 ViewMatrix;
+
+	glm::vec3 CurrentCamPos = glm::vec3(0.0, 0.1, 5.0);
+	glm::vec3 CurrentCamPosFront = glm::vec3(0.0, 0.0, 0.0);
+
+	glm::vec3 rayOrigin = CurrentCamPos;
+	glm::vec3 rayDirection = glm::normalize(CurrentCamPosFront); 
+
 
 	float Ar;
 	
@@ -389,8 +457,12 @@ class HuntGame : public BaseProject {
 
         // ANIMALS
 
+		glm::vec3 modelMin(-0.5f, -0.5f, -0.5f);  
+		glm::vec3 modelMax(0.5f, 0.5f, 0.5f); 
+
         for(int i = 0; i < NANIMAL; i ++){
 	        animals.emplace_back(glm::vec3(1.0f + i, 0.0f, 0.0f), i, glm::vec3(1.0f, 1.0f, 1.0f), 0.0f, "animal");
+	        animals[i].updateBoundingBox(modelMin, modelMax);
         }
 
 
@@ -649,6 +721,12 @@ class HuntGame : public BaseProject {
 		ViewMatrix = glm::translate(glm::mat4(1), -glm::vec3(
 								   MOVE_SPEED * m.x * deltaT, MOVE_SPEED * m.y * deltaT, MOVE_SPEED * m.z * deltaT))
 													   * ViewMatrix;
+
+		CurrentCamPos = glm::vec3(glm::inverse(ViewMatrix)[3]);	
+		CurrentCamPosFront = -glm::vec3(ViewMatrix[2]);
+	    rayOrigin = CurrentCamPos;
+	    rayDirection = glm::normalize(CurrentCamPosFront); 
+
 		static float subpassTimer = 0.0;
 
 		if(glfwGetKey(window, GLFW_KEY_SPACE)) {
@@ -709,6 +787,28 @@ class HuntGame : public BaseProject {
 				curDebounce = 0;
 			}
 		}
+
+		if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS) {
+    		shoot();
+    		// camera position CurrentCamPosFront
+    		// std::cout << " x: ";
+    		// std::cout << CurrentCamPos.x;
+    		// std::cout << " y: ";
+    		// std::cout << CurrentCamPos.y;
+    		// std::cout << " z: ";
+    		// std::cout << CurrentCamPos.z << std::endl;
+
+    		// std::cout << " x: ";
+    		// std::cout << CurrentCamPosFront.x;
+    		// std::cout << " y: ";
+    		// std::cout << CurrentCamPosFront.y;
+    		// std::cout << " z: ";
+    		// std::cout << CurrentCamPosFront.z << std::endl;
+
+    		if(rayIntersectsBox(rayOrigin, rayDirection, animals[0].bbox)){ std::cout<< "HIT" << std::endl;}
+
+		}
+
 
 					//ViewMatrix = glm::translate(glm::mat4(1), -CamPos);
 
@@ -823,6 +923,8 @@ class HuntGame : public BaseProject {
         }
 	}
 };
+
+
 
 // This is the main: probably you do not need to touch this!
 int main(int argc, char* argv[]) {
