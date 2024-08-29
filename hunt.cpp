@@ -16,6 +16,8 @@ std::vector<SingleText> outText = {
 #define NANIMAL 1//10 
 #define NVEGROCK 72
 #define NSTRUCTURES 5
+#define NBALLS 5
+
 
 struct BlinnUniformBufferObject {
 	alignas(16) glm::mat4 mvpMat;
@@ -61,7 +63,7 @@ struct HUDVertex {
 
 struct BBoxVertex {
 	glm::vec3 pos;
-}
+};
 
 struct BoundingBox {
     glm::vec3 min;  // Minimum corner of the box
@@ -88,22 +90,17 @@ public:
     Instance(const glm::vec3& position, int id, const glm::vec3& scl, float ang, const std::string& description)
         : pos(position), modelID(id), scale(scl), angle(ang), desc(description), bbox() {}
 
-    // Function to update the bounding box based on the model dimensions, position, scale, etc.
-    void updateBoundingBox(const glm::vec3& modelMin, const glm::vec3& modelMax);
-};
-
-void Instance::updateBoundingBox(const glm::vec3& modelMin, const glm::vec3& modelMax) {
-    // Step 1: Apply scaling
+    void updateBoundingBox(const glm::vec3& modelMin, const glm::vec3& modelMax) {
     glm::vec3 scaledMin = modelMin * scale;
     glm::vec3 scaledMax = modelMax * scale;
 
     // Step 2: Apply rotation (only if necessary; for an AABB, rotation complicates things)
     // To keep it simple, let's skip rotation for now and assume the AABB is axis-aligned in world space.
 
-    // Step 3: Apply translation
     bbox.min = pos + scaledMin;
     bbox.max = pos + scaledMax;
 }
+};
 
 
 float randomFloat(float min, float max) {
@@ -118,13 +115,13 @@ void shoot(){
 }
 
 bool rayIntersectsBox(const glm::vec3& rayOrigin, const glm::vec3& rayDirection, const BoundingBox& box) {
-    float tmin = (box.min.x - rayOrigin.x) / rayDirection.x;
-    float tmax = (box.max.x - rayOrigin.x) / rayDirection.x;
+    float tmin = (box.min.x - rayOrigin.x) / (rayDirection.x * -1.0);
+    float tmax = (box.max.x - rayOrigin.x) / (rayDirection.x * -1.0);
     
     if (tmin > tmax) std::swap(tmin, tmax);
     
-    float tymin = (box.min.y - rayOrigin.y) / rayDirection.y;
-    float tymax = (box.max.y - rayOrigin.y) / rayDirection.y;
+    float tymin = (box.min.y - rayOrigin.y) / (rayDirection.y * -1.0);
+    float tymax = (box.max.y - rayOrigin.y) / (rayDirection.y * -1.0);
     
     if (tymin > tymax) std::swap(tymin, tymax);
     
@@ -146,6 +143,39 @@ bool rayIntersectsBox(const glm::vec3& rayOrigin, const glm::vec3& rayDirection,
 }
 
 
+bool rayIntersectsSphere(const glm::vec3& rayOrigin, const glm::vec3& rayDirection, const glm::vec3& sphereCenter, float sphereRadius, float& t0, float& t1) {
+    // Vector from ray origin to sphere center
+    glm::vec3 L = sphereCenter - rayOrigin;
+
+    // Project L onto the ray direction to get the closest approach distance tca
+
+
+    float tca = glm::dot(L, rayDirection);
+
+    // Calculate the squared distance from sphere center to the ray
+    float d2 = glm::dot(L, L) - tca * tca;
+
+    // If the distance is greater than the sphere radius, no intersection
+    float radius2 = sphereRadius * sphereRadius;
+    if (d2 > radius2) return false;
+
+    // Calculate the distance from the closest approach point to the intersection points
+    float thc = sqrt(radius2 - d2);
+
+    // Calculate intersection distances along the ray
+    t0 = tca - thc;
+    t1 = tca + thc;
+
+    // Return true indicating that the ray intersects the sphere
+    return true;
+}
+
+
+
+
+
+
+
 
 // MAIN ! 
 class HuntGame : public BaseProject {
@@ -156,16 +186,19 @@ class HuntGame : public BaseProject {
 	DescriptorSetLayout DSLBlinn;	    // For Blinn Objects
 	DescriptorSetLayout DSLEmission;	// For Emission Objects
 	DescriptorSetLayout DSLHUD;
+	DescriptorSetLayout DSLBBox;
 
 	// Vertex formats
 	VertexDescriptor VDBlinn;
 	VertexDescriptor VDEmission;
 	VertexDescriptor VDHUD;
+	VertexDescriptor VDBBox;
 
 	// Pipelines [Shader couples]
 	Pipeline PBlinn;
 	Pipeline PEmission;
 	Pipeline PHUD;
+	Pipeline PBBox;
 
 	// Scenes and texts
     TextMaker txt;
@@ -175,6 +208,10 @@ class HuntGame : public BaseProject {
     Model Msun;
     Model Mground;
     Model MCrosshair;
+    Model MBBox;
+    
+    Model MBall;
+    std::vector<Instance> balls;
 
 	// we have 12 different models of different vegitiation and rocks, but we can have many more instances of these models
     Model MVegRocks[12];
@@ -194,6 +231,8 @@ class HuntGame : public BaseProject {
     DescriptorSet DSAnimals[NANIMAL];
     DescriptorSet DSVegRocks[NVEGROCK];
     DescriptorSet DSStructures[NSTRUCTURES];
+    DescriptorSet DSBBox;
+    DescriptorSet DSBalls[NBALLS];
 
    // Textures
     Texture T1, Tanimal;
@@ -218,6 +257,50 @@ class HuntGame : public BaseProject {
 
 
 	float Ar;
+
+	void createBoundingBoxModel(Model& MBBox, const BoundingBox& bbox, VertexDescriptor& VDBBox) {
+	    int mainStride = sizeof(BBoxVertex);  // The size of each bounding box vertex
+
+	    // Define the 8 vertices of the bounding box based on min and max coordinates
+	    std::vector<BBoxVertex> bboxVertices = {
+	        {bbox.min},  // Vertex 0: (min.x, min.y, min.z)
+	        {{bbox.max.x, bbox.min.y, bbox.min.z}},  // Vertex 1: (max.x, min.y, min.z)
+	        {{bbox.min.x, bbox.max.y, bbox.min.z}},  // Vertex 2: (min.x, max.y, min.z)
+	        {{bbox.min.x, bbox.min.y, bbox.max.z}},  // Vertex 3: (min.x, min.y, max.z)
+	        {{bbox.max.x, bbox.max.y, bbox.min.z}},  // Vertex 4: (max.x, max.y, min.z)
+	        {{bbox.max.x, bbox.min.y, bbox.max.z}},  // Vertex 5: (max.x, min.y, max.z)
+	        {{bbox.min.x, bbox.max.y, bbox.max.z}},  // Vertex 6: (min.x, max.y, max.z)
+	        {bbox.max},  // Vertex 7: (max.x, max.y, max.z)
+	    };
+
+	    // Insert the vertices into MBBox.vertices
+	    for (const auto& vertex : bboxVertices) {
+	        std::vector<unsigned char> vertexData(mainStride, 0);
+	        BBoxVertex* V_vertex = (BBoxVertex*)(&vertexData[0]);
+
+	        // Copy the position from bboxVertices to the vertex data
+	        V_vertex->pos = vertex.pos;
+
+	        // Add this vertex to MBBox.vertices
+	        MBBox.vertices.insert(MBBox.vertices.end(), vertexData.begin(), vertexData.end());
+	    }
+
+	    // Define the indices for the 12 edges of the bounding box (24 indices in total)
+	    std::vector<uint32_t> bboxIndices = {
+	        // Bottom face (y = min.y)
+	        0, 1,  1, 5,  5, 3,  3, 0,
+	        // Top face (y = max.y)
+	        2, 4,  4, 7,  7, 6,  6, 2,
+	        // Vertical edges
+	        0, 2,  1, 4,  5, 7,  3, 6
+	    };
+
+	    // Insert the indices into MBBox.indices
+	    MBBox.indices.insert(MBBox.indices.end(), bboxIndices.begin(), bboxIndices.end());
+
+	    // Initialize the mesh
+	    MBBox.initMesh(this, &VDBBox);
+	}
 	
 	// Here you set the main application parameters
 	void setWindowParameters() {
@@ -256,6 +339,10 @@ class HuntGame : public BaseProject {
 		DSLHUD.init(this, {
     			{0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 0, 1}  // Crosshairs texture sampler
 				});
+		DSLBBox.init(this, {
+    			{0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT, sizeof(BlinnUniformBufferObject), 1} //BoundingBoxUniformBufferObject
+				});
+
 
 
 
@@ -289,6 +376,13 @@ class HuntGame : public BaseProject {
 				         sizeof(glm::vec2), UV}
 				});
 
+		VDBBox.init(this, {
+				  {0, sizeof(BBoxVertex), VK_VERTEX_INPUT_RATE_VERTEX}
+				}, {
+				  {0, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(BBoxVertex, pos),
+				         sizeof(glm::vec3), POSITION}
+				});
+
 //  Place here the initialization for the VertexDescriptor
 
               
@@ -297,12 +391,14 @@ class HuntGame : public BaseProject {
 		PEmission.init(this, &VDEmission,  "shaders/EmissionVert.spv",    "shaders/EmissionFrag.spv", {&DSLEmission});
 		PHUD.init(this, &VDHUD, "shaders/HUDVert.spv", "shaders/HUDFrag.spv", {&DSLHUD});
         PHUD.setAdvancedFeatures(VK_COMPARE_OP_LESS_OR_EQUAL, VK_POLYGON_MODE_FILL, VK_CULL_MODE_NONE, true);
+        PBBox.init(this, &VDBBox, "shaders/BBoxVert.spv", "shaders/BBoxFrag.spv", {&DSLBBox});
+        PBBox.setAdvancedFeatures(VK_COMPARE_OP_LESS_OR_EQUAL, VK_POLYGON_MODE_FILL, VK_CULL_MODE_NONE, false);
 
- 
 		// Create models
         MAx.init(this, &VDBlinn, "models/axis.obj", OBJ);
 		Msun.init(this, &VDEmission, "models/Sphere.obj", OBJ);
 		Mground.init(this, &VDBlinn, "models/LargePlane.obj", OBJ);
+		MBall.init(this, &VDBlinn, "models/Sphere.obj", OBJ);
         
         MAnimals[0].init(this, &VDBlinn, "models/animals/rhinoceros_001.mgcg", MGCG);
         MAnimals[1].init(this, &VDBlinn, "models/animals/tiger_001.mgcg", MGCG);
@@ -457,12 +553,18 @@ class HuntGame : public BaseProject {
 
         // ANIMALS
 
-		glm::vec3 modelMin(-0.5f, -0.5f, -0.5f);  
-		glm::vec3 modelMax(0.5f, 0.5f, 0.5f); 
-
+		// glm::vec3 modelMin(-0.5f, -0.5f, -0.5f);  
+		// glm::vec3 modelMax(0.5f, 0.5f, 0.5f); 
+		glm::vec3 modelMin(-1.0f, -0.5f, -1.0f);
+		glm::vec3 modelMax(  1.0f, 1.5f, 1.0f); 
         for(int i = 0; i < NANIMAL; i ++){
-	        animals.emplace_back(glm::vec3(1.0f + i, 0.0f, 0.0f), i, glm::vec3(1.0f, 1.0f, 1.0f), 0.0f, "animal");
+	        animals.emplace_back(glm::vec3(0.0f + i, 0.0f, 0.0f), i, glm::vec3(1.0f, 1.0f, 1.0f), 0.0f, "animal");
 	        animals[i].updateBoundingBox(modelMin, modelMax);
+	        createBoundingBoxModel(MBBox, animals[i].bbox, VDBBox);
+        }
+
+        for(int i = 0; i < NBALLS; i ++){
+	        balls.emplace_back(glm::vec3(0.0f + i, 0.0f, 0.0f), i, glm::vec3(0.1f, 0.1f, 0.1f), 0.0f, "ball");
         }
 
 
@@ -502,12 +604,14 @@ class HuntGame : public BaseProject {
 		PBlinn.create();
 		PEmission.create();
 		PHUD.create();
+		PBBox.create();
         
 		// Here you define the data set
 		DSsun.init(this, &DSLEmission, {&Tsun});
 		DSground.init(this, &DSLBlinn, {&T1});
         DSAx.init(this, &DSLBlinn, {&T1});
         DSCrosshair.init(this, &DSLHUD, {&TCrosshair});
+        DSBBox.init(this, &DSLBBox, {&T1});
 
         for (DescriptorSet &DSAnimal: DSAnimals) {
             DSAnimal.init(this, &DSLBlinn, {&Tanimal});
@@ -523,6 +627,11 @@ class HuntGame : public BaseProject {
         	const Instance& instance = structures[index];
             DSStructures[index].init(this, &DSLBlinn, {&TStructures[instance.modelID]});
         }
+
+        for (DescriptorSet &DSBall: DSBalls) {
+            DSBall.init(this, &DSLBlinn, {&T1});
+            std::cout << "DSAnimal.init!\n";
+        };
 			
 		DSGlobal.init(this, &DSLGlobal, {});
 
@@ -536,12 +645,15 @@ class HuntGame : public BaseProject {
 		PBlinn.cleanup();
 		PEmission.cleanup();
 		PHUD.cleanup();
+		PBBox.cleanup();
 
 		DSsun.cleanup();
 		DSGlobal.cleanup();
 		DSground.cleanup();
         DSAx.cleanup();
         DSCrosshair.cleanup();
+        DSBBox.cleanup();
+
 
         for (DescriptorSet &DSAnimal: DSAnimals) {
             DSAnimal.cleanup();
@@ -551,12 +663,14 @@ class HuntGame : public BaseProject {
             DSVegRock.cleanup();
             std::cout << "DSVegRock.cleanup!\n";
         }        
-
         for (DescriptorSet &DSStructure: DSStructures) {
             DSStructure.cleanup();
             std::cout << "DSStructure.init!\n";
         };
-
+        for (DescriptorSet &DSBall: DSBalls) {
+            DSBall.cleanup();
+            std::cout << "DSStructure.init!\n";
+        };
 		txt.pipelinesAndDescriptorSetsCleanup();
 	}
 
@@ -578,10 +692,11 @@ class HuntGame : public BaseProject {
 
 
 		MCrosshair.cleanup();
-
+		MBBox.cleanup();
 		Msun.cleanup();
 		Mground.cleanup();
         MAx.cleanup();
+        MBall.cleanup();
         for (Model &MAnimal: MAnimals) {
             MAnimal.cleanup();
         }
@@ -600,11 +715,13 @@ class HuntGame : public BaseProject {
 		DSLEmission.cleanup();
 		DSLGlobal.cleanup();
 		DSLHUD.cleanup();
+		DSLBBox.cleanup();
 		
 		// Destroies the pipelines
 		PBlinn.destroy();
 		PEmission.destroy();
 		PHUD.destroy();
+		PBBox.cleanup();
 
 		txt.localCleanup();		
 	}
@@ -641,6 +758,12 @@ class HuntGame : public BaseProject {
             DSStructures[index].bind(commandBuffer, PBlinn, 1, currentImage);
             vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(MStructures[instance.modelID].indices.size()), 1, 0, 0, 0);
         }
+		for (int index = 0; index < NBALLS; index++) {
+		    const Instance& instance = balls[index];
+            MBall.bind(commandBuffer);
+            DSBalls[index].bind(commandBuffer, PBlinn, 1, currentImage);
+            vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(MBall.indices.size()), 1, 0, 0, 0);
+        }
 
 		Mground.bind(commandBuffer);
 		DSground.bind(commandBuffer, PBlinn, 1, currentImage);
@@ -662,6 +785,11 @@ class HuntGame : public BaseProject {
 		vkCmdDrawIndexed(commandBuffer,
 				static_cast<uint32_t>(Msun.indices.size()), 1, 0, 0, 0);	
 
+		PBBox.bind(commandBuffer);
+		MBBox.bind(commandBuffer);
+		DSBBox.bind(commandBuffer, PBBox, 0, currentImage);
+		vkCmdDrawIndexed(commandBuffer,
+				static_cast<uint32_t>(MBBox.indices.size()), 1, 0, 0, 0);	
 
 		PHUD.bind(commandBuffer);
 		MCrosshair.bind(commandBuffer);
@@ -723,9 +851,16 @@ class HuntGame : public BaseProject {
 													   * ViewMatrix;
 
 		CurrentCamPos = glm::vec3(glm::inverse(ViewMatrix)[3]);	
-		CurrentCamPosFront = -glm::vec3(ViewMatrix[2]);
+		CurrentCamPosFront = - glm::vec3(ViewMatrix[2]);
+
+	    glm::vec3 cunt = glm::vec3(-1.0*CurrentCamPosFront.x, -1.0*CurrentCamPosFront.y, CurrentCamPosFront.z);
+
+
 	    rayOrigin = CurrentCamPos;
-	    rayDirection = glm::normalize(CurrentCamPosFront); 
+	    rayDirection = glm::normalize(cunt); 
+
+
+
 
 		static float subpassTimer = 0.0;
 
@@ -805,7 +940,44 @@ class HuntGame : public BaseProject {
     		// std::cout << " z: ";
     		// std::cout << CurrentCamPosFront.z << std::endl;
 
-    		if(rayIntersectsBox(rayOrigin, rayDirection, animals[0].bbox)){ std::cout<< "HIT" << std::endl;}
+    		//if(rayIntersectsBox(rayOrigin, rayDirection, animals[0].bbox)){ std::cout<< "HIT" << std::endl;}
+			glm::vec3 rayEnd = rayOrigin + rayDirection * 2.0f;
+
+		    //std::cout << "Bounding Box Min: " << animals[0].bbox.min.x << ", " << animals[0].bbox.min.y << ", " << animals[0].bbox.min.z << std::endl;
+			//std::cout << "Bounding Box Max: " << animals[0].bbox.max.x << ", " << animals[0].bbox.max.y << ", " << animals[0].bbox.max.z << std::endl;
+			//std::cout << "Ray Origin: " << rayOrigin.x << ", " << rayOrigin.y << ", " << rayOrigin.z << std::endl;
+			//std::cout << "Ray Direction: " << rayDirection.x << ", " << rayDirection.y << ", " << rayDirection.z << std::endl;
+			std::cout << "Ray End: " << rayEnd.x << ", " << rayEnd.y << ", " << rayEnd.z << std::endl;
+			std::cout << "animal: " << animals[0].pos.x << ", " << animals[0].pos.y << ", " << animals[0].pos.z << std::endl;
+
+
+    		//if(rayIntersectsMBox(rayOrigin, rayDirection, MBBox)){ std::cout<< "HIT" << std::endl;}
+
+			float t0, t1;
+			bool intersects = rayIntersectsSphere(rayOrigin, rayDirection, animals[0].pos, 1.0, t0, t1);
+
+    		if(intersects){ std::cout<< "Sphere HIT" << std::endl;}
+
+    		// std::cout << " x: ";
+    		// std::cout << animals[0].bbox.max.x;
+    		// std::cout << " y: ";
+    		// std::cout << animals[0].bbox.max.y;
+    		// std::cout << " z: ";
+    		// std::cout << animals[0].bbox.max.z << std::endl;
+
+    		// std::cout << " x: ";
+    		// std::cout << animals[0].pos.x;
+    		// std::cout << " y: ";
+    		// std::cout << animals[0].pos.y;
+    		// std::cout << " z: ";
+    		// std::cout << animals[0].pos.z << std::endl;
+
+    		// std::cout << " x: ";
+    		// std::cout << animals[0].bbox.min.x;
+    		// std::cout << " y: ";
+    		// std::cout << animals[0].bbox.min.y;
+    		// std::cout << " z: ";
+    		// std::cout << animals[0].bbox.min.z << std::endl;
 
 		}
 
@@ -833,7 +1005,13 @@ class HuntGame : public BaseProject {
 		BlinnUniformBufferObject blinnUbo{};
 		BlinnMatParUniformBufferObject blinnMatParUbo{};
 
-        
+		BlinnUniformBufferObject bboxUbo{};
+
+        bboxUbo.mMat = glm::mat4(1);
+        bboxUbo.nMat = glm::mat4(1);
+        bboxUbo.mvpMat = ViewPrj;
+    	//DSBBox.map(currentImage, &bboxUbo, 0);
+
         int i = 0;
         int j = 2;
         int k = 2;
@@ -865,10 +1043,11 @@ class HuntGame : public BaseProject {
         DSground.map(currentImage, &blinnUbo, 0); //DSground
         DSground.map(currentImage, &blinnMatParUbo, 2);
 
+
         //ANIMALS
         for (int model = 0; model < NANIMAL; model++) {
         	const Instance& instance = animals[model];
-
+//instance.pos
  			blinnUbo.mMat = glm::translate(glm::mat4(1.0f),
                                            instance.pos) 
  											* glm::rotate(glm::mat4(1.0f), glm::radians(90.0f),glm::vec3(1.0f, 0.0f, 0.0f))
@@ -882,6 +1061,31 @@ class HuntGame : public BaseProject {
 
 			blinnMatParUbo.Power = 2000.0;
         	DSAnimals[model].map(currentImage, &blinnMatParUbo, 2);
+
+        }
+
+        // debugging balls glm::vec3 rayEnd = rayOrigin + rayDirection * 2.0f;
+        for (int model = 0; model < NBALLS; model++) {
+
+        	//glm::vec3 test = glm::vec3(rayOrigin + rayDirection * (2.0f + 5.0f*model));
+        	//std::cout << "Ray Origin: " << test.x << ", " << test.y << ", " << test.z << std::endl;
+
+
+        	const Instance& instance = balls[model];
+ 			blinnUbo.mMat = glm::translate(glm::mat4(1.0f),
+                                           (rayOrigin + rayDirection * (10.0f + 5.0f*model))) 
+ 											* glm::rotate(glm::mat4(1.0f), glm::radians(90.0f),glm::vec3(1.0f, 0.0f, 0.0f))
+ 											* glm::rotate(glm::scale(glm::mat4(1), glm::vec3(0.1,0.1,0.1)), glm::radians(instance.angle),glm::vec3(0.0f, 0.0f, 1.0f)) * baseTr;
+
+
+        	blinnUbo.mvpMat = ViewPrj * blinnUbo.mMat;
+        	blinnUbo.nMat = glm::inverse(glm::transpose(blinnUbo.mMat));
+
+            DSBalls[model].map(currentImage, &blinnUbo, 0);
+
+			blinnMatParUbo.Power = 2000.0;
+        	DSBalls[model].map(currentImage, &blinnMatParUbo, 2);
+
         }
 
         // VEG ROCKs
@@ -916,10 +1120,10 @@ class HuntGame : public BaseProject {
         	blinnUbo.mvpMat = ViewPrj * blinnUbo.mMat;
         	blinnUbo.nMat = glm::inverse(glm::transpose(blinnUbo.mMat));
 
-            DSStructures[model].map(currentImage, &blinnUbo, 0);
+            //DSStructures[model].map(currentImage, &blinnUbo, 0);
 
 			blinnMatParUbo.Power = 2000.0;
-        	DSStructures[model].map(currentImage, &blinnMatParUbo, 2);
+        	//DSStructures[model].map(currentImage, &blinnMatParUbo, 2);
         }
 	}
 };
