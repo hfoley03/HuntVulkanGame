@@ -1014,8 +1014,13 @@ class HuntGame : public BaseProject {
 		// gubo.lightDir = glm::vec3(cos(glm::radians(135.0f)) * cos(cTime * angTurnTimeFact), sin(glm::radians(135.0f)), cos(glm::radians(135.0f)) * sin(cTime * angTurnTimeFact));
 
 		gubo.lightDir = glm::vec3(cos(cTime * angTurnTimeFact), sin(cTime * angTurnTimeFact), 0.0f);
-
-		gubo.lightColor = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
+		float intensity = glm::min(0.0f, sin(cTime * angTurnTimeFact));
+		gubo.lightColor = glm::vec4(
+			1.0f + intensity, 
+			0.1f + 0.9f * abs(sin(cTime * angTurnTimeFact)) + intensity, 
+			0.1f + 0.9f * abs(sin(cTime * angTurnTimeFact)) + intensity,
+			1.0f
+			);
 		gubo.eyePos = glm::vec3(glm::inverse(ViewMatrix) * glm::vec4(0, 0, 0, 1));
 		DSGlobal.map(currentImage, &gubo, 0);
 
