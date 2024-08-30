@@ -16,7 +16,7 @@ std::vector<SingleText> outText = {
 #define NANIMAL 1//10 
 #define NVEGROCK 72
 #define NSTRUCTURES 5
-#define NBALLS 5
+#define NBALLS 1
 
 
 struct BlinnUniformBufferObject {
@@ -66,9 +66,8 @@ struct BBoxVertex {
 };
 
 struct BoundingBox {
-    glm::vec3 min;  // Minimum corner of the box
-    glm::vec3 max;  // Maximum corner of the box
-
+    glm::vec3 min;  // min corner
+    glm::vec3 max;  // max corner
     BoundingBox() : min(0.0f), max(0.0f) {}
     BoundingBox(const glm::vec3& minCorner, const glm::vec3& maxCorner)
         : min(minCorner), max(maxCorner) {}
@@ -94,8 +93,7 @@ public:
     glm::vec3 scaledMin = modelMin * scale;
     glm::vec3 scaledMax = modelMax * scale;
 
-    // Step 2: Apply rotation (only if necessary; for an AABB, rotation complicates things)
-    // To keep it simple, let's skip rotation for now and assume the AABB is axis-aligned in world space.
+    //  rotation todo
 
     bbox.min = pos + scaledMin;
     bbox.max = pos + scaledMax;
@@ -144,43 +142,55 @@ bool rayIntersectsBox(const glm::vec3& rayOrigin, const glm::vec3& rayDirection,
 
 
 bool rayIntersectsSphere(const glm::vec3& rayOrigin, const glm::vec3& rayDirection, const glm::vec3& sphereCenter, float sphereRadius, float& t0, float& t1) {
-    // Vector from ray origin to sphere center
     glm::vec3 L = sphereCenter - rayOrigin;
 
-    // Project L onto the ray direction to get the closest approach distance tca
-
-
     float tca = glm::dot(L, rayDirection);
-
-    // Calculate the squared distance from sphere center to the ray
     float d2 = glm::dot(L, L) - tca * tca;
 
-    // If the distance is greater than the sphere radius, no intersection
     float radius2 = sphereRadius * sphereRadius;
     if (d2 > radius2) return false;
 
-    // Calculate the distance from the closest approach point to the intersection points
     float thc = sqrt(radius2 - d2);
 
-    // Calculate intersection distances along the ray
     t0 = tca - thc;
     t1 = tca + thc;
 
-    // Return true indicating that the ray intersects the sphere
     return true;
 }
 
+struct Ray {
+    glm::vec3 origin;
+    glm::vec3 direction;
+};
 
+// Function to calculate a ray from the screen center (crosshair)
+Ray calculateRayFromScreenCenter(const glm::mat4& viewMatrix, const glm::mat4& projectionMatrix) {
+    glm::vec2 ndcCoords(0.0f, 0.0f); // Center of the screen in NDC
 
+    //unproject the point both at the near plane and the far plane
+    glm::vec4 rayStartNDC(ndcCoords, -1.0f, 1.0f); // Near plane (Z = -1 in NDC)
+    glm::vec4 rayEndNDC(ndcCoords, 1.0f, 1.0f);    // Far plane (Z = 1 in NDC)
 
+    glm::mat4 invVP = glm::inverse(projectionMatrix * viewMatrix);
 
+    // NDC points to world space
+    glm::vec4 rayStartWorld = invVP * rayStartNDC;
+    glm::vec4 rayEndWorld = invVP * rayEndNDC;
 
-
+    // convert from homogeneous to 3D coordinates
+    rayStartWorld /= rayStartWorld.w;
+    rayEndWorld /= rayEndWorld.w;
+    Ray ray;
+    ray.origin = glm::vec3(rayStartWorld); 
+    ray.direction = glm::normalize(glm::vec3(rayEndWorld - rayStartWorld));  
+    return ray;
+}
 
 // MAIN ! 
 class HuntGame : public BaseProject {
 	protected:
-	
+	Ray ray;
+
 	// Descriptor Layouts ["classes" of what will be passed to the shaders]
 	DescriptorSetLayout DSLGlobal;	    // For Global values
 	DescriptorSetLayout DSLBlinn;	    // For Blinn Objects
@@ -248,6 +258,8 @@ class HuntGame : public BaseProject {
 		
 	glm::vec3 CamPos = glm::vec3(0.0, 0.1, 5.0);
 	glm::mat4 ViewMatrix;
+	float CamAlpha = 0.0f;
+	float CamBeta = 0.0f;
 
 	glm::vec3 CurrentCamPos = glm::vec3(0.0, 0.1, 5.0);
 	glm::vec3 CurrentCamPosFront = glm::vec3(0.0, 0.0, 0.0);
@@ -258,10 +270,10 @@ class HuntGame : public BaseProject {
 
 	float Ar;
 
+	// for visualisation of the bounding box only
 	void createBoundingBoxModel(Model& MBBox, const BoundingBox& bbox, VertexDescriptor& VDBBox) {
-	    int mainStride = sizeof(BBoxVertex);  // The size of each bounding box vertex
+	    int mainStride = sizeof(BBoxVertex); 
 
-	    // Define the 8 vertices of the bounding box based on min and max coordinates
 	    std::vector<BBoxVertex> bboxVertices = {
 	        {bbox.min},  // Vertex 0: (min.x, min.y, min.z)
 	        {{bbox.max.x, bbox.min.y, bbox.min.z}},  // Vertex 1: (max.x, min.y, min.z)
@@ -272,33 +284,20 @@ class HuntGame : public BaseProject {
 	        {{bbox.min.x, bbox.max.y, bbox.max.z}},  // Vertex 6: (min.x, max.y, max.z)
 	        {bbox.max},  // Vertex 7: (max.x, max.y, max.z)
 	    };
-
-	    // Insert the vertices into MBBox.vertices
 	    for (const auto& vertex : bboxVertices) {
 	        std::vector<unsigned char> vertexData(mainStride, 0);
 	        BBoxVertex* V_vertex = (BBoxVertex*)(&vertexData[0]);
 
-	        // Copy the position from bboxVertices to the vertex data
 	        V_vertex->pos = vertex.pos;
 
-	        // Add this vertex to MBBox.vertices
 	        MBBox.vertices.insert(MBBox.vertices.end(), vertexData.begin(), vertexData.end());
 	    }
-
-	    // Define the indices for the 12 edges of the bounding box (24 indices in total)
 	    std::vector<uint32_t> bboxIndices = {
-	        // Bottom face (y = min.y)
 	        0, 1,  1, 5,  5, 3,  3, 0,
-	        // Top face (y = max.y)
 	        2, 4,  4, 7,  7, 6,  6, 2,
-	        // Vertical edges
 	        0, 2,  1, 4,  5, 7,  3, 6
 	    };
-
-	    // Insert the indices into MBBox.indices
 	    MBBox.indices.insert(MBBox.indices.end(), bboxIndices.begin(), bboxIndices.end());
-
-	    // Initialize the mesh
 	    MBBox.initMesh(this, &VDBBox);
 	}
 	
@@ -343,9 +342,6 @@ class HuntGame : public BaseProject {
     			{0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT, sizeof(BlinnUniformBufferObject), 1} //BoundingBoxUniformBufferObject
 				});
 
-
-
-
         
 		// Vertex descriptors
 		VDBlinn.init(this, {
@@ -383,7 +379,6 @@ class HuntGame : public BaseProject {
 				         sizeof(glm::vec3), POSITION}
 				});
 
-//  Place here the initialization for the VertexDescriptor
 
               
 		// Pipelines [Shader couples]
@@ -443,18 +438,14 @@ class HuntGame : public BaseProject {
 		    std::vector<unsigned char> vertexData(mainStride, 0);
 		    HUDVertex* V_vertex = (HUDVertex*)(&vertexData[0]);
 		    
-		    // Copy the position and texture coordinates from quadVertices to the vertex data
 		    V_vertex->pos = vertex.pos;
 		    V_vertex->UV = vertex.UV;
 		    
-		    // Add this vertex to M.vertices
 		    MCrosshair.vertices.insert(MCrosshair.vertices.end(), vertexData.begin(), vertexData.end());
 		}
 
-		// Define the indices for the two triangles
 		std::vector<unsigned int> quadIndices = {0, 1, 2, 2, 3, 0};
 
-		// Insert the indices into M.indices
 		MCrosshair.indices.insert(MCrosshair.indices.end(), quadIndices.begin(), quadIndices.end());
 		MCrosshair.initMesh(this, &VDHUD);
 
@@ -553,16 +544,15 @@ class HuntGame : public BaseProject {
 
         // ANIMALS
 
-		// glm::vec3 modelMin(-0.5f, -0.5f, -0.5f);  
-		// glm::vec3 modelMax(0.5f, 0.5f, 0.5f); 
 		glm::vec3 modelMin(-1.0f, -0.5f, -1.0f);
 		glm::vec3 modelMax(  1.0f, 1.5f, 1.0f); 
         for(int i = 0; i < NANIMAL; i ++){
-	        animals.emplace_back(glm::vec3(0.0f + i, 0.0f, 0.0f), i, glm::vec3(1.0f, 1.0f, 1.0f), 0.0f, "animal");
+	        animals.emplace_back(glm::vec3(1.0f + i, 3.0f, 3.0f), i, glm::vec3(1.0f, 1.0f, 1.0f), 0.0f, "animal");
 	        animals[i].updateBoundingBox(modelMin, modelMax);
 	        createBoundingBoxModel(MBBox, animals[i].bbox, VDBBox);
         }
 
+        // balls for visualiing ray
         for(int i = 0; i < NBALLS; i ++){
 	        balls.emplace_back(glm::vec3(0.0f + i, 0.0f, 0.0f), i, glm::vec3(0.1f, 0.1f, 0.1f), 0.0f, "ball");
         }
@@ -690,7 +680,6 @@ class HuntGame : public BaseProject {
             Tstruct.cleanup();
         }
 
-
 		MCrosshair.cleanup();
 		MBBox.cleanup();
 		Msun.cleanup();
@@ -775,10 +764,6 @@ class HuntGame : public BaseProject {
         vkCmdDrawIndexed(commandBuffer,
                 static_cast<uint32_t>(MAx.indices.size()), 1, 0, 0, 0);
 
-
-
-
-        
 		PEmission.bind(commandBuffer);
 		Msun.bind(commandBuffer);
 		DSsun.bind(commandBuffer, PEmission, 0, currentImage);
@@ -796,11 +781,6 @@ class HuntGame : public BaseProject {
 		DSCrosshair.bind(commandBuffer, PHUD, 0, currentImage);
 		vkCmdDrawIndexed(commandBuffer,
 				static_cast<uint32_t>(MCrosshair.indices.size()), 1, 0, 0, 0);	
-
-		// vkCmdBindVertexBuffers(commandBuffer, 0, 1, &vertexBuffer, &offset);
-		// vkCmdBindIndexBuffer(commandBuffer, indexBuffer, 0, VK_INDEX_TYPE_UINT16);
-		// DSCrosshair.bind(commandBuffer, PHUD, 0, currentImage);
-		// vkCmdDrawIndexed(commandBuffer, 6, 1, 0, 0, 0);  // Assuming 6 indices for the quad
 
             
 		//txt.populateCommandBuffer(commandBuffer, currentImage, currScene);
@@ -850,17 +830,20 @@ class HuntGame : public BaseProject {
 								   MOVE_SPEED * m.x * deltaT, MOVE_SPEED * m.y * deltaT, MOVE_SPEED * m.z * deltaT))
 													   * ViewMatrix;
 
-		CurrentCamPos = glm::vec3(glm::inverse(ViewMatrix)[3]);	
-		CurrentCamPosFront = - glm::vec3(ViewMatrix[2]);
+		// CamAlpha = CamAlpha - ROT_SPEED * deltaT * r.y;
+		// CamBeta  = CamBeta  - ROT_SPEED * deltaT * r.x;
+		// CamBeta  =  CamBeta < glm::radians(-90.0f) ? glm::radians(-90.0f) :
+		// 		   (CamBeta > glm::radians( 90.0f) ? glm::radians( 90.0f) : CamBeta);
 
-	    glm::vec3 cunt = glm::vec3(-1.0*CurrentCamPosFront.x, -1.0*CurrentCamPosFront.y, CurrentCamPosFront.z);
+		// glm::vec3 ux = glm::rotate(glm::mat4(1.0f), CamAlpha, glm::vec3(0,1,0)) * glm::vec4(1,0,0,1);
+		// glm::vec3 uz = glm::rotate(glm::mat4(1.0f), CamAlpha, glm::vec3(0,1,0)) * glm::vec4(0,0,-1,1);
+		// CamPos = CamPos + MOVE_SPEED * m.x * ux * deltaT;
+		// CamPos = CamPos + MOVE_SPEED * m.y * glm::vec3(0,1,0) * deltaT;
+		// CamPos = CamPos + MOVE_SPEED * m.z * uz * deltaT;
 
-
-	    rayOrigin = CurrentCamPos;
-	    rayDirection = glm::normalize(cunt); 
-
-
-
+		// ViewMatrix =  glm::rotate(glm::mat4(1.0), -CamBeta, glm::vec3(1,0,0)) *
+		// 				glm::rotate(glm::mat4(1.0), -CamAlpha, glm::vec3(0,1,0)) *
+		// 				glm::translate(glm::mat4(1.0), -CamPos);
 
 		static float subpassTimer = 0.0;
 
@@ -924,74 +907,38 @@ class HuntGame : public BaseProject {
 		}
 
 		if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS) {
-    		shoot();
-    		// camera position CurrentCamPosFront
-    		// std::cout << " x: ";
-    		// std::cout << CurrentCamPos.x;
-    		// std::cout << " y: ";
-    		// std::cout << CurrentCamPos.y;
-    		// std::cout << " z: ";
-    		// std::cout << CurrentCamPos.z << std::endl;
+    		//shoot();
 
-    		// std::cout << " x: ";
-    		// std::cout << CurrentCamPosFront.x;
-    		// std::cout << " y: ";
-    		// std::cout << CurrentCamPosFront.y;
-    		// std::cout << " z: ";
-    		// std::cout << CurrentCamPosFront.z << std::endl;
-
-    		//if(rayIntersectsBox(rayOrigin, rayDirection, animals[0].bbox)){ std::cout<< "HIT" << std::endl;}
-			glm::vec3 rayEnd = rayOrigin + rayDirection * 2.0f;
-
-		    //std::cout << "Bounding Box Min: " << animals[0].bbox.min.x << ", " << animals[0].bbox.min.y << ", " << animals[0].bbox.min.z << std::endl;
-			//std::cout << "Bounding Box Max: " << animals[0].bbox.max.x << ", " << animals[0].bbox.max.y << ", " << animals[0].bbox.max.z << std::endl;
-			//std::cout << "Ray Origin: " << rayOrigin.x << ", " << rayOrigin.y << ", " << rayOrigin.z << std::endl;
-			//std::cout << "Ray Direction: " << rayDirection.x << ", " << rayDirection.y << ", " << rayDirection.z << std::endl;
-			std::cout << "Ray End: " << rayEnd.x << ", " << rayEnd.y << ", " << rayEnd.z << std::endl;
-			std::cout << "animal: " << animals[0].pos.x << ", " << animals[0].pos.y << ", " << animals[0].pos.z << std::endl;
+			// for (int index = 0; index < NANIMAL; index++) {
+		    // 			const Instance& instance = animals[index];
+		    //     		if(rayIntersectsBox(ray.origin, ray.direction, instance.bbox)){ std::cout<< "BBox HIT" << std::endl;}
+        	// }
 
 
-    		//if(rayIntersectsMBox(rayOrigin, rayDirection, MBBox)){ std::cout<< "HIT" << std::endl;}
+			//std::cout << "New Ray Orgin: " << ray.origin.x << ", " << ray.origin.y << ", " << ray.origin.z << std::endl;
+			std::cout << "New Ray Direction: " << ray.direction.x << ", " << ray.direction.y << ", " << ray.direction.z << std::endl;
+			//std::cout << "animal: " << animals[0].pos.x << ", " << animals[0].pos.y << ", " << animals[0].pos.z << std::endl;
 
 			float t0, t1;
-			bool intersects = rayIntersectsSphere(rayOrigin, rayDirection, animals[0].pos, 1.0, t0, t1);
-
-    		if(intersects){ std::cout<< "Sphere HIT" << std::endl;}
-
-    		// std::cout << " x: ";
-    		// std::cout << animals[0].bbox.max.x;
-    		// std::cout << " y: ";
-    		// std::cout << animals[0].bbox.max.y;
-    		// std::cout << " z: ";
-    		// std::cout << animals[0].bbox.max.z << std::endl;
-
-    		// std::cout << " x: ";
-    		// std::cout << animals[0].pos.x;
-    		// std::cout << " y: ";
-    		// std::cout << animals[0].pos.y;
-    		// std::cout << " z: ";
-    		// std::cout << animals[0].pos.z << std::endl;
-
-    		// std::cout << " x: ";
-    		// std::cout << animals[0].bbox.min.x;
-    		// std::cout << " y: ";
-    		// std::cout << animals[0].bbox.min.y;
-    		// std::cout << " z: ";
-    		// std::cout << animals[0].bbox.min.z << std::endl;
-
+			for (int index = 0; index < NANIMAL; index++) {
+    			const Instance& instance = animals[index];
+				bool intersects = rayIntersectsSphere(ray.origin, ray.direction, instance.pos, 0.5, t0, t1);
+    			if(intersects){ std::cout<< "Sphere HIT" << std::endl;}
+        	}
 		}
 
 
-					//ViewMatrix = glm::translate(glm::mat4(1), -CamPos);
+		//ViewMatrix = glm::translate(glm::mat4(1), -CamPos);
 
 		// Here is where you actually update your uniforms
 		glm::mat4 M = glm::perspective(glm::radians(45.0f), Ar, 0.1f, 160.0f);
 		M[1][1] *= -1;
 
 		glm::mat4 Mv = ViewMatrix;
-
 		glm::mat4 ViewPrj =  M * Mv;
-		glm::mat4 baseTr = glm::mat4(1.0f);								
+		glm::mat4 baseTr = glm::mat4(1.0f);		
+
+		ray = calculateRayFromScreenCenter(Mv, M);						
 
 		// updates global uniforms
 		// Global
@@ -1016,24 +963,20 @@ class HuntGame : public BaseProject {
         int j = 2;
         int k = 2;
 
-
-
-
 		EmissionUniformBufferObject emissionUbo{};
 		emissionUbo.mvpMat = ViewPrj * glm::translate(glm::mat4(1), gubo.lightDir * 40.0f) * baseTr;
 		DSsun.map(currentImage, &emissionUbo, 0);
-		
-		
-            
+		           
         blinnUbo.mMat = glm::mat4(1);
         blinnUbo.nMat = glm::mat4(1);
         blinnUbo.mvpMat = ViewPrj;
         blinnMatParUbo.Power = 200.0;
 
+        // AXIS
         DSAx.map(currentImage, &blinnUbo, 0); 
         DSAx.map(currentImage, &blinnMatParUbo, 2);
 
-
+        // GROUND
         blinnUbo.mMat = glm::translate(glm::scale(glm::mat4(1), glm::vec3(4,1,4)),
                                            glm::vec3( 0 , 0, 0)) 
  											* glm::rotate(glm::mat4(1.0f), glm::radians(0.0f),glm::vec3(1.0f, 0.0f, 0.0f)) * baseTr;
@@ -1044,45 +987,31 @@ class HuntGame : public BaseProject {
         DSground.map(currentImage, &blinnMatParUbo, 2);
 
 
-        //ANIMALS
+        // ANIMALS
         for (int model = 0; model < NANIMAL; model++) {
         	const Instance& instance = animals[model];
-//instance.pos
  			blinnUbo.mMat = glm::translate(glm::mat4(1.0f),
                                            instance.pos) 
  											* glm::rotate(glm::mat4(1.0f), glm::radians(90.0f),glm::vec3(1.0f, 0.0f, 0.0f))
  											* glm::rotate(glm::scale(glm::mat4(1), glm::vec3(0.5,0.5,0.5)), glm::radians(instance.angle),glm::vec3(0.0f, 0.0f, 1.0f)) * baseTr;
-
-
         	blinnUbo.mvpMat = ViewPrj * blinnUbo.mMat;
         	blinnUbo.nMat = glm::inverse(glm::transpose(blinnUbo.mMat));
-
             DSAnimals[model].map(currentImage, &blinnUbo, 0);
 
 			blinnMatParUbo.Power = 2000.0;
         	DSAnimals[model].map(currentImage, &blinnMatParUbo, 2);
-
         }
 
         // debugging balls glm::vec3 rayEnd = rayOrigin + rayDirection * 2.0f;
         for (int model = 0; model < NBALLS; model++) {
-
-        	//glm::vec3 test = glm::vec3(rayOrigin + rayDirection * (2.0f + 5.0f*model));
-        	//std::cout << "Ray Origin: " << test.x << ", " << test.y << ", " << test.z << std::endl;
-
-
         	const Instance& instance = balls[model];
  			blinnUbo.mMat = glm::translate(glm::mat4(1.0f),
-                                           (rayOrigin + rayDirection * (10.0f + 5.0f*model))) 
+                                           (ray.origin + ray.direction * (10.0f + 20.0f*sin(cTime)))) 
  											* glm::rotate(glm::mat4(1.0f), glm::radians(90.0f),glm::vec3(1.0f, 0.0f, 0.0f))
  											* glm::rotate(glm::scale(glm::mat4(1), glm::vec3(0.1,0.1,0.1)), glm::radians(instance.angle),glm::vec3(0.0f, 0.0f, 1.0f)) * baseTr;
-
-
         	blinnUbo.mvpMat = ViewPrj * blinnUbo.mMat;
         	blinnUbo.nMat = glm::inverse(glm::transpose(blinnUbo.mMat));
-
             DSBalls[model].map(currentImage, &blinnUbo, 0);
-
 			blinnMatParUbo.Power = 2000.0;
         	DSBalls[model].map(currentImage, &blinnMatParUbo, 2);
 
