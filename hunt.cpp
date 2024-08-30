@@ -822,7 +822,7 @@ class HuntGame : public BaseProject {
 		
 		static float autoTime = true;
 		static float cTime = 0.0;
-		const float turnTime = 72.0f;
+		const float turnTime = 72.0f * 10.0f;
 		const float angTurnTimeFact = 2.0f * M_PI / turnTime;
 		
 		if(autoTime) {
@@ -995,7 +995,10 @@ class HuntGame : public BaseProject {
 		// updates global uniforms
 		// Global
 		GlobalUniformBufferObject gubo{};
-		gubo.lightDir = glm::vec3(cos(glm::radians(135.0f)) * cos(cTime * angTurnTimeFact), sin(glm::radians(135.0f)), cos(glm::radians(135.0f)) * sin(cTime * angTurnTimeFact));
+		// gubo.lightDir = glm::vec3(cos(glm::radians(135.0f)) * cos(cTime * angTurnTimeFact), sin(glm::radians(135.0f)), cos(glm::radians(135.0f)) * sin(cTime * angTurnTimeFact));
+
+		gubo.lightDir = glm::vec3(cos(cTime * angTurnTimeFact), sin(cTime * angTurnTimeFact), 0.0f);
+
 		gubo.lightColor = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
 		gubo.eyePos = glm::vec3(glm::inverse(ViewMatrix) * glm::vec4(0, 0, 0, 1));
 		DSGlobal.map(currentImage, &gubo, 0);
@@ -1015,7 +1018,7 @@ class HuntGame : public BaseProject {
         int k = 2;
 
 		EmissionUniformBufferObject emissionUbo{};
-		emissionUbo.mvpMat = ViewPrj * glm::translate(glm::mat4(1), gubo.lightDir * 40.0f) * baseTr;
+		emissionUbo.mvpMat = ViewPrj * glm::translate(glm::mat4(1), gubo.lightDir * 100.0f) * baseTr;
 		DSsun.map(currentImage, &emissionUbo, 0);
 		           
         blinnUbo.mMat = glm::mat4(1);
