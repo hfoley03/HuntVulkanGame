@@ -846,38 +846,6 @@ class HuntGame : public BaseProject {
 		
 		if (!isDebugMode)
 		{
-		// The Fly model update proc.
-		ViewMatrix = glm::rotate(glm::mat4(1), ROT_SPEED * r.x * deltaT,
-								 glm::vec3(1, 0, 0)) * ViewMatrix;
-		ViewMatrix = glm::rotate(glm::mat4(1), ROT_SPEED * r.y * deltaT,
-								 glm::vec3(0, 1, 0)) * ViewMatrix;
-		ViewMatrix = glm::rotate(glm::mat4(1), -ROT_SPEED * r.z * deltaT,
-								 glm::vec3(0, 0, 1)) * ViewMatrix;
-		ViewMatrix = glm::translate(glm::mat4(1), -glm::vec3(
-								   MOVE_SPEED * m.x * deltaT, MOVE_SPEED * m.y * deltaT, MOVE_SPEED * m.z * deltaT))
-													   * ViewMatrix;
-
-		} else {
-		// Walk Model update proc.
-
-		// float alpha = ROT_SPEED * r.x * deltaT;
-		// float beta = ROT_SPEED * r.y * deltaT;
-		// //rho = ROT_SPEED * r.z * deltaT;
-	
-		// glm::vec3 pos= glm::vec3(0);
-
-		// glm::vec3 ux = glm::vec3(cos(beta), 0.0f, -sin(beta));
-		// glm::vec3 uz = glm::vec3(sin(beta), 0.0f, cos(beta));
-
-		// pos += ux * MOVE_SPEED * m.x * deltaT;
-		// pos += uz * MOVE_SPEED * m.z * deltaT;
-
-		// ViewMatrix = 
-		// 	glm::rotate(glm::mat4(1), beta, glm::vec3(0,1,0)) *
-		// 	glm::rotate(glm::mat4(1), alpha, glm::vec3(1,0,0)) *
-		// 	glm::translate(glm::mat4(1), -pos) *
-		// 	ViewMatrix;
-
 			glm::vec3 FirstPos = glm::vec3(0, 0.5, 0);
 			glm::vec3 Pos = glm::vec3(0, 0, 0);
 
@@ -917,6 +885,17 @@ class HuntGame : public BaseProject {
 				glm::rotate(glm::mat4(1.0), -CamYaw, glm::vec3(0,1,0)) *
 				glm::translate(glm::mat4(1.0), -(Pos + FirstPos)) * glm::mat4(1.0);
 
+		} else {
+			// The Fly model update proc.
+			ViewMatrix = glm::rotate(glm::mat4(1), ROT_SPEED * r.x * deltaT,
+								 glm::vec3(1, 0, 0)) * ViewMatrix;
+			ViewMatrix = glm::rotate(glm::mat4(1), ROT_SPEED * r.y * deltaT,
+								 glm::vec3(0, 1, 0)) * ViewMatrix;
+			ViewMatrix = glm::rotate(glm::mat4(1), -ROT_SPEED * r.z * deltaT,
+								 glm::vec3(0, 0, 1)) * ViewMatrix;
+			ViewMatrix = glm::translate(glm::mat4(1), -glm::vec3(
+								   MOVE_SPEED * m.x * deltaT, MOVE_SPEED * m.y * deltaT, MOVE_SPEED * m.z * deltaT))
+													   * ViewMatrix;
 		}
 
 		static float subpassTimer = 0.0;
