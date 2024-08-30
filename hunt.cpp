@@ -217,6 +217,7 @@ class HuntGame : public BaseProject {
     // Models
     Model MAx; // xyz axis object
     Model Msun;
+	Model Mmoon;
     Model Mground;
     Model MCrosshair;
     Model MBBox;
@@ -238,6 +239,7 @@ class HuntGame : public BaseProject {
     // Descriptor Sets
     DescriptorSet DSGlobal, DSAx, DSCrosshair;
     DescriptorSet DSsun;
+	DescriptorSet DSmoon;
     DescriptorSet DSground;
     DescriptorSet DSAnimals[NANIMAL];
     DescriptorSet DSVegRocks[NVEGROCK];
@@ -248,6 +250,7 @@ class HuntGame : public BaseProject {
    // Textures
     Texture T1, Tanimal;
     Texture Tsun;
+	Texture Tmoon;
     Texture Tground;
     Texture TStructures[4];
     Texture TCrosshair;
@@ -393,6 +396,7 @@ class HuntGame : public BaseProject {
 		// Create models
         MAx.init(this, &VDBlinn, "models/axis.obj", OBJ);
 		Msun.init(this, &VDEmission, "models/Sphere.obj", OBJ);
+		Mmoon.init(this, &VDEmission, "models/Sphere.obj", OBJ);
 		Mground.init(this, &VDBlinn, "models/LargePlane.obj", OBJ);
 		MBall.init(this, &VDBlinn, "models/Sphere.obj", OBJ);
         
@@ -454,6 +458,7 @@ class HuntGame : public BaseProject {
 
         // Create the textures
 		Tsun.init(this, "textures/2k_sun.jpg");
+		Tmoon.init(this, "textures/2k_moon.jpg");
 		Tground.init(this, "textures/2k_sun.jpg");
         T1.init(this,   "textures/Textures.png");
         Tanimal.init(this, "textures/Textures-Animals.png");
@@ -600,6 +605,7 @@ class HuntGame : public BaseProject {
         
 		// Here you define the data set
 		DSsun.init(this, &DSLEmission, {&Tsun});
+		DSmoon.init(this, &DSLEmission, {&Tmoon});
 		DSground.init(this, &DSLBlinn, {&T1});
         DSAx.init(this, &DSLBlinn, {&T1});
         DSCrosshair.init(this, &DSLHUD, {&TCrosshair});
@@ -640,6 +646,7 @@ class HuntGame : public BaseProject {
 		PBBox.cleanup();
 
 		DSsun.cleanup();
+		DSmoon.cleanup();
 		DSGlobal.cleanup();
 		DSground.cleanup();
         DSAx.cleanup();
@@ -669,6 +676,7 @@ class HuntGame : public BaseProject {
 	void localCleanup() {	
 
 		Tsun.cleanup();
+		Tmoon.cleanup();
 		Tground.cleanup();
         T1.cleanup();
         Tanimal.cleanup();
@@ -681,6 +689,7 @@ class HuntGame : public BaseProject {
 		MCrosshair.cleanup();
 		MBBox.cleanup();
 		Msun.cleanup();
+		Mmoon.cleanup();
 		Mground.cleanup();
         MAx.cleanup();
         MBall.cleanup();
@@ -768,6 +777,11 @@ class HuntGame : public BaseProject {
 		vkCmdDrawIndexed(commandBuffer,
 				static_cast<uint32_t>(Msun.indices.size()), 1, 0, 0, 0);	
 
+		Mmoon.bind(commandBuffer);
+		DSmoon.bind(commandBuffer, PEmission, 0, currentImage);
+		vkCmdDrawIndexed(commandBuffer,
+				static_cast<uint32_t>(Mmoon.indices.size()), 1, 0, 0, 0);	
+
 		PBBox.bind(commandBuffer);
 		MBBox.bind(commandBuffer);
 		DSBBox.bind(commandBuffer, PBBox, 0, currentImage);
@@ -822,7 +836,9 @@ class HuntGame : public BaseProject {
 		
 		static float autoTime = true;
 		static float cTime = 0.0;
-		const float turnTime = 72.0f * 10.0f;
+		float turnTime = 72.0f * 10.0f;
+		if (isDebugMode)
+			turnTime = 72.0f;
 		const float angTurnTimeFact = 2.0f * M_PI / turnTime;
 		
 		if(autoTime) {
@@ -1020,6 +1036,10 @@ class HuntGame : public BaseProject {
 		EmissionUniformBufferObject emissionUbo{};
 		emissionUbo.mvpMat = ViewPrj * glm::translate(glm::mat4(1), gubo.lightDir * 100.0f) * baseTr;
 		DSsun.map(currentImage, &emissionUbo, 0);
+
+		EmissionUniformBufferObject moonEmissionUbo{};
+		moonEmissionUbo.mvpMat = ViewPrj * glm::translate(glm::mat4(1), -gubo.lightDir * 100.0f) * baseTr;
+		DSmoon.map(currentImage, &moonEmissionUbo, 0);
 		           
         blinnUbo.mMat = glm::mat4(1);
         blinnUbo.nMat = glm::mat4(1);

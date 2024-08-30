@@ -1,3 +1,4 @@
 hunt
 .DS_Store
+**/.DS_Store
 shaders/*.spv
