@@ -842,7 +842,7 @@ class HuntGame : public BaseProject {
 		const float ROT_SPEED = glm::radians(120.0f);
 		const float MOVE_SPEED = 10.0f;
 		
-		if (isDebugMode)
+		if (!isDebugMode)
 		{
 			glm::vec3 FirstPos = glm::vec3(0, 0.5, 0);
 			glm::vec3 Pos = glm::vec3(0, 0, 0);
