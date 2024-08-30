@@ -13,7 +13,7 @@ std::vector<SingleText> outText = {
 };
 
 // THE NUMBER OF INSTANCES OF ANIMALS, VEGITATION/ROCKS, STRUCTURES
-#define NANIMAL 1//10 
+#define NANIMAL 5 
 #define NVEGROCK 72
 #define NSTRUCTURES 5
 #define NBALLS 1
@@ -84,6 +84,7 @@ public:
     float angle;        // Angle for rotation
     std::string desc;   // Description of the instance
     BoundingBox bbox;   // Bounding box for collision detection
+    bool visible = true;
 
     // Constructor
     Instance(const glm::vec3& position, int id, const glm::vec3& scl, float ang, const std::string& description)
@@ -142,7 +143,7 @@ bool rayIntersectsBox(const glm::vec3& rayOrigin, const glm::vec3& rayDirection,
 
 
 bool rayIntersectsSphere(const glm::vec3& rayOrigin, const glm::vec3& rayDirection, const glm::vec3& sphereCenter, float sphereRadius, float& t0, float& t1) {
-    glm::vec3 L = sphereCenter - rayOrigin;
+    glm::vec3 L = glm::vec3(sphereCenter.x, sphereCenter.y + 0.25f, sphereCenter.z) - rayOrigin;
 
     float tca = glm::dot(L, rayDirection);
     float d2 = glm::dot(L, L) - tca * tca;
@@ -400,6 +401,7 @@ class HuntGame : public BaseProject {
         MAnimals[2].init(this, &VDBlinn, "models/animals/wolf_002.mgcg", MGCG);
         MAnimals[3].init(this, &VDBlinn, "models/animals/zebra_001.mgcg", MGCG);
         MAnimals[4].init(this, &VDBlinn, "models/animals/bear_001.mgcg", MGCG);
+
         MAnimals[5].init(this, &VDBlinn, "models/animals/bison_001.mgcg", MGCG);
         MAnimals[6].init(this, &VDBlinn, "models/animals/bull_001.mgcg", MGCG);
         MAnimals[7].init(this, &VDBlinn, "models/animals/duck_001.mgcg", MGCG);
@@ -547,7 +549,7 @@ class HuntGame : public BaseProject {
 		glm::vec3 modelMin(-1.0f, -0.5f, -1.0f);
 		glm::vec3 modelMax(  1.0f, 1.5f, 1.0f); 
         for(int i = 0; i < NANIMAL; i ++){
-	        animals.emplace_back(glm::vec3(1.0f + i, 3.0f, 3.0f), i, glm::vec3(1.0f, 1.0f, 1.0f), 0.0f, "animal");
+	        animals.emplace_back(glm::vec3(0.0f + i*2.0f, 1.0f, 0.0f), i, glm::vec3(1.0f, 1.0f, 1.0f), 0.0f, "animal");
 	        animals[i].updateBoundingBox(modelMin, modelMax);
 	        createBoundingBoxModel(MBBox, animals[i].bbox, VDBBox);
         }
@@ -605,12 +607,10 @@ class HuntGame : public BaseProject {
 
         for (DescriptorSet &DSAnimal: DSAnimals) {
             DSAnimal.init(this, &DSLBlinn, {&Tanimal});
-            std::cout << "DSAnimal.init!\n";
         };
 
         for (DescriptorSet &DSVegRock: DSVegRocks) {
             DSVegRock.init(this, &DSLBlinn, {&T1});
-            std::cout << "DSVegRocks.init!\n";
         };
 
         for (int index = 0; index < NSTRUCTURES; index++) {
@@ -620,12 +620,14 @@ class HuntGame : public BaseProject {
 
         for (DescriptorSet &DSBall: DSBalls) {
             DSBall.init(this, &DSLBlinn, {&T1});
-            std::cout << "DSAnimal.init!\n";
         };
 			
 		DSGlobal.init(this, &DSLGlobal, {});
 
 		txt.pipelinesAndDescriptorSetsInit();		
+
+		std::cout << "Descriptor Set init!\n";
+
 	}
 
 	// Here you destroy your pipelines and Descriptor Sets!
@@ -647,27 +649,23 @@ class HuntGame : public BaseProject {
 
         for (DescriptorSet &DSAnimal: DSAnimals) {
             DSAnimal.cleanup();
-            std::cout << "DSAnimal.cleanup!\n";
         }
         for (DescriptorSet &DSVegRock: DSVegRocks) {
             DSVegRock.cleanup();
-            std::cout << "DSVegRock.cleanup!\n";
         }        
         for (DescriptorSet &DSStructure: DSStructures) {
             DSStructure.cleanup();
-            std::cout << "DSStructure.init!\n";
         };
         for (DescriptorSet &DSBall: DSBalls) {
             DSBall.cleanup();
-            std::cout << "DSStructure.init!\n";
         };
 		txt.pipelinesAndDescriptorSetsCleanup();
+
+        std::cout << "Descriptor Set cleanup!\n";
+
 	}
 
-	// Here you destroy all the Models, Texture and Desc. Set Layouts you created!
-	// All the object classes defined in Starter.hpp have a method .cleanup() for this purpose
-	// You also have to destroy the pipelines: since they need to be rebuilt, they have two different
-	// methods: .cleanup() recreates them, while .destroy() delete them completely
+
 	void localCleanup() {	
 
 		Tsun.cleanup();
@@ -710,7 +708,7 @@ class HuntGame : public BaseProject {
 		PBlinn.destroy();
 		PEmission.destroy();
 		PHUD.destroy();
-		PBBox.cleanup();
+		PBBox.destroy();
 
 		txt.localCleanup();		
 	}
@@ -844,7 +842,7 @@ class HuntGame : public BaseProject {
 		const float ROT_SPEED = glm::radians(120.0f);
 		const float MOVE_SPEED = 10.0f;
 		
-		if (!isDebugMode)
+		if (isDebugMode)
 		{
 		// The Fly model update proc.
 		ViewMatrix = glm::rotate(glm::mat4(1), ROT_SPEED * r.x * deltaT,
@@ -926,6 +924,19 @@ class HuntGame : public BaseProject {
 				debounce = true;
 				curDebounce = GLFW_KEY_SPACE;
 				//RebuildPipeline();
+				std::cout << "New Ray Direction: " << ray.direction.x << ", " << ray.direction.y << ", " << ray.direction.z << std::endl;
+				//std::cout << "animal: " << animals[0].pos.x << ", " << animals[0].pos.y << ", " << animals[0].pos.z << std::endl;
+
+				float t0, t1;
+				for (int index = 0; index < NANIMAL; index++) {
+					if(animals[index].visible){
+	   					if(rayIntersectsSphere(ray.origin, ray.direction, animals[index].pos, 0.5, t0, t1)){ 
+							std::cout<< "Sphere HIT" << std::endl;
+							animals[index].visible = false;
+							RebuildPipeline();
+						}
+					}
+	        	}
 			}
 		} else {
 			if((curDebounce == GLFW_KEY_SPACE) && debounce) {
@@ -982,23 +993,11 @@ class HuntGame : public BaseProject {
 
 		if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS) {
     		//shoot();
-
 			// for (int index = 0; index < NANIMAL; index++) {
 		    // 			const Instance& instance = animals[index];
 		    //     		if(rayIntersectsBox(ray.origin, ray.direction, instance.bbox)){ std::cout<< "BBox HIT" << std::endl;}
         	// }
-
-
 			//std::cout << "New Ray Orgin: " << ray.origin.x << ", " << ray.origin.y << ", " << ray.origin.z << std::endl;
-			std::cout << "New Ray Direction: " << ray.direction.x << ", " << ray.direction.y << ", " << ray.direction.z << std::endl;
-			//std::cout << "animal: " << animals[0].pos.x << ", " << animals[0].pos.y << ", " << animals[0].pos.z << std::endl;
-
-			float t0, t1;
-			for (int index = 0; index < NANIMAL; index++) {
-    			const Instance& instance = animals[index];
-				bool intersects = rayIntersectsSphere(ray.origin, ray.direction, instance.pos, 0.5, t0, t1);
-    			if(intersects){ std::cout<< "Sphere HIT" << std::endl;}
-        	}
 		}
 
 
@@ -1026,11 +1025,10 @@ class HuntGame : public BaseProject {
 		BlinnUniformBufferObject blinnUbo{};
 		BlinnMatParUniformBufferObject blinnMatParUbo{};
 
-		BlinnUniformBufferObject bboxUbo{};
-
-        bboxUbo.mMat = glm::mat4(1);
-        bboxUbo.nMat = glm::mat4(1);
-        bboxUbo.mvpMat = ViewPrj;
+		// BlinnUniformBufferObject bboxUbo{};
+        // bboxUbo.mMat = glm::mat4(1);
+        // bboxUbo.nMat = glm::mat4(1);
+        // bboxUbo.mvpMat = ViewPrj;
     	//DSBBox.map(currentImage, &bboxUbo, 0);
 
         int i = 0;
@@ -1064,31 +1062,19 @@ class HuntGame : public BaseProject {
         // ANIMALS
         for (int model = 0; model < NANIMAL; model++) {
         	const Instance& instance = animals[model];
- 			blinnUbo.mMat = glm::translate(glm::mat4(1.0f),
-                                           instance.pos) 
- 											* glm::rotate(glm::mat4(1.0f), glm::radians(90.0f),glm::vec3(1.0f, 0.0f, 0.0f))
- 											* glm::rotate(glm::scale(glm::mat4(1), glm::vec3(0.5,0.5,0.5)), glm::radians(instance.angle),glm::vec3(0.0f, 0.0f, 1.0f)) * baseTr;
-        	blinnUbo.mvpMat = ViewPrj * blinnUbo.mMat;
-        	blinnUbo.nMat = glm::inverse(glm::transpose(blinnUbo.mMat));
-            DSAnimals[model].map(currentImage, &blinnUbo, 0);
+        	if(instance.visible == true)
+        	{
+	 			blinnUbo.mMat = glm::translate(glm::mat4(1.0f),
+	                                           instance.pos) 
+	 											* glm::rotate(glm::mat4(1.0f), glm::radians(90.0f),glm::vec3(1.0f, 0.0f, 0.0f))
+	 											* glm::rotate(glm::scale(glm::mat4(1), glm::vec3(0.5,0.5,0.5)), glm::radians(instance.angle),glm::vec3(0.0f, 0.0f, 1.0f)) * baseTr;
+	        	blinnUbo.mvpMat = ViewPrj * blinnUbo.mMat;
+	        	blinnUbo.nMat = glm::inverse(glm::transpose(blinnUbo.mMat));
+	            DSAnimals[model].map(currentImage, &blinnUbo, 0);
 
-			blinnMatParUbo.Power = 2000.0;
-        	DSAnimals[model].map(currentImage, &blinnMatParUbo, 2);
-        }
-
-        // debugging balls glm::vec3 rayEnd = rayOrigin + rayDirection * 2.0f;
-        for (int model = 0; model < NBALLS; model++) {
-        	const Instance& instance = balls[model];
- 			blinnUbo.mMat = glm::translate(glm::mat4(1.0f),
-                                           (ray.origin + ray.direction * (10.0f + 20.0f*sin(cTime)))) 
- 											* glm::rotate(glm::mat4(1.0f), glm::radians(90.0f),glm::vec3(1.0f, 0.0f, 0.0f))
- 											* glm::rotate(glm::scale(glm::mat4(1), glm::vec3(0.1,0.1,0.1)), glm::radians(instance.angle),glm::vec3(0.0f, 0.0f, 1.0f)) * baseTr;
-        	blinnUbo.mvpMat = ViewPrj * blinnUbo.mMat;
-        	blinnUbo.nMat = glm::inverse(glm::transpose(blinnUbo.mMat));
-            DSBalls[model].map(currentImage, &blinnUbo, 0);
-			blinnMatParUbo.Power = 2000.0;
-        	DSBalls[model].map(currentImage, &blinnMatParUbo, 2);
-
+				blinnMatParUbo.Power = 2000.0;
+	        	DSAnimals[model].map(currentImage, &blinnMatParUbo, 2);
+        	}
         }
 
         // VEG ROCKs
@@ -1123,11 +1109,28 @@ class HuntGame : public BaseProject {
         	blinnUbo.mvpMat = ViewPrj * blinnUbo.mMat;
         	blinnUbo.nMat = glm::inverse(glm::transpose(blinnUbo.mMat));
 
-            //DSStructures[model].map(currentImage, &blinnUbo, 0);
+            DSStructures[model].map(currentImage, &blinnUbo, 0);
 
-			blinnMatParUbo.Power = 2000.0;
-        	//DSStructures[model].map(currentImage, &blinnMatParUbo, 2);
+			blinnMatParUbo.Power = 200.0;
+        	DSStructures[model].map(currentImage, &blinnMatParUbo, 2);
         }
+
+		if (isDebugMode){
+
+	        // debugging balls glm::vec3 rayEnd = rayOrigin + rayDirection * 2.0f;
+	        for (int model = 0; model < NBALLS; model++) {
+	        	const Instance& instance = balls[model];
+	 			blinnUbo.mMat = glm::translate(glm::mat4(1.0f),
+	                                           (ray.origin + ray.direction * (10.0f + 20.0f*sin(cTime)))) 
+	 											* glm::rotate(glm::mat4(1.0f), glm::radians(90.0f),glm::vec3(1.0f, 0.0f, 0.0f))
+	 											* glm::rotate(glm::scale(glm::mat4(1), glm::vec3(0.1,0.1,0.1)), glm::radians(instance.angle),glm::vec3(0.0f, 0.0f, 1.0f)) * baseTr;
+	        	blinnUbo.mvpMat = ViewPrj * blinnUbo.mMat;
+	        	blinnUbo.nMat = glm::inverse(glm::transpose(blinnUbo.mMat));
+	            DSBalls[model].map(currentImage, &blinnUbo, 0);
+				blinnMatParUbo.Power = 2000.0;
+	        	DSBalls[model].map(currentImage, &blinnMatParUbo, 2);
+	        }
+    	}
 	}
 };
 
