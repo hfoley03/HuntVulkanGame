@@ -676,6 +676,7 @@ class HuntGame : public BaseProject {
 		ViewMatrix = glm::translate(glm::mat4(1), -glm::vec3(
 								   MOVE_SPEED * m.x * deltaT, MOVE_SPEED * m.y * deltaT, MOVE_SPEED * m.z * deltaT))
 													   * ViewMatrix;
+
 		} else {
 		// Walk Model update proc.
 
@@ -697,7 +698,8 @@ class HuntGame : public BaseProject {
 		// 	glm::translate(glm::mat4(1), -pos) *
 		// 	ViewMatrix;
 
-			glm::vec3 Pos = glm::vec3(0, 1, 0);
+			glm::vec3 FirstPos = glm::vec3(0, 0.5, 0);
+			glm::vec3 Pos = glm::vec3(0, 0, 0);
 
 			float Yaw = 0;
 
@@ -708,34 +710,32 @@ class HuntGame : public BaseProject {
 			static float dampedVelz = 0.0f;
 			static float dampedVelx = 0.0f;
 
-			dampedVelz =  MOVE_SPEED * deltaT * m.z + dampedVelz;
-			dampedVelx =  MOVE_SPEED * deltaT * m.x + dampedVelx;
-			
-			// Pos.x = Pos.x - dampedVelx;
-			// Pos.z = Pos.z - dampedVelz;
+			const float WALKING_SPEED = 1.0f;
 
-			// glm::vec3 ux = glm::vec3(cos(CamYaw), 0.0f, -sin(CamYaw));
-			// glm::vec3 uz = glm::vec3(sin(CamYaw), 0.0f, cos(CamYaw));
+			static glm::vec3 lastPos;
 
-			glm::vec3 ux = glm::vec3(glm::rotate(glm::mat4(1), CamYaw, glm::vec3(0,1,0)) * glm::vec4(1,0,0,1));
-			glm::vec3 uy = glm::vec3(0,1,0);
-			glm::vec3 uz = glm::vec3(glm::rotate(glm::mat4(1), CamYaw, glm::vec3(0,1,0)) * glm::vec4(0,0,1,1));
+			dampedVelz =  WALKING_SPEED * deltaT * m.z + dampedVelz;
+			dampedVelx =  WALKING_SPEED * deltaT * m.x + dampedVelx;
+
+			dampedVelz = dampedVelz * 0.9f;
+			dampedVelx = dampedVelx * 0.9f;
+
+			glm::vec3 ux = glm::vec3(cos(CamYaw), 0.0f, -sin(CamYaw));
+			glm::vec3 uz = glm::vec3(sin(CamYaw), 0.0f, cos(CamYaw));
 
 			CamYaw -= ROT_SPEED * deltaT * r.y;
 			CamPitch -= ROT_SPEED * deltaT * r.x;
-
-			// glm::vec3 ux = glm::vec3(1, 0, 0);
-			// glm::vec3 uz = glm::vec3(0, 0, 1);
-
-			Pos = Pos + ux * dampedVelx;
-			Pos = Pos + uz * dampedVelz;
+			
+			Pos = lastPos + ux * dampedVelx + uz * dampedVelz;
 		
 			CamPitch = (CamPitch < -0.25*M_PI ? -0.25*M_PI : (CamPitch > 0.25*M_PI ? 0.25*M_PI : CamPitch));
-	
-							 
-			ViewMatrix = glm::rotate(glm::mat4(1.0), -CamPitch, glm::vec3(1,0,0)) *
-				glm::rotate(glm::mat4(1.0), -(CamYaw), glm::vec3(0,1,0)) *
-				glm::translate(glm::mat4(1.0), -Pos) * glm::mat4(1.0);
+
+			lastPos = Pos;
+
+			ViewMatrix = 
+			glm::rotate(glm::mat4(1.0), -CamPitch, glm::vec3(1,0,0)) *
+				glm::rotate(glm::mat4(1.0), -CamYaw, glm::vec3(0,1,0)) *
+				glm::translate(glm::mat4(1.0), -(Pos + FirstPos)) * glm::mat4(1.0);
 
 		}
 
