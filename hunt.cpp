@@ -35,8 +35,9 @@ struct EmissionUniformBufferObject {
 
 struct GlobalUniformBufferObject {
 	alignas(16) glm::vec3 lightDir;
-	alignas(16) glm::vec4 lightColor;
+	alignas(16) glm::vec4 dayLightColor;
 	alignas(16) glm::vec3 eyePos;
+	alignas(16) glm::vec4 nightLightColor;
 };
 
 struct skyBoxUniformBufferObject {
@@ -1039,10 +1040,16 @@ class HuntGame : public BaseProject {
 		// gubo.lightDir = glm::vec3(cos(glm::radians(135.0f)) * cos(cTime * angTurnTimeFact), sin(glm::radians(135.0f)), cos(glm::radians(135.0f)) * sin(cTime * angTurnTimeFact));
 		gubo.lightDir = glm::vec3(cos(cTime * angTurnTimeFact), sin(cTime * angTurnTimeFact), 0.0f);
 		float intensity = glm::min(0.0f, sin(cTime * angTurnTimeFact));
-		gubo.lightColor = glm::vec4(
+		gubo.dayLightColor = glm::vec4(
 			1.0f + intensity, 
 			0.2f + 0.8f * abs(sin(cTime * angTurnTimeFact)) + intensity, 
 			0.05f + 0.95f * abs(sin(cTime * angTurnTimeFact)) + intensity,
+			1.0f
+			);
+		gubo.nightLightColor = glm::vec4(
+			0.1f * 0.5f*(-sin(cTime * angTurnTimeFact)+1), 
+			0.4f * 0.5f*(-sin(cTime * angTurnTimeFact)+1), 
+			0.4f * 0.5f*(-sin(cTime * angTurnTimeFact)+1), 
 			1.0f
 			);
 		gubo.eyePos = glm::vec3(glm::inverse(ViewMatrix) * glm::vec4(0, 0, 0, 1));
