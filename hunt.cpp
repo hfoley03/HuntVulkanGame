@@ -39,6 +39,14 @@ struct GlobalUniformBufferObject {
 	alignas(16) glm::vec3 eyePos;
 };
 
+struct skyBoxUniformBufferObject {
+	alignas(16) glm::mat4 mvpMat;
+};
+
+struct dayTimeUniformBufferObject {
+	alignas(4) float daytime;
+};
+
 struct UniformBufferObject {
     alignas(16) glm::mat4 mvpMat;
     alignas(16) glm::mat4 mMat;
@@ -62,6 +70,10 @@ struct HUDVertex {
 };
 
 struct BBoxVertex {
+	glm::vec3 pos;
+};
+
+struct skyBoxVertex {
 	glm::vec3 pos;
 };
 
@@ -198,18 +210,21 @@ class HuntGame : public BaseProject {
 	DescriptorSetLayout DSLEmission;	// For Emission Objects
 	DescriptorSetLayout DSLHUD;
 	DescriptorSetLayout DSLBBox;
+	DescriptorSetLayout DSLskyBox;	// For skyBox
 
 	// Vertex formats
 	VertexDescriptor VDBlinn;
 	VertexDescriptor VDEmission;
 	VertexDescriptor VDHUD;
 	VertexDescriptor VDBBox;
+	VertexDescriptor VDskyBox;
 
 	// Pipelines [Shader couples]
 	Pipeline PBlinn;
 	Pipeline PEmission;
 	Pipeline PHUD;
 	Pipeline PBBox;
+	Pipeline PskyBox;
 
 	// Scenes and texts
     TextMaker txt;
@@ -221,6 +236,7 @@ class HuntGame : public BaseProject {
     Model Mground;
     Model MCrosshair;
     Model MBBox;
+	Model MskyBox;
     
     Model MBall;
     std::vector<Instance> balls;
@@ -246,6 +262,7 @@ class HuntGame : public BaseProject {
     DescriptorSet DSStructures[NSTRUCTURES];
     DescriptorSet DSBBox;
     DescriptorSet DSBalls[NBALLS];
+	DescriptorSet DSskyBox;
 
    // Textures
     Texture T1, Tanimal;
@@ -254,6 +271,7 @@ class HuntGame : public BaseProject {
     Texture Tground;
     Texture TStructures[4];
     Texture TCrosshair;
+	Texture TskyBox, Tstars;
     
 	
 	// Other application parameters
@@ -313,7 +331,6 @@ class HuntGame : public BaseProject {
 		windowTitle = "A Hunting Game Called Hunt";
     	windowResizable = GLFW_TRUE;
 		initialBackgroundColor = {0.53f, 0.81f, 0.92f, 1.0f};
-		
 		Ar = (float)windowWidth / (float)windowHeight;
 	}
 	
@@ -338,6 +355,12 @@ class HuntGame : public BaseProject {
 		DSLEmission.init(this, {
 					{0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT, sizeof(EmissionUniformBufferObject), 1},
 					{1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 0, 1}
+				});
+		DSLskyBox.init(this, {
+					{0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT, sizeof(skyBoxUniformBufferObject), 1},
+					{1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 0, 1},
+					{2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 1, 1},
+					{3, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(dayTimeUniformBufferObject), 1}
 				});
 		DSLHUD.init(this, {
     			{0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 0, 1}  // Crosshairs texture sampler
@@ -367,6 +390,13 @@ class HuntGame : public BaseProject {
 				         sizeof(glm::vec2), UV}
 				});
 
+		VDskyBox.init(this, {
+					{0, sizeof(skyBoxVertex), VK_VERTEX_INPUT_RATE_VERTEX}
+				}, {
+					{0, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(skyBoxVertex, pos),
+							sizeof(glm::vec3), POSITION}
+				});
+
 		VDHUD.init(this, {
 				  {0, sizeof(HUDVertex), VK_VERTEX_INPUT_RATE_VERTEX}
 				}, {
@@ -388,6 +418,9 @@ class HuntGame : public BaseProject {
 		// Pipelines [Shader couples]
 		PBlinn.init(this, &VDBlinn,  "shaders/BlinnVert.spv",    "shaders/BlinnFrag.spv", {&DSLGlobal, &DSLBlinn});
 		PEmission.init(this, &VDEmission,  "shaders/EmissionVert.spv",    "shaders/EmissionFrag.spv", {&DSLEmission});
+		PskyBox.init(this, &VDskyBox, "shaders/SkyBoxVert.spv", "shaders/SkyBoxFrag.spv", {&DSLskyBox});
+		PskyBox.setAdvancedFeatures(VK_COMPARE_OP_LESS_OR_EQUAL, VK_POLYGON_MODE_FILL,
+ 								    VK_CULL_MODE_BACK_BIT, false);
 		PHUD.init(this, &VDHUD, "shaders/HUDVert.spv", "shaders/HUDFrag.spv", {&DSLHUD});
         PHUD.setAdvancedFeatures(VK_COMPARE_OP_LESS_OR_EQUAL, VK_POLYGON_MODE_FILL, VK_CULL_MODE_NONE, true);
         PBBox.init(this, &VDBBox, "shaders/BBoxVert.spv", "shaders/BBoxFrag.spv", {&DSLBBox});
@@ -399,6 +432,7 @@ class HuntGame : public BaseProject {
 		Mmoon.init(this, &VDEmission, "models/Sphere.obj", OBJ);
 		Mground.init(this, &VDBlinn, "models/LargePlane.obj", OBJ);
 		MBall.init(this, &VDBlinn, "models/Sphere.obj", OBJ);
+		MskyBox.init(this, &VDskyBox, "models/SkyBoxCube.obj", OBJ);
         
         MAnimals[0].init(this, &VDBlinn, "models/animals/rhinoceros_001.mgcg", MGCG);
         MAnimals[1].init(this, &VDBlinn, "models/animals/tiger_001.mgcg", MGCG);
@@ -468,6 +502,9 @@ class HuntGame : public BaseProject {
         TStructures[1].init(this, "textures/fenceDiffuse.jpg");
         TStructures[2].init(this, "textures/Tower_Col.jpg");
         TStructures[3].init(this, "textures/woodenhousediffuse.png");
+
+		TskyBox.init(this, "textures/starmap_g4k.jpg");
+		Tstars.init(this, "textures/constellation_figures.png");
 
         // emplace_back creates an instance of an object using it's constructor and then places it into a vector of instances
 
@@ -600,6 +637,7 @@ class HuntGame : public BaseProject {
 		// This creates a new pipeline (with the current surface), using its shaders
 		PBlinn.create();
 		PEmission.create();
+		PskyBox.create();
 		PHUD.create();
 		PBBox.create();
         
@@ -610,6 +648,7 @@ class HuntGame : public BaseProject {
         DSAx.init(this, &DSLBlinn, {&T1});
         DSCrosshair.init(this, &DSLHUD, {&TCrosshair});
         DSBBox.init(this, &DSLBBox, {&T1});
+		DSskyBox.init(this, &DSLskyBox, {&TskyBox, &Tstars});
 
         for (DescriptorSet &DSAnimal: DSAnimals) {
             DSAnimal.init(this, &DSLBlinn, {&Tanimal});
@@ -644,6 +683,7 @@ class HuntGame : public BaseProject {
 		PEmission.cleanup();
 		PHUD.cleanup();
 		PBBox.cleanup();
+		PskyBox.cleanup();
 
 		DSsun.cleanup();
 		DSmoon.cleanup();
@@ -652,6 +692,7 @@ class HuntGame : public BaseProject {
         DSAx.cleanup();
         DSCrosshair.cleanup();
         DSBBox.cleanup();
+		DSskyBox.cleanup();
 
 
         for (DescriptorSet &DSAnimal: DSAnimals) {
@@ -703,21 +744,24 @@ class HuntGame : public BaseProject {
             MStructure.cleanup();
         }
 
+		TskyBox.cleanup();
+		Tstars.cleanup();
+		MskyBox.cleanup();
 
-
-		
 		// Cleanup descriptor set layouts
 		DSLBlinn.cleanup();
 		DSLEmission.cleanup();
 		DSLGlobal.cleanup();
 		DSLHUD.cleanup();
 		DSLBBox.cleanup();
+		DSLskyBox.cleanup();
 		
 		// Destroies the pipelines
 		PBlinn.destroy();
 		PEmission.destroy();
 		PHUD.destroy();
 		PBBox.destroy();
+		PskyBox.destroy();
 
 		txt.localCleanup();		
 	}
@@ -780,7 +824,13 @@ class HuntGame : public BaseProject {
 		Mmoon.bind(commandBuffer);
 		DSmoon.bind(commandBuffer, PEmission, 0, currentImage);
 		vkCmdDrawIndexed(commandBuffer,
-				static_cast<uint32_t>(Mmoon.indices.size()), 1, 0, 0, 0);	
+				static_cast<uint32_t>(Mmoon.indices.size()), 1, 0, 0, 0);
+
+		PskyBox.bind(commandBuffer);
+		MskyBox.bind(commandBuffer);
+		DSskyBox.bind(commandBuffer, PskyBox, 0, currentImage);
+		vkCmdDrawIndexed(commandBuffer,
+					static_cast<uint32_t>(MskyBox.indices.size()), 1, 0, 0, 0);
 
 		PBBox.bind(commandBuffer);
 		MBBox.bind(commandBuffer);
@@ -797,31 +847,6 @@ class HuntGame : public BaseProject {
             
 		//txt.populateCommandBuffer(commandBuffer, currentImage, currScene);
 	}
-
-	glm::mat4 MakeViewProjectionLookInDirection(glm::vec3 Pos, float Yaw, float Pitch, float Roll, float FOVy, float Ar, float nearPlane, float farPlane) {
-	// Create a View Projection Matrix with the following characteristics:
-	// Projection:
-	//	- Perspective with:
-	//	- Fov-y defined in formal parameter >FOVy<
-	//  - Aspect ratio defined in formal parameter >Ar<
-	//  - Near Plane distance defined in formal parameter >nearPlane<
-	//  - Far Plane distance defined in formal parameter >farPlane<
-	// View:
-	//	- Use the Look-In-Direction model with:
-	//	- Camera Positon defined in formal parameter >Pos<
-	//	- Looking direction defined in formal parameter >Yaw<
-	//	- Looking elevation defined in formal parameter >Pitch<
-	//	- Looking rool defined in formal parameter >Roll<
-	glm::mat4 M = glm::perspective(FOVy, Ar, nearPlane, farPlane);
-	M[1][1] *= -1;
-	M = M *
-		glm::rotate(glm::mat4(1.0), -Roll, glm::vec3(0,0,1)) *
-		glm::rotate(glm::mat4(1.0), -Pitch, glm::vec3(1,0,0)) *
-		glm::rotate(glm::mat4(1.0), -Yaw, glm::vec3(0,1,0)) *
-		glm::translate(glm::mat4(1.0), -Pos);
-
-	return M;
-}
 
 	// Here is where you update the uniforms.
 	// Very likely this will be where you will be writing the logic of your application.
@@ -1012,13 +1037,12 @@ class HuntGame : public BaseProject {
 		// Global
 		GlobalUniformBufferObject gubo{};
 		// gubo.lightDir = glm::vec3(cos(glm::radians(135.0f)) * cos(cTime * angTurnTimeFact), sin(glm::radians(135.0f)), cos(glm::radians(135.0f)) * sin(cTime * angTurnTimeFact));
-
 		gubo.lightDir = glm::vec3(cos(cTime * angTurnTimeFact), sin(cTime * angTurnTimeFact), 0.0f);
 		float intensity = glm::min(0.0f, sin(cTime * angTurnTimeFact));
 		gubo.lightColor = glm::vec4(
 			1.0f + intensity, 
-			0.1f + 0.9f * abs(sin(cTime * angTurnTimeFact)) + intensity, 
-			0.1f + 0.9f * abs(sin(cTime * angTurnTimeFact)) + intensity,
+			0.2f + 0.8f * abs(sin(cTime * angTurnTimeFact)) + intensity, 
+			0.05f + 0.95f * abs(sin(cTime * angTurnTimeFact)) + intensity,
 			1.0f
 			);
 		gubo.eyePos = glm::vec3(glm::inverse(ViewMatrix) * glm::vec4(0, 0, 0, 1));
@@ -1045,6 +1069,14 @@ class HuntGame : public BaseProject {
 		EmissionUniformBufferObject moonEmissionUbo{};
 		moonEmissionUbo.mvpMat = ViewPrj * glm::translate(glm::mat4(1), -gubo.lightDir * 100.0f) * baseTr;
 		DSmoon.map(currentImage, &moonEmissionUbo, 0);
+
+		skyBoxUniformBufferObject sbubo{};
+		sbubo.mvpMat = M * glm::mat4(glm::mat3(Mv));
+		DSskyBox.map(currentImage, &sbubo, 0);
+
+		dayTimeUniformBufferObject dtubo{};
+		dtubo.daytime = sin(cTime * angTurnTimeFact);
+		DSskyBox.map(currentImage, &dtubo, 3);
 		           
         blinnUbo.mMat = glm::mat4(1);
         blinnUbo.nMat = glm::mat4(1);
