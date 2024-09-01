@@ -33,18 +33,23 @@ struct EmissionUniformBufferObject {
 	alignas(16) glm::mat4 mvpMat;
 };
 
+struct EmissionParUniformBufferObject {
+	alignas(4) float temperature;
+};
+
 struct GlobalUniformBufferObject {
 	alignas(16) glm::vec3 lightDir;
 	alignas(16) glm::vec4 dayLightColor;
 	alignas(16) glm::vec3 eyePos;
 	alignas(16) glm::vec4 nightLightColor;
+	alignas(4) float ambient;
 };
 
-struct skyBoxUniformBufferObject {
+struct SkyBoxUniformBufferObject {
 	alignas(16) glm::mat4 mvpMat;
 };
 
-struct dayTimeUniformBufferObject {
+struct SkyBoxParUniformBufferObject {
 	alignas(4) float daytime;
 };
 
@@ -355,13 +360,14 @@ class HuntGame : public BaseProject {
 				});
 		DSLEmission.init(this, {
 					{0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT, sizeof(EmissionUniformBufferObject), 1},
-					{1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 0, 1}
+					{1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 0, 1},
+					{2, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(EmissionParUniformBufferObject), 1}
 				});
 		DSLskyBox.init(this, {
-					{0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT, sizeof(skyBoxUniformBufferObject), 1},
+					{0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT, sizeof(SkyBoxUniformBufferObject), 1},
 					{1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 0, 1},
 					{2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 1, 1},
-					{3, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(dayTimeUniformBufferObject), 1}
+					{3, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(SkyBoxParUniformBufferObject), 1}
 				});
 		DSLHUD.init(this, {
     			{0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 0, 1}  // Crosshairs texture sampler
@@ -880,6 +886,8 @@ class HuntGame : public BaseProject {
 			tTime = tTime + deltaT;
 			tTime = (tTime > TturnTime) ? (tTime - TturnTime) : tTime;
 		}
+
+		float dayTime = sin(cTime * angTurnTimeFact);
 		
 		const float ROT_SPEED = glm::radians(120.0f);
 		const float MOVE_SPEED = 10.0f;
@@ -1038,21 +1046,44 @@ class HuntGame : public BaseProject {
 		// Global
 		GlobalUniformBufferObject gubo{};
 		// gubo.lightDir = glm::vec3(cos(glm::radians(135.0f)) * cos(cTime * angTurnTimeFact), sin(glm::radians(135.0f)), cos(glm::radians(135.0f)) * sin(cTime * angTurnTimeFact));
-		gubo.lightDir = glm::vec3(cos(cTime * angTurnTimeFact), sin(cTime * angTurnTimeFact), 0.0f);
-		float intensity = glm::min(0.0f, sin(cTime * angTurnTimeFact));
+		gubo.lightDir = glm::vec3(cos(cTime * angTurnTimeFact), dayTime, 0.0f);
+
+		float intensity = glm::min(0.0f, dayTime);
+		float maxDegree = 0.342f;
+		float dayIntensity = dayTime;
+		float nightIntensity = -dayTime;
+
+		if (dayIntensity > 0.0f) {
+			dayIntensity = 1.0f;
+		} else if (dayIntensity < -maxDegree) {
+			dayIntensity = 0.0f;
+		} else {
+			dayIntensity = (dayIntensity + maxDegree) / maxDegree;
+		}
+
+		if (nightIntensity > maxDegree) {
+			nightIntensity = 1.0f;
+		} else if (nightIntensity < -maxDegree) {
+			nightIntensity = 0.0f;
+		} else {
+			nightIntensity = (nightIntensity + maxDegree) / (2*maxDegree);
+		}
+		
 		gubo.dayLightColor = glm::vec4(
-			1.0f + intensity, 
-			0.2f + 0.8f * abs(sin(cTime * angTurnTimeFact)) + intensity, 
-			0.05f + 0.95f * abs(sin(cTime * angTurnTimeFact)) + intensity,
+			1.0f * dayIntensity, 
+			(0.2f + 0.8f * abs(dayTime)) * dayIntensity, 
+			abs(dayTime * dayIntensity),
 			1.0f
 			);
+		
 		gubo.nightLightColor = glm::vec4(
-			0.1f * 0.5f*(-sin(cTime * angTurnTimeFact)+1), 
-			0.4f * 0.5f*(-sin(cTime * angTurnTimeFact)+1), 
-			0.4f * 0.5f*(-sin(cTime * angTurnTimeFact)+1), 
+			0.1f * nightIntensity, 
+			0.4f * nightIntensity, 
+			0.4f * nightIntensity, 
 			1.0f
 			);
 		gubo.eyePos = glm::vec3(glm::inverse(ViewMatrix) * glm::vec4(0, 0, 0, 1));
+		gubo.ambient = dayTime;
 		DSGlobal.map(currentImage, &gubo, 0);
 
 		// objects
@@ -1070,19 +1101,27 @@ class HuntGame : public BaseProject {
         int k = 2;
 
 		EmissionUniformBufferObject emissionUbo{};
-		emissionUbo.mvpMat = ViewPrj * glm::translate(glm::mat4(1), gubo.lightDir * 100.0f) * baseTr;
+		EmissionParUniformBufferObject epubo{};
+
+		emissionUbo.mvpMat = ViewPrj * glm::translate(glm::mat4(1), gubo.lightDir * 75.0f) * baseTr;
+		epubo.temperature = dayTime;
+
 		DSsun.map(currentImage, &emissionUbo, 0);
+		DSsun.map(currentImage, &epubo, 2);
 
 		EmissionUniformBufferObject moonEmissionUbo{};
-		moonEmissionUbo.mvpMat = ViewPrj * glm::translate(glm::mat4(1), -gubo.lightDir * 100.0f) * baseTr;
+		EmissionParUniformBufferObject moonepubo{};
+		moonEmissionUbo.mvpMat = ViewPrj * glm::translate(glm::mat4(1), -gubo.lightDir * 75.0f) * baseTr;
+		moonepubo.temperature = -2.0f;
 		DSmoon.map(currentImage, &moonEmissionUbo, 0);
+		DSmoon.map(currentImage, &moonepubo, 2);
 
-		skyBoxUniformBufferObject sbubo{};
+		SkyBoxUniformBufferObject sbubo{};
 		sbubo.mvpMat = M * glm::mat4(glm::mat3(Mv));
 		DSskyBox.map(currentImage, &sbubo, 0);
 
-		dayTimeUniformBufferObject dtubo{};
-		dtubo.daytime = sin(cTime * angTurnTimeFact);
+		SkyBoxParUniformBufferObject dtubo{};
+		dtubo.daytime = dayTime;
 		DSskyBox.map(currentImage, &dtubo, 3);
 		           
         blinnUbo.mMat = glm::mat4(1);

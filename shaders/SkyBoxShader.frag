@@ -7,7 +7,7 @@ layout(location = 0) out vec4 outColor;
 
 layout(binding = 1) uniform sampler2D skybox;
 layout(binding = 2) uniform sampler2D stars;
-layout(binding = 3) uniform dayTimeUniformBufferObject {
+layout(binding = 3) uniform SkyBoxParUniformBufferObject {
 	float dayTime;
 } dtubo;
 
