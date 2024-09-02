@@ -9,8 +9,9 @@
 bool isDebugMode = false;
 
 std::vector<SingleText> outText = {
-	{2, {"Adding an object", "Press SPACE to save the screenshots","",""}, 0, 0},
-	{1, {"Saving Screenshots. Please wait.", "", "",""}, 0, 0}
+	{2, {"Welcome to our hunting game!", "Press ENTER to start the game","",""}, 0, 0},
+	{2, {"Let the hunt begin!","","",""}, 0, 0},
+	{2, {"Game over","Press ENTER to start again","",""}, 0, 0},
 };
 
 // THE NUMBER OF INSTANCES OF ANIMALS, VEGITATION/ROCKS, STRUCTURES
@@ -18,6 +19,12 @@ std::vector<SingleText> outText = {
 #define NVEGROCK 72
 #define NSTRUCTURES 5
 #define NBALLS 1
+
+// GAME SCENES
+#define NUMSCENES 3
+#define STARTMENU 0
+#define MATCH 1
+#define GAMEOVER 2
 
 
 struct BlinnUniformBufferObject {
@@ -646,11 +653,6 @@ class HuntGame : public BaseProject {
 		std::cout << "Descriptor Sets in the Pool : " << DPSZs.setsInPool << "\n";
 		
 		ViewMatrix = glm::translate(glm::mat4(1), -CamPos);
-
-
-
-
-
 	}
 	
 	// Here you create your pipelines and Descriptor Sets!
@@ -876,7 +878,7 @@ class HuntGame : public BaseProject {
 				static_cast<uint32_t>(MCrosshair.indices.size()), 1, 0, 0, 0);	
 
             
-		//txt.populateCommandBuffer(commandBuffer, currentImage, currScene);
+		txt.populateCommandBuffer(commandBuffer, currentImage, currScene);
 	}
 
 	// Here is where you update the uniforms.
@@ -919,80 +921,86 @@ class HuntGame : public BaseProject {
 		static float CamPitch = glm::radians(0.0f);
 		static float CamYaw   = M_PI;
 
-		if (!isDebugMode)
-		{
-			glm::vec3 FirstPos = glm::vec3(0, 0.5, 0);
-			glm::vec3 Pos = glm::vec3(0, 0, 0);
+		if (currScene == MATCH) {
+			if (!isDebugMode)
+			{
+				glm::vec3 FirstPos = glm::vec3(2, 1, 5);
+				glm::vec3 Pos = glm::vec3(0, 0, 0);
 
-			float Yaw = 0;
+				float Yaw = 0;
 
-			// static float CamPitch = glm::radians(0.0f);
-			// static float CamYaw   = M_PI;
-			static float CamRoll  = 0.0f;
+				// static float CamPitch = glm::radians(0.0f);
+				// static float CamYaw   = M_PI;
+				static float CamRoll  = 0.0f;
 
-			static float dampedVelz = 0.0f;
-			static float dampedVelx = 0.0f;
+				static float dampedVelz = 0.0f;
+				static float dampedVelx = 0.0f;
 
-			const float WALKING_SPEED = 1.0f;
+				const float WALKING_SPEED = 1.0f;
 
-			static glm::vec3 lastPos;
+				static glm::vec3 lastPos;
 
-			dampedVelz =  WALKING_SPEED * deltaT * m.z + dampedVelz;
-			dampedVelx =  WALKING_SPEED * deltaT * m.x + dampedVelx;
+				dampedVelz =  WALKING_SPEED * deltaT * m.z + dampedVelz;
+				dampedVelx =  WALKING_SPEED * deltaT * m.x + dampedVelx;
 
-			dampedVelz = dampedVelz * 0.9f;
-			dampedVelx = dampedVelx * 0.9f;
+				dampedVelz = dampedVelz * 0.9f;
+				dampedVelx = dampedVelx * 0.9f;
 
-			glm::vec3 ux = glm::vec3(cos(CamYaw), 0.0f, -sin(CamYaw));
-			glm::vec3 uz = glm::vec3(sin(CamYaw), 0.0f, cos(CamYaw));
+				glm::vec3 ux = glm::vec3(cos(CamYaw), 0.0f, -sin(CamYaw));
+				glm::vec3 uz = glm::vec3(sin(CamYaw), 0.0f, cos(CamYaw));
 
-			CamYaw -= ROT_SPEED * deltaT * r.y;
-			CamPitch -= ROT_SPEED * deltaT * r.x;
+				CamYaw -= ROT_SPEED * deltaT * r.y;
+				CamPitch -= ROT_SPEED * deltaT * r.x;
+				
+				Pos = lastPos + ux * dampedVelx + uz * dampedVelz;
 			
-			Pos = lastPos + ux * dampedVelx + uz * dampedVelz;
-		
-			CamPitch = (CamPitch < -0.25*M_PI ? -0.25*M_PI : (CamPitch > 0.25*M_PI ? 0.25*M_PI : CamPitch));
+				CamPitch = (CamPitch < -0.25*M_PI ? -0.25*M_PI : (CamPitch > 0.25*M_PI ? 0.25*M_PI : CamPitch));
 
-			lastPos = Pos;
+				lastPos = Pos;
 
-			ViewMatrix = 
-			glm::rotate(glm::mat4(1.0), -CamPitch, glm::vec3(1,0,0)) *
-				glm::rotate(glm::mat4(1.0), -CamYaw, glm::vec3(0,1,0)) *
-				glm::translate(glm::mat4(1.0), -(Pos + FirstPos)) * glm::mat4(1.0);
+				ViewMatrix = 
+				glm::rotate(glm::mat4(1.0), -CamPitch, glm::vec3(1,0,0)) *
+					glm::rotate(glm::mat4(1.0), -CamYaw, glm::vec3(0,1,0)) *
+					glm::translate(glm::mat4(1.0), -(Pos + FirstPos)) * glm::mat4(1.0);
 
-		} else {
-			// The Fly model update proc.
-			ViewMatrix = glm::rotate(glm::mat4(1), ROT_SPEED * r.x * deltaT,
-								 glm::vec3(1, 0, 0)) * ViewMatrix;
-			ViewMatrix = glm::rotate(glm::mat4(1), ROT_SPEED * r.y * deltaT,
-								 glm::vec3(0, 1, 0)) * ViewMatrix;
-			ViewMatrix = glm::rotate(glm::mat4(1), -ROT_SPEED * r.z * deltaT,
-								 glm::vec3(0, 0, 1)) * ViewMatrix;
-			ViewMatrix = glm::translate(glm::mat4(1), -glm::vec3(
-								   MOVE_SPEED * m.x * deltaT, MOVE_SPEED * m.y * deltaT, MOVE_SPEED * m.z * deltaT))
-													   * ViewMatrix;
+			} else {
+				// The Fly model update proc.
+				ViewMatrix = glm::rotate(glm::mat4(1), ROT_SPEED * r.x * deltaT,
+									glm::vec3(1, 0, 0)) * ViewMatrix;
+				ViewMatrix = glm::rotate(glm::mat4(1), ROT_SPEED * r.y * deltaT,
+									glm::vec3(0, 1, 0)) * ViewMatrix;
+				ViewMatrix = glm::rotate(glm::mat4(1), -ROT_SPEED * r.z * deltaT,
+									glm::vec3(0, 0, 1)) * ViewMatrix;
+				ViewMatrix = glm::translate(glm::mat4(1), -glm::vec3(
+									MOVE_SPEED * m.x * deltaT, MOVE_SPEED * m.y * deltaT, MOVE_SPEED * m.z * deltaT))
+														* ViewMatrix;
+			}
 		}
-
 		static float subpassTimer = 0.0;
 
 		if(glfwGetKey(window, GLFW_KEY_SPACE)) {
 			if(!debounce) {
 				debounce = true;
 				curDebounce = GLFW_KEY_SPACE;
-				//RebuildPipeline();
-				std::cout << "New Ray Direction: " << ray.direction.x << ", " << ray.direction.y << ", " << ray.direction.z << std::endl;
-				//std::cout << "animal: " << animals[0].pos.x << ", " << animals[0].pos.y << ", " << animals[0].pos.z << std::endl;
+								
+				// Shoots only during the match
+				if (currScene == MATCH) {
 
-				float t0, t1;
-				for (int index = 0; index < NANIMAL; index++) {
-					if(animals[index].visible){
-	   					if(rayIntersectsSphere(ray.origin, ray.direction, animals[index].pos, 0.5, t0, t1)){ 
-							std::cout<< "Sphere HIT" << std::endl;
-							animals[index].visible = false;
-							RebuildPipeline();
+					//RebuildPipeline();
+					std::cout << "New Ray Direction: " << ray.direction.x << ", " << ray.direction.y << ", " << ray.direction.z << std::endl;
+					//std::cout << "animal: " << animals[0].pos.x << ", " << animals[0].pos.y << ", " << animals[0].pos.z << std::endl;
+
+					float t0, t1;
+					for (int index = 0; index < NANIMAL; index++) {
+						if(animals[index].visible){
+							if(rayIntersectsSphere(ray.origin, ray.direction, animals[index].pos, 0.5, t0, t1)){ 
+								std::cout<< "Sphere HIT" << std::endl;
+								animals[index].visible = false;
+								RebuildPipeline();
+							}
 						}
 					}
-	        	}
+				}
 			}
 		} else {
 			if((curDebounce == GLFW_KEY_SPACE) && debounce) {
@@ -1022,30 +1030,38 @@ class HuntGame : public BaseProject {
 				curDebounce = 0;
 			}
 		}
-
-		if(glfwGetKey(window, GLFW_KEY_C)) {
+		
+		if(glfwGetKey(window, GLFW_KEY_ENTER)) {
 			if(!debounce) {
 				debounce = true;
-				curDebounce = GLFW_KEY_C;
-				}
+				curDebounce = GLFW_KEY_ENTER;
+
+				if (currScene == STARTMENU || currScene == MATCH)
+					currScene++;
+				else if (currScene == GAMEOVER)
+					currScene = MATCH;
+				else
+					std::cout << "Error, wrong scene : " << currScene << "\n";
+
+				std::cout << "Scene : " << currScene << "\n";
+				RebuildPipeline();
+			}
 		} else {
-			if((curDebounce == GLFW_KEY_C) && debounce) {
+			if((curDebounce == GLFW_KEY_ENTER) && debounce) {
 				debounce = false;
 				curDebounce = 0;
 			}
 		}
 
-		if(glfwGetKey(window, GLFW_KEY_T)) {
-			if(!debounce) {
-				debounce = true;
-				curDebounce = GLFW_KEY_T;
-			}
-		} else {
-			if((curDebounce == GLFW_KEY_T) && debounce) {
-				debounce = false;
-				curDebounce = 0;
-			}
+		if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS) {
+    		//shoot();
+			// for (int index = 0; index < NANIMAL; index++) {
+		    // 			const Instance& instance = animals[index];
+		    //     		if(rayIntersectsBox(ray.origin, ray.direction, instance.bbox)){ std::cout<< "BBox HIT" << std::endl;}
+        	// }
+			//std::cout << "New Ray Orgin: " << ray.origin.x << ", " << ray.origin.y << ", " << ray.origin.z << std::endl;
 		}
+
 
 		//ViewMatrix = glm::translate(glm::mat4(1), -CamPos);
 
