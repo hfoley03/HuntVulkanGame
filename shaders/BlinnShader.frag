@@ -31,7 +31,7 @@ layout(set = 1, binding = 1) uniform sampler2D tex;
 // The scene is lit by a single Spot Light
 void main() {
 
-	float ambientIntensity = (gubo.ambient - (-1.0f)) / (1.0f - (-1.0f)) * (0.1f - 0.025f) + 0.025f;
+	float ambientIntensity = (gubo.ambient - (-1.0f)) / (1.0f - (-1.0f)) * (0.09f - 0.025f) + 0.025f;
 	vec3 Norm = normalize(fragNorm);
 	vec3 EyeDir = normalize(gubo.eyePos - fragPos);
 	
@@ -43,7 +43,7 @@ void main() {
 	vec3 Specular = vec3(pow(max(dot(Norm, normalize(lightDir + EyeDir)),0.0), mubo.Pow));
 	vec3 Ambient = texture(tex, fragUV).rgb * ambientIntensity;
 
-	vec3 nightDiffuse = texture(tex, fragUV).rgb * 0.975f * max(dot(Norm, -lightDir),0.0);
+	vec3 nightDiffuse = texture(tex, fragUV).rgb * (1-ambientIntensity) * max(dot(Norm, -lightDir),0.0);
 	vec3 nightSpecular = vec3(pow(max(dot(Norm, normalize(-lightDir + EyeDir)),0.0), mubo.Pow));
 	// vec3 nightLightColor = {0.2, 0.2, 0.2};
 	

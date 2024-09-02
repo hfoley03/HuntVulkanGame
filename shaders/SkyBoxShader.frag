@@ -18,4 +18,5 @@ void main() {
 	float pitch = -(atan(fragTexCoord.y, sqrt(fragTexCoord.x*fragTexCoord.x+fragTexCoord.z*fragTexCoord.z))/3.14159265+0.5);
 	// outColor = texture(skybox, vec2(yaw, pitch))*0.9+texture(stars, vec2(yaw, pitch))*0.1;
 	outColor = (1-time) * texture(skybox, vec2(yaw, pitch)) + time * vec4(0.53f, 0.81f, 0.92f, 1.0f);
+	// outColor = (1-time) * texture(skybox, vec2(yaw, pitch)) + time * texture(stars, vec2(yaw, pitch));
 }

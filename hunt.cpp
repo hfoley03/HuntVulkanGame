@@ -519,7 +519,7 @@ class HuntGame : public BaseProject {
         TStructures[3].init(this, "textures/woodenhousediffuse.png");
 
 		TskyBox.init(this, "textures/starmap_g4k.jpg");
-		Tstars.init(this, "textures/constellation_figures.png");
+		Tstars.init(this, "textures/bluecloud_up.jpg");
 
         // emplace_back creates an instance of an object using it's constructor and then places it into a vector of instances
 
@@ -1120,7 +1120,7 @@ class HuntGame : public BaseProject {
 		EmissionUniformBufferObject emissionUbo{};
 		EmissionParUniformBufferObject epubo{};
 
-		emissionUbo.mvpMat = ViewPrj * glm::translate(glm::mat4(1), gubo.lightDir * 75.0f) * baseTr;
+		emissionUbo.mvpMat = ViewPrj * glm::translate(glm::mat4(1), gubo.lightDir * 100.0f) * glm::scale(glm::mat4(1), glm::vec3(5.0f)) * baseTr;
 		epubo.temperature = dayTime;
 
 		DSsun.map(currentImage, &emissionUbo, 0);
@@ -1128,7 +1128,7 @@ class HuntGame : public BaseProject {
 
 		EmissionUniformBufferObject moonEmissionUbo{};
 		EmissionParUniformBufferObject moonepubo{};
-		moonEmissionUbo.mvpMat = ViewPrj * glm::translate(glm::mat4(1), -gubo.lightDir * 75.0f) * baseTr;
+		moonEmissionUbo.mvpMat = ViewPrj * glm::translate(glm::mat4(1), -gubo.lightDir * 100.0f) * glm::scale(glm::mat4(1), glm::vec3(4.0f))  * baseTr;
 		moonepubo.temperature = -2.0f;
 		DSmoon.map(currentImage, &moonEmissionUbo, 0);
 		DSmoon.map(currentImage, &moonepubo, 2);
