@@ -4,7 +4,6 @@
 #include "modules/Starter.hpp"
 #include "modules/TextMaker.hpp"
 #include <cstdlib> 
-#include <glm/gtx/quaternion.hpp>
 
 bool isDebugMode = false;
 
@@ -28,6 +27,7 @@ struct BlinnUniformBufferObject {
 
 struct BlinnMatParUniformBufferObject {
 	alignas(4)  float Power;
+	alignas(4) 	float scaleUV;
 };
 
 struct EmissionUniformBufferObject {
@@ -177,7 +177,7 @@ struct Ray {
     glm::vec3 direction;
 };
 
-// Function to calculate a ray from the screen center (crosshair)
+// calculate ray from the screen center (crosshair)
 Ray calculateRayFromScreenCenter(const glm::mat4& viewMatrix, const glm::mat4& projectionMatrix) {
     glm::vec2 ndcCoords(0.0f, 0.0f); // Center of the screen in NDC
 
@@ -246,7 +246,6 @@ class HuntGame : public BaseProject {
 	Model MskyBox;
 	
 	Model MGun;
-    std::vector<Instance> guns;
     
     Model MBall;
     std::vector<Instance> balls;
@@ -277,14 +276,24 @@ class HuntGame : public BaseProject {
 
 
    // Textures
-    Texture T1, Tanimal, TGun;
+    Texture T1, Tanimal, TGun, TGrass;
     Texture Tsun;
 	Texture Tmoon;
     Texture Tground;
     Texture TStructures[4];
     Texture TCrosshair;
 	Texture TskyBox, Tstars;
-    
+
+	 VkFilter magFilter = VK_FILTER_NEAREST;
+	 VkFilter minFilter = VK_FILTER_NEAREST;
+	 VkSamplerAddressMode addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+	 VkSamplerAddressMode addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+	 VkSamplerMipmapMode mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
+	 VkBool32 anisotropyEnable = VK_FALSE;
+	 float maxAnisotropy = 1;
+	 float maxLod = 0;
+	 int mmm = 0;
+
 	
 	// Other application parameters
 	int currScene = 0;
@@ -294,13 +303,6 @@ class HuntGame : public BaseProject {
 	glm::mat4 ViewMatrix;
 	float CamAlpha = 0.0f;
 	float CamBeta = 0.0f;
-
-	glm::vec3 CurrentCamPos = glm::vec3(0.0, 0.1, 5.0);
-	glm::vec3 CurrentCamPosFront = glm::vec3(0.0, 0.0, 0.0);
-
-	glm::vec3 rayOrigin = CurrentCamPos;
-	glm::vec3 rayDirection = glm::normalize(CurrentCamPosFront); 
-
 
 	float Ar;
 
@@ -427,7 +429,7 @@ class HuntGame : public BaseProject {
 				});
 
 
-              
+          
 		// Pipelines [Shader couples]
 		PBlinn.init(this, &VDBlinn,  "shaders/BlinnVert.spv",    "shaders/BlinnFrag.spv", {&DSLGlobal, &DSLBlinn});
 		PEmission.init(this, &VDEmission,  "shaders/EmissionVert.spv",    "shaders/EmissionFrag.spv", {&DSLEmission});
@@ -512,6 +514,18 @@ class HuntGame : public BaseProject {
         Tanimal.init(this, "textures/Textures-Animals.png");
         TCrosshair.init(this, "textures/cros.png");
         TGun.init(this, "textures/gun.png");
+        TGrass.init(this, "textures/grass1.jpg");
+        // TGrass.init(this, "textures/grass1.jpg", VK_FORMAT_R8G8B8A8_SRGB, false);
+        // TGrass.createTextureSampler(
+		// 					  magFilter,
+		// 					  minFilter,
+		// 					  addressModeU,
+		// 					  addressModeV,
+		// 					  mipmapMode,
+		// 					  anisotropyEnable,
+		// 					  maxAnisotropy,
+		// 					  maxLod
+		// 	);				
         
         TStructures[0].init(this, "textures/cottage_diffuse.png");
         TStructures[1].init(this, "textures/fenceDiffuse.jpg");
@@ -570,7 +584,6 @@ class HuntGame : public BaseProject {
         vegRocks.emplace_back(glm::vec3(-5.0f, 0.0f, -38.0f), 2, glm::vec3(1.0f, 1.0f, 1.0f), 0.0f, "Top Right");
         vegRocks.emplace_back(glm::vec3(-22.0f, 0.0f, -25.0f), 3, glm::vec3(1.0f, 1.0f, 1.0f), 0.0f, "Top Right");
 
-
         vegRocks.emplace_back(glm::vec3(-43.0f, 0.0f, -40.0f), 1,glm::vec3(1.0f, 1.0f, 1.0f), 0.0f, "Top Left");
 
         vegRocks.emplace_back(glm::vec3(-33.0f, 0.0f, -30.0f), 2,glm::vec3(1.0f, 1.0f, 1.0f), 0.0f, "Top Left");
@@ -616,13 +629,6 @@ class HuntGame : public BaseProject {
 	        balls.emplace_back(glm::vec3(0.0f + i, 0.0f, 0.0f), i, glm::vec3(0.1f, 0.1f, 0.1f), 0.0f, "ball");
         }
 
-        // GUN
-        glm::vec3 gunPosition(1.0f, 1.0f, 1.0f); 
-		int gunId = 101;                         
-		glm::vec3 gunScale(1.0f, 1.0f, 1.0f);    
-		float gunAngle = -90.0f;                  
-		std::string gunDescription = "rifle"; 
-		guns.emplace_back(gunPosition, gunId, gunScale, gunAngle, gunDescription);
 
 
 
@@ -665,7 +671,7 @@ class HuntGame : public BaseProject {
 		// Here you define the data set
 		DSsun.init(this, &DSLEmission, {&Tsun});
 		DSmoon.init(this, &DSLEmission, {&Tmoon});
-		DSground.init(this, &DSLBlinn, {&T1});
+		DSground.init(this, &DSLBlinn, {&TGrass});
         DSAx.init(this, &DSLBlinn, {&T1});
         DSCrosshair.init(this, &DSLHUD, {&TCrosshair});
         DSBBox.init(this, &DSLBBox, {&T1});
@@ -1113,10 +1119,6 @@ class HuntGame : public BaseProject {
         // bboxUbo.mvpMat = ViewPrj;
     	//DSBBox.map(currentImage, &bboxUbo, 0);
 
-        int i = 0;
-        int j = 2;
-        int k = 2;
-
 		EmissionUniformBufferObject emissionUbo{};
 		EmissionParUniformBufferObject epubo{};
 
@@ -1145,6 +1147,7 @@ class HuntGame : public BaseProject {
         blinnUbo.nMat = glm::mat4(1);
         blinnUbo.mvpMat = ViewPrj;
         blinnMatParUbo.Power = 200.0;
+		blinnMatParUbo.scaleUV = 1.0;
 
         // AXIS
         DSAx.map(currentImage, &blinnUbo, 0); 
@@ -1158,6 +1161,8 @@ class HuntGame : public BaseProject {
        	blinnUbo.nMat = glm::inverse(glm::transpose(blinnUbo.mMat));
 
         DSground.map(currentImage, &blinnUbo, 0); //DSground
+        blinnMatParUbo.scaleUV = 50.0;
+		blinnMatParUbo.Power = 200000.0;
         DSground.map(currentImage, &blinnMatParUbo, 2);
 
         // GUN
@@ -1175,6 +1180,7 @@ class HuntGame : public BaseProject {
         DSGun.map(currentImage, &blinnUbo, 0);
 
 		blinnMatParUbo.Power = 2000.0;
+		blinnMatParUbo.scaleUV = 1.0;
     	DSGun.map(currentImage, &blinnMatParUbo, 2);
 
         // ANIMALS

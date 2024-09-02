@@ -23,6 +23,7 @@ layout(set = 0, binding = 0) uniform GlobalUniformBufferObject {
 
 layout(set = 1, binding = 2) uniform BlinnParUniformBufferObject {
 	float Pow;
+	float scaleUV;
 } mubo;
 
 layout(set = 1, binding = 1) uniform sampler2D tex;
@@ -39,11 +40,11 @@ void main() {
 	vec3 lightColor = gubo.dayLightColor.rgb;
 	// vec3 specularLightColor = 0.5 * gubo.dayLightColor.rgb + 0.5 * vec3(1.0);
 
-	vec3 Diffuse = texture(tex, fragUV).rgb * (1-ambientIntensity) * max(dot(Norm, lightDir),0.0);
+	vec3 Diffuse = texture(tex, fragUV * mubo.scaleUV).rgb * (1-ambientIntensity) * max(dot(Norm, lightDir),0.0);
 	vec3 Specular = vec3(pow(max(dot(Norm, normalize(lightDir + EyeDir)),0.0), mubo.Pow));
-	vec3 Ambient = texture(tex, fragUV).rgb * ambientIntensity;
+	vec3 Ambient = texture(tex, fragUV * mubo.scaleUV).rgb * ambientIntensity;
 
-	vec3 nightDiffuse = texture(tex, fragUV).rgb * (1-ambientIntensity) * max(dot(Norm, -lightDir),0.0);
+	vec3 nightDiffuse = texture(tex, fragUV * mubo.scaleUV).rgb * (1-ambientIntensity) * max(dot(Norm, -lightDir),0.0);
 	vec3 nightSpecular = vec3(pow(max(dot(Norm, normalize(-lightDir + EyeDir)),0.0), mubo.Pow));
 	// vec3 nightLightColor = {0.2, 0.2, 0.2};
 	
