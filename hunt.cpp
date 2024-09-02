@@ -4,6 +4,7 @@
 #include "modules/Starter.hpp"
 #include "modules/TextMaker.hpp"
 #include <cstdlib> 
+#include <glm/gtx/quaternion.hpp>
 
 bool isDebugMode = false;
 
@@ -104,7 +105,7 @@ public:
     BoundingBox bbox;   // Bounding box for collision detection
     bool visible = true;
 
-    // Constructor
+
     Instance(const glm::vec3& position, int id, const glm::vec3& scl, float ang, const std::string& description)
         : pos(position), modelID(id), scale(scl), angle(ang), desc(description), bbox() {}
 
@@ -116,14 +117,13 @@ public:
 
     bbox.min = pos + scaledMin;
     bbox.max = pos + scaledMax;
-}
+	}
 };
 
 
+
 float randomFloat(float min, float max) {
-    // Generate a random float between 0 and 1
     float random = static_cast<float>(std::rand()) / static_cast<float>(RAND_MAX);
-    // Scale and shift to the desired range [min, max]
     return min + random * (max - min);
 }
 
@@ -159,18 +159,13 @@ bool rayIntersectsBox(const glm::vec3& rayOrigin, const glm::vec3& rayDirection,
     return true;
 }
 
-
 bool rayIntersectsSphere(const glm::vec3& rayOrigin, const glm::vec3& rayDirection, const glm::vec3& sphereCenter, float sphereRadius, float& t0, float& t1) {
     glm::vec3 L = glm::vec3(sphereCenter.x, sphereCenter.y + 0.25f, sphereCenter.z) - rayOrigin;
-
     float tca = glm::dot(L, rayDirection);
     float d2 = glm::dot(L, L) - tca * tca;
-
     float radius2 = sphereRadius * sphereRadius;
     if (d2 > radius2) return false;
-
     float thc = sqrt(radius2 - d2);
-
     t0 = tca - thc;
     t1 = tca + thc;
 
@@ -203,6 +198,12 @@ Ray calculateRayFromScreenCenter(const glm::mat4& viewMatrix, const glm::mat4& p
     ray.origin = glm::vec3(rayStartWorld); 
     ray.direction = glm::normalize(glm::vec3(rayEndWorld - rayStartWorld));  
     return ray;
+}
+
+glm::vec3 extractPlayerPositionFromViewMatrix(const glm::mat4& viewMatrix) {
+    glm::mat4 inverseViewMatrix = glm::inverse(viewMatrix);
+    glm::vec3 playerPosition = glm::vec3(inverseViewMatrix[3]);
+    return playerPosition;
 }
 
 // MAIN ! 
@@ -243,6 +244,9 @@ class HuntGame : public BaseProject {
     Model MCrosshair;
     Model MBBox;
 	Model MskyBox;
+	
+	Model MGun;
+    std::vector<Instance> guns;
     
     Model MBall;
     std::vector<Instance> balls;
@@ -269,9 +273,11 @@ class HuntGame : public BaseProject {
     DescriptorSet DSBBox;
     DescriptorSet DSBalls[NBALLS];
 	DescriptorSet DSskyBox;
+	DescriptorSet DSGun;
+
 
    // Textures
-    Texture T1, Tanimal;
+    Texture T1, Tanimal, TGun;
     Texture Tsun;
 	Texture Tmoon;
     Texture Tground;
@@ -440,6 +446,7 @@ class HuntGame : public BaseProject {
 		Mground.init(this, &VDBlinn, "models/LargePlane.obj", OBJ);
 		MBall.init(this, &VDBlinn, "models/Sphere.obj", OBJ);
 		MskyBox.init(this, &VDskyBox, "models/SkyBoxCube.obj", OBJ);
+		MGun.init(this, &VDBlinn, "models/gun.obj", OBJ);
         
         MAnimals[0].init(this, &VDBlinn, "models/animals/rhinoceros_001.mgcg", MGCG);
         MAnimals[1].init(this, &VDBlinn, "models/animals/tiger_001.mgcg", MGCG);
@@ -504,6 +511,7 @@ class HuntGame : public BaseProject {
         T1.init(this,   "textures/Textures.png");
         Tanimal.init(this, "textures/Textures-Animals.png");
         TCrosshair.init(this, "textures/cros.png");
+        TGun.init(this, "textures/gun.png");
         
         TStructures[0].init(this, "textures/cottage_diffuse.png");
         TStructures[1].init(this, "textures/fenceDiffuse.jpg");
@@ -608,7 +616,13 @@ class HuntGame : public BaseProject {
 	        balls.emplace_back(glm::vec3(0.0f + i, 0.0f, 0.0f), i, glm::vec3(0.1f, 0.1f, 0.1f), 0.0f, "ball");
         }
 
-
+        // GUN
+        glm::vec3 gunPosition(1.0f, 1.0f, 1.0f); 
+		int gunId = 101;                         
+		glm::vec3 gunScale(1.0f, 1.0f, 1.0f);    
+		float gunAngle = -90.0f;                  
+		std::string gunDescription = "rifle"; 
+		guns.emplace_back(gunPosition, gunId, gunScale, gunAngle, gunDescription);
 
 
 
@@ -656,6 +670,8 @@ class HuntGame : public BaseProject {
         DSCrosshair.init(this, &DSLHUD, {&TCrosshair});
         DSBBox.init(this, &DSLBBox, {&T1});
 		DSskyBox.init(this, &DSLskyBox, {&TskyBox, &Tstars});
+		DSGun.init(this, &DSLBlinn, {&TGun});
+
 
         for (DescriptorSet &DSAnimal: DSAnimals) {
             DSAnimal.init(this, &DSLBlinn, {&Tanimal});
@@ -700,6 +716,7 @@ class HuntGame : public BaseProject {
         DSCrosshair.cleanup();
         DSBBox.cleanup();
 		DSskyBox.cleanup();
+		DSGun.cleanup();
 
 
         for (DescriptorSet &DSAnimal: DSAnimals) {
@@ -729,6 +746,7 @@ class HuntGame : public BaseProject {
         T1.cleanup();
         Tanimal.cleanup();
         TCrosshair.cleanup();
+        TGun.cleanup();	
 
         for (Texture &Tstruct: TStructures) {
             Tstruct.cleanup();
@@ -741,6 +759,7 @@ class HuntGame : public BaseProject {
 		Mground.cleanup();
         MAx.cleanup();
         MBall.cleanup();
+        MGun.cleanup();
         for (Model &MAnimal: MAnimals) {
             MAnimal.cleanup();
         }
@@ -822,6 +841,11 @@ class HuntGame : public BaseProject {
         vkCmdDrawIndexed(commandBuffer,
                 static_cast<uint32_t>(MAx.indices.size()), 1, 0, 0, 0);
 
+		MGun.bind(commandBuffer);
+		DSGun.bind(commandBuffer, PBlinn, 1, currentImage);
+		vkCmdDrawIndexed(commandBuffer,
+				static_cast<uint32_t>(MGun.indices.size()), 1, 0, 0, 0);	
+
 		PEmission.bind(commandBuffer);
 		Msun.bind(commandBuffer);
 		DSsun.bind(commandBuffer, PEmission, 0, currentImage);
@@ -892,6 +916,9 @@ class HuntGame : public BaseProject {
 		const float ROT_SPEED = glm::radians(120.0f);
 		const float MOVE_SPEED = 10.0f;
 		
+		static float CamPitch = glm::radians(0.0f);
+		static float CamYaw   = M_PI;
+
 		if (!isDebugMode)
 		{
 			glm::vec3 FirstPos = glm::vec3(0, 0.5, 0);
@@ -899,8 +926,8 @@ class HuntGame : public BaseProject {
 
 			float Yaw = 0;
 
-			static float CamPitch = glm::radians(20.0f);
-			static float CamYaw   = M_PI;
+			// static float CamPitch = glm::radians(0.0f);
+			// static float CamYaw   = M_PI;
 			static float CamRoll  = 0.0f;
 
 			static float dampedVelz = 0.0f;
@@ -1020,16 +1047,6 @@ class HuntGame : public BaseProject {
 			}
 		}
 
-		if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS) {
-    		//shoot();
-			// for (int index = 0; index < NANIMAL; index++) {
-		    // 			const Instance& instance = animals[index];
-		    //     		if(rayIntersectsBox(ray.origin, ray.direction, instance.bbox)){ std::cout<< "BBox HIT" << std::endl;}
-        	// }
-			//std::cout << "New Ray Orgin: " << ray.origin.x << ", " << ray.origin.y << ", " << ray.origin.z << std::endl;
-		}
-
-
 		//ViewMatrix = glm::translate(glm::mat4(1), -CamPos);
 
 		// Here is where you actually update your uniforms
@@ -1143,6 +1160,22 @@ class HuntGame : public BaseProject {
         DSground.map(currentImage, &blinnUbo, 0); //DSground
         DSground.map(currentImage, &blinnMatParUbo, 2);
 
+        // GUN
+		glm::mat4 gunModelMatrix = 
+ 								  glm::translate(glm::mat4(1.0f), extractPlayerPositionFromViewMatrix(ViewMatrix)) 
+								* glm::rotate(glm::mat4(1.0f), (CamYaw), glm::vec3(0.0f, 1.0f, 0.0f))
+								* glm::rotate(glm::mat4(1.0f), (CamPitch + glm::radians(10.0f)), glm::vec3(1.0f, 0.0f, 0.0f))
+								* glm::rotate(glm::mat4(1.0f), glm::radians(90.0f),glm::vec3(0.0f, 1.0f, 0.0f))
+								* glm::translate(glm::mat4(1.0f), glm::vec3(0.45f, -0.25f, 0.0f));
+
+
+		blinnUbo.mMat = gunModelMatrix;
+    	blinnUbo.mvpMat = ViewPrj * blinnUbo.mMat;
+    	blinnUbo.nMat = glm::inverse(glm::transpose(blinnUbo.mMat));
+        DSGun.map(currentImage, &blinnUbo, 0);
+
+		blinnMatParUbo.Power = 2000.0;
+    	DSGun.map(currentImage, &blinnMatParUbo, 2);
 
         // ANIMALS
         for (int model = 0; model < NANIMAL; model++) {
