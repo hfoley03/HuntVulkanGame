@@ -17,7 +17,7 @@ std::vector<SingleText> outText = {
 // THE NUMBER OF INSTANCES OF ANIMALS, VEGITATION/ROCKS, STRUCTURES
 #define NANIMAL 5 
 #define NVEGROCK 73
-#define NSTRUCTURES 5
+#define NSTRUCTURES 141
 #define NBALLS 1
 
 // GAME SCENES
@@ -112,6 +112,7 @@ public:
     std::string desc;   // Description of the instance
     BoundingBox bbox;   // Bounding box for collision detection
     bool visible = true;
+	float angle2 = 0.0f;
 
 
     Instance(const glm::vec3& position, int id, const glm::vec3& scl, float ang, const std::string& description)
@@ -569,28 +570,28 @@ class HuntGame : public BaseProject {
         float prev_dist = -60.0f;
         for(int i = 0; i < 12; i++){
         	float scaler = 5.0f + randomFloat(-1.0f, 2.0f);
-	        vegRocks.emplace_back(glm::vec3(prev_dist + dist, 0.0f, -60.0f + randomFloat(-10.0f, 10.0f)), (int)randomFloat(8.0f, 11.0f), glm::vec3(scaler, scaler+ randomFloat(0.0f, 2.0f), scaler), randomFloat(0.0f, 360.0f), "Top Right");
+	        vegRocks.emplace_back(glm::vec3(prev_dist + dist, 0.0f, -60.0f + randomFloat(-10.0f, 10.0f)), (int)randomFloat(8.0f, 11.0f), glm::vec3(scaler, scaler+ randomFloat(0.0f, 2.0f), scaler), randomFloat(0.0f, 360.0f), "rock");
 	        prev_dist = prev_dist + dist;
         }
         
         prev_dist = -60.0f;
         for(int i = 0; i < 12; i++){
         	float scaler = 5.0f + randomFloat(-1.0f, 2.0f);
-	        vegRocks.emplace_back(glm::vec3(prev_dist + dist, 0.0f, 60.0f + randomFloat(-10.0f, 10.0f)), (int)randomFloat(8.0f, 11.0f), glm::vec3(scaler, scaler+ randomFloat(0.0f, 2.0f), scaler), randomFloat(0.0f, 360.0f), "Top Right");
+	        vegRocks.emplace_back(glm::vec3(prev_dist + dist, 0.0f, 60.0f + randomFloat(-10.0f, 10.0f)), (int)randomFloat(8.0f, 11.0f), glm::vec3(scaler, scaler+ randomFloat(0.0f, 2.0f), scaler), randomFloat(0.0f, 360.0f), "rock");
 	        prev_dist = prev_dist + dist;
         }
 
         prev_dist = -60.0f;
         for(int i = 0; i < 12; i++){
         	float scaler = 5.0f + randomFloat(-1.0f, 2.0f);
-	        vegRocks.emplace_back(glm::vec3( 60.0f + randomFloat(-10.0f, 10.0f) , 0.0f, prev_dist + dist), (int)randomFloat(8.0f, 11.0f), glm::vec3(scaler, scaler+ randomFloat(0.0f, 2.0f), scaler), randomFloat(0.0f, 360.0f), "Top Right");
+	        vegRocks.emplace_back(glm::vec3( 60.0f + randomFloat(-10.0f, 10.0f) , 0.0f, prev_dist + dist), (int)randomFloat(8.0f, 11.0f), glm::vec3(scaler, scaler+ randomFloat(0.0f, 2.0f), scaler), randomFloat(0.0f, 360.0f), "rock");
 	        prev_dist = prev_dist + dist;
         }
 
         prev_dist = -60.0f;
         for(int i = 0; i < 12; i++){
         	float scaler = 5.0f + randomFloat(-1.0f, 2.0f);
-	        vegRocks.emplace_back(glm::vec3( -60.0f + randomFloat(-10.0f, 10.0f) , 0.0f, prev_dist + dist), (int)randomFloat(8.0f, 11.0f), glm::vec3(scaler, scaler + randomFloat(0.0f, 2.0f), scaler), randomFloat(0.0f, 360.0f), "Top Right");
+	        vegRocks.emplace_back(glm::vec3( -60.0f + randomFloat(-10.0f, 10.0f) , 0.0f, prev_dist + dist), (int)randomFloat(8.0f, 11.0f), glm::vec3(scaler, scaler + randomFloat(0.0f, 2.0f), scaler), randomFloat(0.0f, 360.0f), "rock");
 	        prev_dist = prev_dist + dist;
         }
 
@@ -630,12 +631,28 @@ class HuntGame : public BaseProject {
 
         /// STRUCTURES
 
+
+
+		for(int i = 0; i < 34; i++){
+			structures.emplace_back(glm::vec3(-40.0f +  2.5f*i, 0.0f, -36.0f), 1, glm::vec3(0.01f, 0.01f, 0.01f), -90.0f, "fence1");
+		}
+		for(int i = 0; i < 34; i++){
+			structures.emplace_back(glm::vec3(-40.0f +  2.5f*i, 0.0f, 45.0f), 1, glm::vec3(0.01f, 0.01f, 0.01f), -90.0f, "fence1"); //direction of spawning
+		}
+		for(int i = 0; i < 34; i++){
+			structures.emplace_back(glm::vec3(43.0, 0.0f, -36.0f +  2.5f*i), 1, glm::vec3(0.01f, 0.01f, 0.01f), -90.0f, "fence2");
+			structures[68+i].angle2 = 90.0f;
+		}	
+		for(int i = 0; i < 34; i++){
+			structures.emplace_back(glm::vec3(-40.0, 0.0f, -36.0f +  2.5f*i), 1, glm::vec3(0.01f, 0.01f, 0.01f), -90.0f, "fence2");
+			structures[102+i].angle2 = 90.0f;
+		}		
+
         structures.emplace_back(glm::vec3(0.0f, 0.0f, 10.0f), 3, glm::vec3(1.0f, 1.0f, 1.0f), 0.0f, "Cottage");
         structures.emplace_back(glm::vec3(10.0f, 0.0f, -10.0f), 3, glm::vec3(1.0f, 1.0f, 1.0f), 0.0f, "House");
         structures.emplace_back(glm::vec3(4.0f, 0.0f, -10.0f), 1, glm::vec3(0.01f, 0.01f, 0.01f), -90.0f, "fence");
         structures.emplace_back(glm::vec3(5.5f, 0.0f, -10.0f), 1, glm::vec3(0.01f, 0.01f, 0.01f), -90.0f, "fence");
         structures.emplace_back(glm::vec3(0.0f, -1.0f, 0.0f), 2, glm::vec3(1.0f, 1.0f, 1.0f), 0.0f, "TOWER");
-
 
         // ANIMALS
 
@@ -960,15 +977,15 @@ class HuntGame : public BaseProject {
 				static float dampedVelz = 0.0f;
 				static float dampedVelx = 0.0f;
 
-				const float WALKING_SPEED = 1.0f;
+				const float WALKING_SPEED = 2.0f;
 
 				static glm::vec3 lastPos;
 
 				dampedVelz =  WALKING_SPEED * deltaT * m.z + dampedVelz;
 				dampedVelx =  WALKING_SPEED * deltaT * m.x + dampedVelx;
 
-				dampedVelz = dampedVelz * 0.9f;
-				dampedVelx = dampedVelx * 0.9f;
+				dampedVelz = dampedVelz * 0.85f;
+				dampedVelx = dampedVelx * 0.85f;
 
 				glm::vec3 ux = glm::vec3(cos(CamYaw), 0.0f, -sin(CamYaw));
 				glm::vec3 uz = glm::vec3(sin(CamYaw), 0.0f, cos(CamYaw));
@@ -978,13 +995,39 @@ class HuntGame : public BaseProject {
 				
 				Pos = lastPos + ux * dampedVelx + uz * dampedVelz;
 
+				if(Pos.x > 40.0f){
+					std::cout << "Pos x too big "<< Pos.x << "\n";
+					Pos = glm::vec3( 40.0f, Pos.y, Pos.z);
+				}
+				if(Pos.x < -40.0f){
+					std::cout << "Pos x too small "<< Pos.x << "\n";
+					Pos = glm::vec3( -40.0f, Pos.y, Pos.z);
+				}
+				if(Pos.z > 40.0f){
+					std::cout << "Pos z too big "<< Pos.z << "\n";
+					Pos = glm::vec3( Pos.x, Pos.y, 40.0f);
+				}
+				if(Pos.z < -40.0f){
+					std::cout << "Pos z too small "<< Pos.z << "\n";
+					Pos = glm::vec3( Pos.x, Pos.y, -40.0f);
+				}
+
 				//glm::vec3 new_position = lastPos + ux * dampedVelx + uz * dampedVelz;
 
 				bool collision_detected = false;
         		for (int index = 0; index < NVEGROCK; index++) {
-					if (checkCollision(Pos + FirstPos, 0.5f, vegRocks[index].pos, 1.0f)) {
-						std::cout << "collided" << "\n";
-						std::cout << index << "\n";
+					float objRadius = 1.0f;
+					if(vegRocks[index].modelID < 4){
+				
+						if (checkCollision(Pos + FirstPos, 0.5f, vegRocks[index].pos, 1.0f)) {
+							std::cout << "collided" << "\n";
+							std::cout << vegRocks[index].scale.x << "\n";
+							std::cout << vegRocks[index].desc << "\n";
+							glm::vec3 collision_direction = glm::normalize( (Pos + FirstPos) - vegRocks[index].pos);
+							collision_direction = glm::vec3(collision_direction.x, 0.0f, collision_direction.z);
+							float pushback_distance = (2.5f) - glm::length((Pos + FirstPos) - vegRocks[index].pos);
+							Pos = Pos + pushback_distance * collision_direction;
+						}
 					}
 				}
 
@@ -1023,7 +1066,9 @@ class HuntGame : public BaseProject {
 				if (currScene == MATCH) {
 
 					//RebuildPipeline();
-					std::cout << "New Ray Direction: " << ray.direction.x << ", " << ray.direction.y << ", " << ray.direction.z << std::endl;
+					// std::cout << "New Ray Direction: " << ray.direction.x << ", " << ray.direction.y << ", " << ray.direction.z << std::endl;
+					std::cout << "player pos " << PlayerPos.x << ", " << PlayerPos.y << ", " << PlayerPos.z << std::endl;
+
 					//std::cout << "animal: " << animals[0].pos.x << ", " << animals[0].pos.y << ", " << animals[0].pos.z << std::endl;
 
 					float t0, t1;
@@ -1265,7 +1310,7 @@ class HuntGame : public BaseProject {
 
  			blinnUbo.mMat = glm::translate(glm::mat4(1.0f),
                                            instance.pos) 
- 											* glm::rotate(glm::mat4(1.0f), glm::radians(0.0f),glm::vec3(1.0f, 0.0f, 0.0f))
+ 											* glm::rotate(glm::mat4(1.0f), glm::radians(instance.angle2),glm::vec3(0.0f, 1.0f, 0.0f))
  											* glm::rotate(glm::scale(glm::mat4(1), instance.scale), glm::radians(instance.angle),glm::vec3(1.0f, 0.0f, 0.0f)) * baseTr;
 
 
