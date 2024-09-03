@@ -8,7 +8,7 @@
 bool isDebugMode = false;
 
 std::vector<SingleText> outText = {
-	{2, {"Welcome to our hunting game!", "Press ENTER to start the game","",""}, 0, 0},
+	{2, {"Welcome to our hunting game!", "Press ENTER to start the game","a","b"}, 10, 0},
 	{2, {"Let the hunt begin!","","",""}, 0, 0},
 	{2, {"Game over","Press ENTER to start again","",""}, 0, 0},
 };
@@ -246,7 +246,7 @@ class HuntGame : public BaseProject {
 	Pipeline PskyBox;
 
 	// Scenes and texts
-    TextMaker txt;
+    // TextMaker txt;
     
     // Models
     Model MAx; // xyz axis object
@@ -257,6 +257,7 @@ class HuntGame : public BaseProject {
     Model MBBox;
 	Model MskyBox;
 	Model MMenuScreen;
+	Model MGameOver;
 	
 	Model MGun;
     
@@ -287,6 +288,7 @@ class HuntGame : public BaseProject {
 	DescriptorSet DSskyBox;
 	DescriptorSet DSGun;
 	DescriptorSet DSMenuScreen;
+	DescriptorSet DSGameOver;
 
 
    // Textures
@@ -308,7 +310,8 @@ class HuntGame : public BaseProject {
 	 float maxLod = 0;
 	 int mmm = 0;
 
-Texture TMenuScreen;
+	Texture TMenuScreen;
+	Texture TGameOver;
 	
 	// Other application parameters
 	int currScene = 0;
@@ -522,11 +525,17 @@ Texture TMenuScreen;
 		MCrosshair.initMesh(this, &VDHUD);
  
 		// Define the 4 vertices of the quad
+		// std::vector<HUDVertex> menuScreenVertices = {
+		//     {{-0.9f, -0.9f}, {0.0f, 0.0f}},  
+		//     {{ 0.9f, -0.9f}, {1.0f, 0.0f}},  
+		//     {{ 0.9f,  0.9f}, {1.0f, 1.0f}},  
+		//     {{-0.9f,  0.9f}, {0.0f, 1.0f}},
+		// };
 		std::vector<HUDVertex> menuScreenVertices = {
-		    {{-0.9f, -0.9f}, {0.0f, 0.0f}},  
-		    {{ 0.9f, -0.9f}, {1.0f, 0.0f}},  
-		    {{ 0.9f,  0.9f}, {1.0f, 1.0f}},  
-		    {{-0.9f,  0.9f}, {0.0f, 1.0f}},
+		    {{-1.0f, -1.0f}, {0.0f, 0.0f}},  
+		    {{ 1.0f, -1.0f}, {1.0f, 0.0f}},  
+		    {{ 1.0f,  1.0f}, {1.0f, 1.0f}},  
+		    {{-1.0f,  1.0f}, {0.0f, 1.0f}},
 		};
 
 		// Insert the vertices
@@ -538,12 +547,15 @@ Texture TMenuScreen;
 		    MSV_vertex->UV = vertex.UV;
 		    
 		    MMenuScreen.vertices.insert(MMenuScreen.vertices.end(), menuScreenVertexData.begin(), menuScreenVertexData.end());
+			MGameOver.vertices.insert(MGameOver.vertices.end(), menuScreenVertexData.begin(), menuScreenVertexData.end());
 		}
 
 		std::vector<unsigned int> msquadIndices = {0, 1, 2, 2, 3, 0};
 
 		MMenuScreen.indices.insert(MMenuScreen.indices.end(), msquadIndices.begin(), msquadIndices.end());
 		MMenuScreen.initMesh(this, &VDHUD);
+		MGameOver.indices.insert(MGameOver.indices.end(), msquadIndices.begin(), msquadIndices.end());
+		MGameOver.initMesh(this, &VDHUD);
 
 
         // Create the textures
@@ -566,7 +578,8 @@ Texture TMenuScreen;
 		// 					  maxAnisotropy,
 		// 					  maxLod
 		// 	);				
-		TMenuScreen.init(this, "textures/black_background.jpg");
+		TMenuScreen.init(this, "textures/startmenu_background.jpg");
+		TGameOver.init(this, "textures/gameover_background.png");
         
         TStructures[0].init(this, "textures/cottage_diffuse.png");
         TStructures[1].init(this, "textures/fenceDiffuse.jpg");
@@ -685,7 +698,7 @@ Texture TMenuScreen;
 		DPSZs.setsInPool = 400;
 
 		std::cout << "Initializing text\n";
-		txt.init(this, &outText);
+		// txt.init(this, &outText);
 
 		std::cout << "Initialization completed!\n";
 		std::cout << "Uniform Blocks in the Pool  : " << DPSZs.uniformBlocksInPool << "\n";
@@ -714,6 +727,7 @@ Texture TMenuScreen;
 		DSskyBox.init(this, &DSLskyBox, {&TskyBox, &Tstars});
 		DSGun.init(this, &DSLBlinn, {&TGun});
 		DSMenuScreen.init(this, &DSLHUD, {&TMenuScreen});
+		DSGameOver.init(this, &DSLHUD, {&TGameOver});
 
 
         for (DescriptorSet &DSAnimal: DSAnimals) {
@@ -735,7 +749,7 @@ Texture TMenuScreen;
 			
 		DSGlobal.init(this, &DSLGlobal, {});
 
-		txt.pipelinesAndDescriptorSetsInit();		
+		// txt.pipelinesAndDescriptorSetsInit();		
 
 		std::cout << "Descriptor Set init!\n";
 
@@ -761,6 +775,7 @@ Texture TMenuScreen;
 		DSskyBox.cleanup();
 		DSGun.cleanup();
 		DSMenuScreen.cleanup();
+		DSGameOver.cleanup();
 
 
         for (DescriptorSet &DSAnimal: DSAnimals) {
@@ -775,7 +790,7 @@ Texture TMenuScreen;
         for (DescriptorSet &DSBall: DSBalls) {
             DSBall.cleanup();
         };
-		txt.pipelinesAndDescriptorSetsCleanup();
+		// txt.pipelinesAndDescriptorSetsCleanup();
 
         std::cout << "Descriptor Set cleanup!\n";
 
@@ -792,6 +807,7 @@ Texture TMenuScreen;
         TCrosshair.cleanup();
         TGun.cleanup();	
 		TMenuScreen.cleanup();
+		TGameOver.cleanup();
 
         for (Texture &Tstruct: TStructures) {
             Tstruct.cleanup();
@@ -806,6 +822,8 @@ Texture TMenuScreen;
         MBall.cleanup();
         MGun.cleanup();
 		MMenuScreen.cleanup();
+		MGameOver.cleanup();
+
         for (Model &MAnimal: MAnimals) {
             MAnimal.cleanup();
         }
@@ -835,7 +853,7 @@ Texture TMenuScreen;
 		PBBox.destroy();
 		PskyBox.destroy();
 
-		txt.localCleanup();		
+		// txt.localCleanup();		
 	}
 	
 	// Here it is the creation of the command buffer:
@@ -926,9 +944,14 @@ Texture TMenuScreen;
 		DSMenuScreen.bind(commandBuffer, PHUD, 0, currentImage);
 		vkCmdDrawIndexed(commandBuffer,
 				static_cast<uint32_t>(MMenuScreen.indices.size()), 1, 0, 0, 0);
-				
+
+		MGameOver.bind(commandBuffer);
+		DSGameOver.bind(commandBuffer, PHUD, 0, currentImage);
+		vkCmdDrawIndexed(commandBuffer,
+				static_cast<uint32_t>(MGameOver.indices.size()), 1, 0, 0, 0);
+
             
-		txt.populateCommandBuffer(commandBuffer, currentImage, currScene);
+		// txt.populateCommandBuffer(commandBuffer, currentImage, currScene);
 	}
 
 	// Here is where you update the uniforms.
@@ -973,19 +996,23 @@ Texture TMenuScreen;
 
 		HUDParUniformBufferObject crosshairParUBO = {};
 		HUDParUniformBufferObject menuScreenParUBO = {};
+		HUDParUniformBufferObject gameOverParUBO = {};
 
 		crosshairParUBO.alpha = 1.0f;
 		menuScreenParUBO.alpha = 0.9f;
+		gameOverParUBO.alpha = 0.9f;
 
 		if (currScene == STARTMENU) {
 			
 			crosshairParUBO.visible = false;
 			menuScreenParUBO.visible = true;
+			gameOverParUBO.visible = false;
 
 		} else if (currScene == MATCH) {
 
 			crosshairParUBO.visible = true;
 			menuScreenParUBO.visible = false;
+			gameOverParUBO.visible = false;
 			
 			if (!isDebugMode)
 			{
@@ -1043,7 +1070,9 @@ Texture TMenuScreen;
 		} else if (currScene == GAMEOVER) {
 
 			crosshairParUBO.visible = false;
-			menuScreenParUBO.visible = true;
+			menuScreenParUBO.visible = false;
+			gameOverParUBO.visible = true;
+
 		} else {
 			std::cout << "Error, wrong scene : " << currScene << "\n";
 		}
@@ -1051,6 +1080,7 @@ Texture TMenuScreen;
 		// Updates descriptor sets
 		DSCrosshair.map(currentImage, &crosshairParUBO, 1);
 		DSMenuScreen.map(currentImage, &menuScreenParUBO, 1);
+		DSGameOver.map(currentImage, &gameOverParUBO, 1);
 
 		static float subpassTimer = 0.0;
 
