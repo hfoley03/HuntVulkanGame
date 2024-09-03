@@ -3,6 +3,7 @@
 
 #include "modules/Starter.hpp"
 #include "modules/TextMaker.hpp"
+#include "utils.hpp"
 #include <cstdlib> 
 
 bool isDebugMode = false;
@@ -15,7 +16,7 @@ std::vector<SingleText> outText = {
 
 // THE NUMBER OF INSTANCES OF ANIMALS, VEGITATION/ROCKS, STRUCTURES
 #define NANIMAL 5 
-#define NVEGROCK 72
+#define NVEGROCK 73
 #define NSTRUCTURES 5
 #define NBALLS 1
 
@@ -127,16 +128,10 @@ public:
 	}
 };
 
-
-
-float randomFloat(float min, float max) {
-    float random = static_cast<float>(std::rand()) / static_cast<float>(RAND_MAX);
-    return min + random * (max - min);
-}
-
 void shoot(){
 	std::cout << "shoot" << std::endl;
 }
+
 
 bool rayIntersectsBox(const glm::vec3& rayOrigin, const glm::vec3& rayDirection, const BoundingBox& box) {
     float tmin = (box.min.x - rayOrigin.x) / (rayDirection.x * -1.0);
@@ -179,6 +174,8 @@ bool rayIntersectsSphere(const glm::vec3& rayOrigin, const glm::vec3& rayDirecti
     return true;
 }
 
+
+
 struct Ray {
     glm::vec3 origin;
     glm::vec3 direction;
@@ -212,6 +209,20 @@ glm::vec3 extractPlayerPositionFromViewMatrix(const glm::mat4& viewMatrix) {
     glm::vec3 playerPosition = glm::vec3(inverseViewMatrix[3]);
     return playerPosition;
 }
+
+bool checkCollision(glm::vec3 playerPos, float playerRad, glm::vec3 objectPos, float objectRad){
+
+	glm::vec2 playXZ = glm::vec2(playerPos.x, playerPos.z);
+	glm::vec2 objXZ = glm::vec2(objectPos.x, objectPos.z);
+
+	float distSquared = glm::length(playerPos - objectPos);
+	float radSummed = playerRad + objectRad;
+	float radSummedSquared = radSummed * radSummed;
+
+	return distSquared < radSummedSquared;
+}
+
+// void resolveCollision()
 
 // MAIN ! 
 class HuntGame : public BaseProject {
@@ -307,6 +318,7 @@ class HuntGame : public BaseProject {
 	int subpass = 0;
 		
 	glm::vec3 CamPos = glm::vec3(0.0, 0.1, 5.0);
+	glm::vec3 PlayerPos = glm::vec3(0.0, 0.1, 5.0);
 	glm::mat4 ViewMatrix;
 	float CamAlpha = 0.0f;
 	float CamBeta = 0.0f;
@@ -584,6 +596,7 @@ class HuntGame : public BaseProject {
 
         // TREES
 
+
         vegRocks.emplace_back(glm::vec3(40.0f, 0.0f, -32.0f), 1, glm::vec3(1.0f, 1.0f, 1.0f), 0.0f, "Top Right");
 
         vegRocks.emplace_back(glm::vec3(20.0f, 0.0f, -29.0f), 3, glm::vec3(1.0f, 1.0f, 1.0f), 0.0f, "Top Right");
@@ -611,6 +624,9 @@ class HuntGame : public BaseProject {
         vegRocks.emplace_back(glm::vec3(43.0f, 0.0f, -10.0f), 1,glm::vec3(1.5f, 2.0f, 1.5f), 0.0f, "Top Left");
         vegRocks.emplace_back(glm::vec3(23.0f, 0.0f, 	6.0f), 3,glm::vec3(1.0f, 1.0f, 1.0f), 0.0f, "Top Left");
         vegRocks.emplace_back(glm::vec3(43.0f, 0.0f, 14.0f), 2,glm::vec3(1.0f, 1.0f, 1.0f), 0.0f, "Top Left");
+
+		vegRocks.emplace_back(glm::vec3(5.0f, 0.0f, -5.0f), 1, glm::vec3(1.0f, 1.0f, 1.0f), 0.0f, "Test Tree");
+
 
         /// STRUCTURES
 
@@ -933,6 +949,8 @@ class HuntGame : public BaseProject {
 				glm::vec3 FirstPos = glm::vec3(2, 1, 5);
 				glm::vec3 Pos = glm::vec3(0, 0, 0);
 
+				glm::vec3 player_position = Pos + FirstPos;
+
 				float Yaw = 0;
 
 				// static float CamPitch = glm::radians(0.0f);
@@ -959,6 +977,17 @@ class HuntGame : public BaseProject {
 				CamPitch -= ROT_SPEED * deltaT * r.x;
 				
 				Pos = lastPos + ux * dampedVelx + uz * dampedVelz;
+
+				//glm::vec3 new_position = lastPos + ux * dampedVelx + uz * dampedVelz;
+
+				bool collision_detected = false;
+        		for (int index = 0; index < NVEGROCK; index++) {
+					if (checkCollision(Pos + FirstPos, 0.5f, vegRocks[index].pos, 1.0f)) {
+						std::cout << "collided" << "\n";
+						std::cout << index << "\n";
+					}
+				}
+
 			
 				CamPitch = (CamPitch < -0.25*M_PI ? -0.25*M_PI : (CamPitch > 0.25*M_PI ? 0.25*M_PI : CamPitch));
 
@@ -981,6 +1010,7 @@ class HuntGame : public BaseProject {
 									MOVE_SPEED * m.x * deltaT, MOVE_SPEED * m.y * deltaT, MOVE_SPEED * m.z * deltaT))
 														* ViewMatrix;
 			}
+			PlayerPos = extractPlayerPositionFromViewMatrix(ViewMatrix);
 		}
 		static float subpassTimer = 0.0;
 
@@ -1060,16 +1090,9 @@ class HuntGame : public BaseProject {
 		}
 
 		if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS) {
-    		//shoot();
-			// for (int index = 0; index < NANIMAL; index++) {
-		    // 			const Instance& instance = animals[index];
-		    //     		if(rayIntersectsBox(ray.origin, ray.direction, instance.bbox)){ std::cout<< "BBox HIT" << std::endl;}
-        	// }
-			//std::cout << "New Ray Orgin: " << ray.origin.x << ", " << ray.origin.y << ", " << ray.origin.z << std::endl;
+
 		}
 
-
-		//ViewMatrix = glm::translate(glm::mat4(1), -CamPos);
 
 		// Here is where you actually update your uniforms
 		glm::mat4 M = glm::perspective(glm::radians(45.0f), Ar, 0.1f, 160.0f);
@@ -1183,7 +1206,7 @@ class HuntGame : public BaseProject {
 
         // GUN
 		glm::mat4 gunModelMatrix = 
- 								  glm::translate(glm::mat4(1.0f), extractPlayerPositionFromViewMatrix(ViewMatrix)) 
+ 								  glm::translate(glm::mat4(1.0f), PlayerPos) 
 								* glm::rotate(glm::mat4(1.0f), (CamYaw), glm::vec3(0.0f, 1.0f, 0.0f))
 								* glm::rotate(glm::mat4(1.0f), (CamPitch + glm::radians(10.0f)), glm::vec3(1.0f, 0.0f, 0.0f))
 								* glm::rotate(glm::mat4(1.0f), glm::radians(90.0f),glm::vec3(0.0f, 1.0f, 0.0f))
