@@ -61,6 +61,11 @@ struct SkyBoxParUniformBufferObject {
 	alignas(4) float daytime;
 };
 
+struct HUDParUniformBufferObject {
+	alignas(4) float alpha;
+	alignas(4) bool visible;
+};
+
 struct UniformBufferObject {
     alignas(16) glm::mat4 mvpMat;
     alignas(16) glm::mat4 mMat;
@@ -251,6 +256,7 @@ class HuntGame : public BaseProject {
     Model MCrosshair;
     Model MBBox;
 	Model MskyBox;
+	Model MMenuScreen;
 	
 	Model MGun;
     
@@ -280,6 +286,7 @@ class HuntGame : public BaseProject {
     DescriptorSet DSBalls[NBALLS];
 	DescriptorSet DSskyBox;
 	DescriptorSet DSGun;
+	DescriptorSet DSMenuScreen;
 
 
    // Textures
@@ -301,6 +308,7 @@ class HuntGame : public BaseProject {
 	 float maxLod = 0;
 	 int mmm = 0;
 
+Texture TMenuScreen;
 	
 	// Other application parameters
 	int currScene = 0;
@@ -385,7 +393,8 @@ class HuntGame : public BaseProject {
 					{3, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(SkyBoxParUniformBufferObject), 1}
 				});
 		DSLHUD.init(this, {
-    			{0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 0, 1}  // Crosshairs texture sampler
+    			{0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 0, 1},
+				{1, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(HUDParUniformBufferObject), 1},
 				});
 		DSLBBox.init(this, {
     			{0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT, sizeof(BlinnUniformBufferObject), 1} //BoundingBoxUniformBufferObject
@@ -511,6 +520,30 @@ class HuntGame : public BaseProject {
 
 		MCrosshair.indices.insert(MCrosshair.indices.end(), quadIndices.begin(), quadIndices.end());
 		MCrosshair.initMesh(this, &VDHUD);
+ 
+		// Define the 4 vertices of the quad
+		std::vector<HUDVertex> menuScreenVertices = {
+		    {{-0.9f, -0.9f}, {0.0f, 0.0f}},  
+		    {{ 0.9f, -0.9f}, {1.0f, 0.0f}},  
+		    {{ 0.9f,  0.9f}, {1.0f, 1.0f}},  
+		    {{-0.9f,  0.9f}, {0.0f, 1.0f}},
+		};
+
+		// Insert the vertices
+		for (const auto& vertex : menuScreenVertices) {
+		    std::vector<unsigned char> menuScreenVertexData(mainStride, 0);
+		    HUDVertex* MSV_vertex = (HUDVertex*)(&menuScreenVertexData[0]);
+		    
+		    MSV_vertex->pos = vertex.pos;
+		    MSV_vertex->UV = vertex.UV;
+		    
+		    MMenuScreen.vertices.insert(MMenuScreen.vertices.end(), menuScreenVertexData.begin(), menuScreenVertexData.end());
+		}
+
+		std::vector<unsigned int> msquadIndices = {0, 1, 2, 2, 3, 0};
+
+		MMenuScreen.indices.insert(MMenuScreen.indices.end(), msquadIndices.begin(), msquadIndices.end());
+		MMenuScreen.initMesh(this, &VDHUD);
 
 
         // Create the textures
@@ -533,6 +566,7 @@ class HuntGame : public BaseProject {
 		// 					  maxAnisotropy,
 		// 					  maxLod
 		// 	);				
+		TMenuScreen.init(this, "textures/black_background.jpg");
         
         TStructures[0].init(this, "textures/cottage_diffuse.png");
         TStructures[1].init(this, "textures/fenceDiffuse.jpg");
@@ -679,6 +713,7 @@ class HuntGame : public BaseProject {
         DSBBox.init(this, &DSLBBox, {&T1});
 		DSskyBox.init(this, &DSLskyBox, {&TskyBox, &Tstars});
 		DSGun.init(this, &DSLBlinn, {&TGun});
+		DSMenuScreen.init(this, &DSLHUD, {&TMenuScreen});
 
 
         for (DescriptorSet &DSAnimal: DSAnimals) {
@@ -725,6 +760,7 @@ class HuntGame : public BaseProject {
         DSBBox.cleanup();
 		DSskyBox.cleanup();
 		DSGun.cleanup();
+		DSMenuScreen.cleanup();
 
 
         for (DescriptorSet &DSAnimal: DSAnimals) {
@@ -755,6 +791,7 @@ class HuntGame : public BaseProject {
         Tanimal.cleanup();
         TCrosshair.cleanup();
         TGun.cleanup();	
+		TMenuScreen.cleanup();
 
         for (Texture &Tstruct: TStructures) {
             Tstruct.cleanup();
@@ -768,6 +805,7 @@ class HuntGame : public BaseProject {
         MAx.cleanup();
         MBall.cleanup();
         MGun.cleanup();
+		MMenuScreen.cleanup();
         for (Model &MAnimal: MAnimals) {
             MAnimal.cleanup();
         }
@@ -883,6 +921,12 @@ class HuntGame : public BaseProject {
 		vkCmdDrawIndexed(commandBuffer,
 				static_cast<uint32_t>(MCrosshair.indices.size()), 1, 0, 0, 0);	
 
+		
+		MMenuScreen.bind(commandBuffer);
+		DSMenuScreen.bind(commandBuffer, PHUD, 0, currentImage);
+		vkCmdDrawIndexed(commandBuffer,
+				static_cast<uint32_t>(MMenuScreen.indices.size()), 1, 0, 0, 0);
+				
             
 		txt.populateCommandBuffer(commandBuffer, currentImage, currScene);
 	}
@@ -927,7 +971,22 @@ class HuntGame : public BaseProject {
 		static float CamPitch = glm::radians(0.0f);
 		static float CamYaw   = M_PI;
 
-		if (currScene == MATCH) {
+		HUDParUniformBufferObject crosshairParUBO = {};
+		HUDParUniformBufferObject menuScreenParUBO = {};
+
+		crosshairParUBO.alpha = 1.0f;
+		menuScreenParUBO.alpha = 0.9f;
+
+		if (currScene == STARTMENU) {
+			
+			crosshairParUBO.visible = false;
+			menuScreenParUBO.visible = true;
+
+		} else if (currScene == MATCH) {
+
+			crosshairParUBO.visible = true;
+			menuScreenParUBO.visible = false;
+			
 			if (!isDebugMode)
 			{
 				glm::vec3 FirstPos = glm::vec3(2, 1, 5);
@@ -981,7 +1040,18 @@ class HuntGame : public BaseProject {
 									MOVE_SPEED * m.x * deltaT, MOVE_SPEED * m.y * deltaT, MOVE_SPEED * m.z * deltaT))
 														* ViewMatrix;
 			}
+		} else if (currScene == GAMEOVER) {
+
+			crosshairParUBO.visible = false;
+			menuScreenParUBO.visible = true;
+		} else {
+			std::cout << "Error, wrong scene : " << currScene << "\n";
 		}
+
+		// Updates descriptor sets
+		DSCrosshair.map(currentImage, &crosshairParUBO, 1);
+		DSMenuScreen.map(currentImage, &menuScreenParUBO, 1);
+
 		static float subpassTimer = 0.0;
 
 		if(glfwGetKey(window, GLFW_KEY_SPACE)) {
