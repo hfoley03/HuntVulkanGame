@@ -312,6 +312,8 @@ class HuntGame : public BaseProject {
 	float CamBeta = 0.0f;	
 
 	float Ar;
+	float cameraZoom = 50.0f;
+
 
 	// for visualisation of the bounding box only
 	// void createBoundingBoxModel(Model& MBBox, const BoundingBox& bbox, VertexDescriptor& VDBBox) {
@@ -1033,6 +1035,7 @@ class HuntGame : public BaseProject {
 		static bool debounce = false;
 		static int curDebounce = 0;
 
+
 		float deltaT;
 		glm::vec3 m = glm::vec3(0.0f), r = glm::vec3(0.0f);
 		bool fire = false;
@@ -1234,6 +1237,36 @@ class HuntGame : public BaseProject {
 			glfwSetWindowShouldClose(window, GL_TRUE);
 		}
 
+	
+		if(glfwGetKey(window, GLFW_KEY_Z)) {
+			if(!debounce) {
+				debounce = true;
+				curDebounce = GLFW_KEY_Z;
+				cameraZoom = 25.0f;
+
+				std::cout<< "zoom out" << "\n";
+			}
+		} else {
+			if((curDebounce == GLFW_KEY_Z) && debounce) {
+				debounce = false;
+				curDebounce = 0;
+			}
+		}
+
+		if(glfwGetKey(window, GLFW_KEY_X)) {
+			if(!debounce) {
+				debounce = true;
+				curDebounce = GLFW_KEY_X;
+				cameraZoom = 50.0f;
+
+				std::cout<< "zoom in" << "\n";
+			}
+		} else {
+			if((curDebounce == GLFW_KEY_X) && debounce) {
+				debounce = false;
+				curDebounce = 0;
+			}
+		}		
 
 		if(glfwGetKey(window, GLFW_KEY_V)) {
 			if(!debounce) {
@@ -1280,7 +1313,7 @@ class HuntGame : public BaseProject {
 
 
 		// Here is where you actually update your uniforms
-		glm::mat4 M = glm::perspective(glm::radians(45.0f), Ar, 0.1f, 160.0f);
+		glm::mat4 M = glm::perspective(glm::radians(cameraZoom), Ar, 0.1f, 160.0f);
 		M[1][1] *= -1;
 
 		glm::mat4 Mv = ViewMatrix;
