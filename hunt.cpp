@@ -632,19 +632,19 @@ class HuntGame : public BaseProject {
         /// STRUCTURES
 
 
-
+		// Fences 
 		for(int i = 0; i < 34; i++){
-			structures.emplace_back(glm::vec3(-40.0f +  2.5f*i, 0.0f, -36.0f), 1, glm::vec3(0.01f, 0.01f, 0.01f), -90.0f, "fence1");
+			structures.emplace_back(glm::vec3(-40.0f +  2.5f*i, 0.0f, -40.0f), 1, glm::vec3(0.01f, 0.01f, 0.01f), -90.0f, "fence1");
 		}
 		for(int i = 0; i < 34; i++){
 			structures.emplace_back(glm::vec3(-40.0f +  2.5f*i, 0.0f, 45.0f), 1, glm::vec3(0.01f, 0.01f, 0.01f), -90.0f, "fence1"); //direction of spawning
 		}
 		for(int i = 0; i < 34; i++){
-			structures.emplace_back(glm::vec3(43.0, 0.0f, -36.0f +  2.5f*i), 1, glm::vec3(0.01f, 0.01f, 0.01f), -90.0f, "fence2");
+			structures.emplace_back(glm::vec3(43.0, 0.0f, -38.0f +  2.5f*i), 1, glm::vec3(0.01f, 0.01f, 0.01f), -90.0f, "fence2");
 			structures[68+i].angle2 = 90.0f;
 		}	
 		for(int i = 0; i < 34; i++){
-			structures.emplace_back(glm::vec3(-40.0, 0.0f, -36.0f +  2.5f*i), 1, glm::vec3(0.01f, 0.01f, 0.01f), -90.0f, "fence2");
+			structures.emplace_back(glm::vec3(-40.0, 0.0f, -37.6f +  2.5f*i), 1, glm::vec3(0.01f, 0.01f, 0.01f), -90.0f, "fence2");
 			structures[102+i].angle2 = 90.0f;
 		}		
 
@@ -995,27 +995,26 @@ class HuntGame : public BaseProject {
 				
 				Pos = lastPos + ux * dampedVelx + uz * dampedVelz;
 
-				if(Pos.x > 40.0f){
+				// fence perimeter bounds
+				if(Pos.x > 40.5f){
 					std::cout << "Pos x too big "<< Pos.x << "\n";
-					Pos = glm::vec3( 40.0f, Pos.y, Pos.z);
+					Pos = glm::vec3( 40.5f, Pos.y, Pos.z);
 				}
-				if(Pos.x < -40.0f){
+				if(Pos.x < -41.5f){
 					std::cout << "Pos x too small "<< Pos.x << "\n";
-					Pos = glm::vec3( -40.0f, Pos.y, Pos.z);
+					Pos = glm::vec3( -41.5f, Pos.y, Pos.z);
 				}
 				if(Pos.z > 40.0f){
 					std::cout << "Pos z too big "<< Pos.z << "\n";
 					Pos = glm::vec3( Pos.x, Pos.y, 40.0f);
 				}
-				if(Pos.z < -40.0f){
+				if(Pos.z < -44.5f){
 					std::cout << "Pos z too small "<< Pos.z << "\n";
-					Pos = glm::vec3( Pos.x, Pos.y, -40.0f);
+					Pos = glm::vec3( Pos.x, Pos.y, -44.5f);
 				}
 
-				//glm::vec3 new_position = lastPos + ux * dampedVelx + uz * dampedVelz;
-
 				bool collision_detected = false;
-        		for (int index = 0; index < NVEGROCK; index++) {
+        		for (int index = 51; index < NVEGROCK; index++) {
 					float objRadius = 1.0f;
 					if(vegRocks[index].modelID < 4){
 				
@@ -1026,7 +1025,8 @@ class HuntGame : public BaseProject {
 							glm::vec3 collision_direction = glm::normalize( (Pos + FirstPos) - vegRocks[index].pos);
 							collision_direction = glm::vec3(collision_direction.x, 0.0f, collision_direction.z);
 							float pushback_distance = (2.5f) - glm::length((Pos + FirstPos) - vegRocks[index].pos);
-							Pos = Pos + pushback_distance * collision_direction;
+							//Pos = Pos + pushback_distance * collision_direction; // bouncy
+							Pos = lastPos;  // stick 
 						}
 					}
 				}
