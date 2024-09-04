@@ -57,9 +57,9 @@ std::vector<SingleText> outText = {
 // };
 
 // THE NUMBER OF INSTANCES OF ANIMALS, VEGITATION/ROCKS, STRUCTURES
-#define NANIMAL 5 
-#define NVEGROCK 73
-#define NSTRUCTURES 141
+#define NANIMAL 40
+#define NVEGROCK 80
+#define NSTRUCTURES 136
 #define NBALLS 1
 
 // GAME SCENES
@@ -139,12 +139,10 @@ struct skyBoxVertex {
 	glm::vec3 pos;
 };
 
-struct BoundingBox {
-    glm::vec3 min;  // min corner
-    glm::vec3 max;  // max corner
-    BoundingBox() : min(0.0f), max(0.0f) {}
-    BoundingBox(const glm::vec3& minCorner, const glm::vec3& maxCorner)
-        : min(minCorner), max(maxCorner) {}
+struct Colliders {
+    glm::vec3 pos;
+    float radius;
+    std::string desc;
 };
 
 
@@ -157,114 +155,31 @@ public:
     glm::vec3 scale;    // Scale
     float angle;        // Angle for rotation
     std::string desc;   // Description of the instance
-    BoundingBox bbox;   // Bounding box for collision detection
+    //BoundingBox bbox;   // Bounding box for collision detection
     bool visible = true;
 	float angle2 = 0.0f;
 
 
     Instance(const glm::vec3& position, int id, const glm::vec3& scl, float ang, const std::string& description)
-        : pos(position), modelID(id), scale(scl), angle(ang), desc(description), bbox() {}
+        : pos(position), modelID(id), scale(scl), angle(ang), desc(description) {}
 
-    void updateBoundingBox(const glm::vec3& modelMin, const glm::vec3& modelMax) {
-    glm::vec3 scaledMin = modelMin * scale;
-    glm::vec3 scaledMax = modelMax * scale;
+    // void updateBoundingBox(const glm::vec3& modelMin, const glm::vec3& modelMax) {
+    // glm::vec3 scaledMin = modelMin * scale;
+    // glm::vec3 scaledMax = modelMax * scale;
 
     //  rotation todo
 
-    bbox.min = pos + scaledMin;
-    bbox.max = pos + scaledMax;
-	}
+    // bbox.min = pos + scaledMin;
+    // bbox.max = pos + scaledMax;
+	// }
 };
 
 void shoot(){
 	std::cout << "shoot" << std::endl;
 }
 
-// currently unused
-bool rayIntersectsBox(const glm::vec3& rayOrigin, const glm::vec3& rayDirection, const BoundingBox& box) {
-    float tmin = (box.min.x - rayOrigin.x) / (rayDirection.x * -1.0);
-    float tmax = (box.max.x - rayOrigin.x) / (rayDirection.x * -1.0);
-    
-    if (tmin > tmax) std::swap(tmin, tmax);
-    
-    float tymin = (box.min.y - rayOrigin.y) / (rayDirection.y * -1.0);
-    float tymax = (box.max.y - rayOrigin.y) / (rayDirection.y * -1.0);
-    
-    if (tymin > tymax) std::swap(tymin, tymax);
-    
-    if ((tmin > tymax) || (tymin > tmax))
-        return false;
-    
-    tmin = std::max(tmin, tymin);
-    tmax = std::min(tmax, tymax);
-    
-    float tzmin = (box.min.z - rayOrigin.z) / rayDirection.z;
-    float tzmax = (box.max.z - rayOrigin.z) / rayDirection.z;
-    
-    if (tzmin > tzmax) std::swap(tzmin, tzmax);
-    
-    if ((tmin > tzmax) || (tzmin > tmax))
-        return false;
-    
-    return true;
-}
 
-bool rayIntersectsSphere(const glm::vec3& rayOrigin, const glm::vec3& rayDirection, const glm::vec3& sphereCenter, float sphereRadius, float& t0, float& t1) {
-    glm::vec3 L = glm::vec3(sphereCenter.x, sphereCenter.y + 0.25f, sphereCenter.z) - rayOrigin;
-    float tca = glm::dot(L, rayDirection);
-    float d2 = glm::dot(L, L) - tca * tca;
-    float radius2 = sphereRadius * sphereRadius;
-    if (d2 > radius2) return false;
-    float thc = sqrt(radius2 - d2);
-    t0 = tca - thc;
-    t1 = tca + thc;
 
-    return true;
-}
-
-struct Ray {
-    glm::vec3 origin;
-    glm::vec3 direction;
-};
-
-// calculate ray from the screen center (crosshair)
-Ray calculateRayFromScreenCenter(const glm::mat4& viewMatrix, const glm::mat4& projectionMatrix) {
-    glm::vec2 ndcCoords(0.0f, 0.0f); // Center of the screen in NDC
-
-    //unproject the point both at the near plane and the far plane
-    glm::vec4 rayStartNDC(ndcCoords, -1.0f, 1.0f); // Near plane (Z = -1 in NDC)
-    glm::vec4 rayEndNDC(ndcCoords, 1.0f, 1.0f);    // Far plane (Z = 1 in NDC)
-
-    glm::mat4 invVP = glm::inverse(projectionMatrix * viewMatrix);
-
-    // NDC points to world space
-    glm::vec4 rayStartWorld = invVP * rayStartNDC;
-    glm::vec4 rayEndWorld = invVP * rayEndNDC;
-
-    // convert from homogeneous to 3D coordinates
-    rayStartWorld /= rayStartWorld.w;
-    rayEndWorld /= rayEndWorld.w;
-    Ray ray;
-    ray.origin = glm::vec3(rayStartWorld); 
-    ray.direction = glm::normalize(glm::vec3(rayEndWorld - rayStartWorld));  
-    return ray;
-}
-
-glm::vec3 extractPlayerPositionFromViewMatrix(const glm::mat4& viewMatrix) {
-    glm::mat4 inverseViewMatrix = glm::inverse(viewMatrix);
-    glm::vec3 playerPosition = glm::vec3(inverseViewMatrix[3]);
-    return playerPosition;
-}
-
-bool checkCollision(glm::vec3 playerPos, float playerRad, glm::vec3 objectPos, float objectRad){
-	// we can ignore the z axis for collisions
-	glm::vec2 playXZ = glm::vec2(playerPos.x, playerPos.z);
-	glm::vec2 objXZ = glm::vec2(objectPos.x, objectPos.z);
-	float distSquared = glm::length(playerPos - objectPos);
-	float radSummed = playerRad + objectRad;
-	float radSummedSquared = radSummed * radSummed;
-	return distSquared < radSummedSquared;
-}
 
 // MAIN ! 
 class HuntGame : public BaseProject {
@@ -290,7 +205,7 @@ class HuntGame : public BaseProject {
 	Pipeline PBlinn;
 	Pipeline PEmission;
 	Pipeline PHUD;
-	Pipeline PBBox;
+	//Pipeline PBBox;
 	Pipeline PskyBox;
 
 	// Scenes and texts
@@ -302,7 +217,7 @@ class HuntGame : public BaseProject {
 	Model Mmoon;
     Model Mground;
     Model MCrosshair;
-    Model MBBox;
+    //Model MBBox;
 	Model MskyBox;
 	Model MMenuScreen;
 	Model MGameOver;
@@ -322,6 +237,8 @@ class HuntGame : public BaseProject {
     Model MAnimals[10];
     std::vector<Instance> animals;
 
+    std::vector<Colliders> colliders;
+
     
     // Descriptor Sets
     DescriptorSet DSGlobal, DSAx, DSCrosshair;
@@ -331,7 +248,7 @@ class HuntGame : public BaseProject {
     DescriptorSet DSAnimals[NANIMAL];
     DescriptorSet DSVegRocks[NVEGROCK];
     DescriptorSet DSStructures[NSTRUCTURES];
-    DescriptorSet DSBBox;
+    //DescriptorSet DSBBox;
     DescriptorSet DSBalls[NBALLS];
 	DescriptorSet DSskyBox;
 	DescriptorSet DSGun;
@@ -375,35 +292,35 @@ class HuntGame : public BaseProject {
 	float Ar;
 
 	// for visualisation of the bounding box only
-	void createBoundingBoxModel(Model& MBBox, const BoundingBox& bbox, VertexDescriptor& VDBBox) {
-	    int mainStride = sizeof(BBoxVertex); 
+	// void createBoundingBoxModel(Model& MBBox, const BoundingBox& bbox, VertexDescriptor& VDBBox) {
+	//     int mainStride = sizeof(BBoxVertex); 
 
-	    std::vector<BBoxVertex> bboxVertices = {
-	        {bbox.min},  // Vertex 0: (min.x, min.y, min.z)
-	        {{bbox.max.x, bbox.min.y, bbox.min.z}},  // Vertex 1: (max.x, min.y, min.z)
-	        {{bbox.min.x, bbox.max.y, bbox.min.z}},  // Vertex 2: (min.x, max.y, min.z)
-	        {{bbox.min.x, bbox.min.y, bbox.max.z}},  // Vertex 3: (min.x, min.y, max.z)
-	        {{bbox.max.x, bbox.max.y, bbox.min.z}},  // Vertex 4: (max.x, max.y, min.z)
-	        {{bbox.max.x, bbox.min.y, bbox.max.z}},  // Vertex 5: (max.x, min.y, max.z)
-	        {{bbox.min.x, bbox.max.y, bbox.max.z}},  // Vertex 6: (min.x, max.y, max.z)
-	        {bbox.max},  // Vertex 7: (max.x, max.y, max.z)
-	    };
-	    for (const auto& vertex : bboxVertices) {
-	        std::vector<unsigned char> vertexData(mainStride, 0);
-	        BBoxVertex* V_vertex = (BBoxVertex*)(&vertexData[0]);
+	//     std::vector<BBoxVertex> bboxVertices = {
+	//         {bbox.min},  // Vertex 0: (min.x, min.y, min.z)
+	//         {{bbox.max.x, bbox.min.y, bbox.min.z}},  // Vertex 1: (max.x, min.y, min.z)
+	//         {{bbox.min.x, bbox.max.y, bbox.min.z}},  // Vertex 2: (min.x, max.y, min.z)
+	//         {{bbox.min.x, bbox.min.y, bbox.max.z}},  // Vertex 3: (min.x, min.y, max.z)
+	//         {{bbox.max.x, bbox.max.y, bbox.min.z}},  // Vertex 4: (max.x, max.y, min.z)
+	//         {{bbox.max.x, bbox.min.y, bbox.max.z}},  // Vertex 5: (max.x, min.y, max.z)
+	//         {{bbox.min.x, bbox.max.y, bbox.max.z}},  // Vertex 6: (min.x, max.y, max.z)
+	//         {bbox.max},  // Vertex 7: (max.x, max.y, max.z)
+	//     };
+	//     for (const auto& vertex : bboxVertices) {
+	//         std::vector<unsigned char> vertexData(mainStride, 0);
+	//         BBoxVertex* V_vertex = (BBoxVertex*)(&vertexData[0]);
 
-	        V_vertex->pos = vertex.pos;
+	//         V_vertex->pos = vertex.pos;
 
-	        MBBox.vertices.insert(MBBox.vertices.end(), vertexData.begin(), vertexData.end());
-	    }
-	    std::vector<uint32_t> bboxIndices = {
-	        0, 1,  1, 5,  5, 3,  3, 0,
-	        2, 4,  4, 7,  7, 6,  6, 2,
-	        0, 2,  1, 4,  5, 7,  3, 6
-	    };
-	    MBBox.indices.insert(MBBox.indices.end(), bboxIndices.begin(), bboxIndices.end());
-	    MBBox.initMesh(this, &VDBBox);
-	}
+	//         MBBox.vertices.insert(MBBox.vertices.end(), vertexData.begin(), vertexData.end());
+	//     }
+	//     std::vector<uint32_t> bboxIndices = {
+	//         0, 1,  1, 5,  5, 3,  3, 0,
+	//         2, 4,  4, 7,  7, 6,  6, 2,
+	//         0, 2,  1, 4,  5, 7,  3, 6
+	//     };
+	//     MBBox.indices.insert(MBBox.indices.end(), bboxIndices.begin(), bboxIndices.end());
+	//     MBBox.initMesh(this, &VDBBox);
+	// }
 	
 	// Here you set the main application parameters
 	void setWindowParameters() {
@@ -507,8 +424,8 @@ class HuntGame : public BaseProject {
  								    VK_CULL_MODE_BACK_BIT, false);
 		PHUD.init(this, &VDHUD, "shaders/HUDVert.spv", "shaders/HUDFrag.spv", {&DSLHUD});
         PHUD.setAdvancedFeatures(VK_COMPARE_OP_LESS_OR_EQUAL, VK_POLYGON_MODE_FILL, VK_CULL_MODE_NONE, true);
-        PBBox.init(this, &VDBBox, "shaders/BBoxVert.spv", "shaders/BBoxFrag.spv", {&DSLBBox});
-        PBBox.setAdvancedFeatures(VK_COMPARE_OP_LESS_OR_EQUAL, VK_POLYGON_MODE_FILL, VK_CULL_MODE_NONE, false);
+        // PBBox.init(this, &VDBBox, "shaders/BBoxVert.spv", "shaders/BBoxFrag.spv", {&DSLBBox});
+        // PBBox.setAdvancedFeatures(VK_COMPARE_OP_LESS_OR_EQUAL, VK_POLYGON_MODE_FILL, VK_CULL_MODE_NONE, false);
 
 		// Create models
         MAx.init(this, &VDBlinn, "models/axis.obj", OBJ);
@@ -528,7 +445,7 @@ class HuntGame : public BaseProject {
         MAnimals[5].init(this, &VDBlinn, "models/animals/bison_001.mgcg", MGCG);
         MAnimals[6].init(this, &VDBlinn, "models/animals/bull_001.mgcg", MGCG);
         MAnimals[7].init(this, &VDBlinn, "models/animals/duck_001.mgcg", MGCG);
-        MAnimals[8].init(this, &VDBlinn, "models/animals/elephant_001.mgcg", MGCG);
+        MAnimals[8].init(this, &VDBlinn, "models/animals/goat_001.mgcg", MGCG);
         MAnimals[9].init(this, &VDBlinn, "models/animals/lion_female_001.mgcg", MGCG);
 
         MVegRocks[0].init(this, &VDBlinn, "models/VegRocks/vegetation.001.mgcg", MGCG);
@@ -682,35 +599,50 @@ class HuntGame : public BaseProject {
         }
 
         // TREES
-        vegRocks.emplace_back(glm::vec3(40.0f, 0.0f, -32.0f), 1, glm::vec3(1.0f, 1.0f, 1.0f), 0.0f, "Top Right");
+        vegRocks.emplace_back(glm::vec3(40.0f, 0.0f, -32.0f), 1, glm::vec3(1.0f, 1.0f, 1.0f), 0.0f, "Tree");
+        vegRocks.emplace_back(glm::vec3(20.0f, 0.0f, -29.0f), 3, glm::vec3(1.0f, 1.0f, 1.0f), 0.0f, "Tree");
+        vegRocks.emplace_back(glm::vec3(10.0f, 0.0f, -30.0f), 1, glm::vec3(1.0f, 1.0f, 1.0f), 0.0f, "Tree");
+        vegRocks.emplace_back(glm::vec3(-5.0f, 0.0f, -38.0f), 2, glm::vec3(1.0f, 1.0f, 1.0f), 0.0f, "Tree");
+        vegRocks.emplace_back(glm::vec3(-22.0f, 0.0f, -25.0f), 3, glm::vec3(1.0f, 1.0f, 1.0f), 0.0f, "Tree");
 
-        vegRocks.emplace_back(glm::vec3(20.0f, 0.0f, -29.0f), 3, glm::vec3(1.0f, 1.0f, 1.0f), 0.0f, "Top Right");
-        vegRocks.emplace_back(glm::vec3(10.0f, 0.0f, -30.0f), 1, glm::vec3(1.0f, 1.0f, 1.0f), 0.0f, "Top Right");
-        vegRocks.emplace_back(glm::vec3(-5.0f, 0.0f, -38.0f), 2, glm::vec3(1.0f, 1.0f, 1.0f), 0.0f, "Top Right");
-        vegRocks.emplace_back(glm::vec3(-22.0f, 0.0f, -25.0f), 3, glm::vec3(1.0f, 1.0f, 1.0f), 0.0f, "Top Right");
+        vegRocks.emplace_back(glm::vec3(-43.0f, 0.0f, -40.0f), 1,glm::vec3(1.0f, 1.0f, 1.0f), 0.0f, "Tree");
 
-        vegRocks.emplace_back(glm::vec3(-43.0f, 0.0f, -40.0f), 1,glm::vec3(1.0f, 1.0f, 1.0f), 0.0f, "Top Left");
+        vegRocks.emplace_back(glm::vec3(-33.0f, 0.0f, -30.0f), 2,glm::vec3(1.0f, 1.0f, 1.0f), 0.0f, "Tree");
+        vegRocks.emplace_back(glm::vec3(-23.0f, 0.0f, -10.0f), 1,glm::vec3(1.5f, 2.0f, 1.5f), 0.0f, "Tree");
+        vegRocks.emplace_back(glm::vec3(-40.0f, 0.0f, 	6.0f), 3,glm::vec3(1.0f, 1.0f, 1.0f), 0.0f, "Tree");
+        vegRocks.emplace_back(glm::vec3(-30.0f, 0.0f, 14.0f), 2,glm::vec3(1.0f, 1.0f, 1.0f), 0.0f, "Tree");
 
-        vegRocks.emplace_back(glm::vec3(-33.0f, 0.0f, -30.0f), 2,glm::vec3(1.0f, 1.0f, 1.0f), 0.0f, "Top Left");
-        vegRocks.emplace_back(glm::vec3(-23.0f, 0.0f, -10.0f), 1,glm::vec3(1.5f, 2.0f, 1.5f), 0.0f, "Top Left");
-        vegRocks.emplace_back(glm::vec3(-40.0f, 0.0f, 	6.0f), 3,glm::vec3(1.0f, 1.0f, 1.0f), 0.0f, "Top Left");
-        vegRocks.emplace_back(glm::vec3(-30.0f, 0.0f, 14.0f), 2,glm::vec3(1.0f, 1.0f, 1.0f), 0.0f, "Top Left");
+        vegRocks.emplace_back(glm::vec3(-38.0f, 0.0f, 40.0f), 1,glm::vec3(1.0f, 1.0f, 1.0f), 180.0f, "Tree");
 
-        vegRocks.emplace_back(glm::vec3(-38.0f, 0.0f, 40.0f), 1,glm::vec3(1.0f, 1.0f, 1.0f), 180.0f, "Back Left");
+        vegRocks.emplace_back(glm::vec3(-18.0f, 0.0f, 40.0f), 3,glm::vec3(1.0f, 1.0f, 1.0f), 180.0f, "Tree");
+        vegRocks.emplace_back(glm::vec3( 0.0f, 0.0f, 20.0f), 2,glm::vec3(1.0f, 1.0f, 1.0f), 180.0f, "Tree");
+        vegRocks.emplace_back(glm::vec3( 8.0f, 0.0f, 33.0f), 3,glm::vec3(1.0f, 1.0f, 1.0f), 180.0f, "Tree");
+        vegRocks.emplace_back(glm::vec3( 22.0f, 0.0f, 41.0f), 2,glm::vec3(1.0f, 1.0f, 1.0f), 180.0f, "Tree");
 
-        vegRocks.emplace_back(glm::vec3(-18.0f, 0.0f, 40.0f), 3,glm::vec3(1.0f, 1.0f, 1.0f), 180.0f, "Back Left");
-        vegRocks.emplace_back(glm::vec3( 0.0f, 0.0f, 20.0f), 2,glm::vec3(1.0f, 1.0f, 1.0f), 180.0f, "Back Left");
-        vegRocks.emplace_back(glm::vec3( 8.0f, 0.0f, 33.0f), 3,glm::vec3(1.0f, 1.0f, 1.0f), 180.0f, "Back Left");
-        vegRocks.emplace_back(glm::vec3( 22.0f, 0.0f, 41.0f), 2,glm::vec3(1.0f, 1.0f, 1.0f), 180.0f, "Back Left");
+        vegRocks.emplace_back(glm::vec3(40.0f, 0.0f, 20.0f), 1, glm::vec3(1.0f, 1.0f, 1.0f), 90.0f, "Tree");
 
-        vegRocks.emplace_back(glm::vec3(40.0f, 0.0f, 20.0f), 1, glm::vec3(1.0f, 1.0f, 1.0f), 90.0f, "Back Right");
+        vegRocks.emplace_back(glm::vec3(30.0f, 0.0f, -30.0f), 2,glm::vec3(1.0f, 1.0f, 1.0f), 0.0f, "Tree");
+        vegRocks.emplace_back(glm::vec3(43.0f, 0.0f, -10.0f), 1,glm::vec3(1.5f, 2.0f, 1.5f), 0.0f, "Tree");
+        vegRocks.emplace_back(glm::vec3(23.0f, 0.0f, 	6.0f), 3,glm::vec3(1.0f, 1.0f, 1.0f), 0.0f, "Tree");
+        vegRocks.emplace_back(glm::vec3(43.0f, 0.0f, 14.0f), 2,glm::vec3(1.0f, 1.0f, 1.0f), 0.0f, "Tree");
 
-        vegRocks.emplace_back(glm::vec3(30.0f, 0.0f, -30.0f), 2,glm::vec3(1.0f, 1.0f, 1.0f), 0.0f, "Top Left");
-        vegRocks.emplace_back(glm::vec3(43.0f, 0.0f, -10.0f), 1,glm::vec3(1.5f, 2.0f, 1.5f), 0.0f, "Top Left");
-        vegRocks.emplace_back(glm::vec3(23.0f, 0.0f, 	6.0f), 3,glm::vec3(1.0f, 1.0f, 1.0f), 0.0f, "Top Left");
-        vegRocks.emplace_back(glm::vec3(43.0f, 0.0f, 14.0f), 2,glm::vec3(1.0f, 1.0f, 1.0f), 0.0f, "Top Left");
+		// three trees 1 rock
+		vegRocks.emplace_back(glm::vec3(5.0f, 0.0f, -5.0f), 1, glm::vec3(1.0f, 1.0f, 1.0f), 0.0f, "Tree");
+		vegRocks.emplace_back(glm::vec3(2.0f, 0.0f, -2.0f), 1, glm::vec3(1.0f, 1.0f, 1.0f), 0.0f, "Tree");
+		vegRocks.emplace_back(glm::vec3(4.0f, 0.0f, -1.0f), 2, glm::vec3(1.0f, 1.0f, 1.0f), 0.0f, "Tree");
+		vegRocks.emplace_back(glm::vec3(3.0f, 0.0f, -3.0f), 10, glm::vec3(1.50f, 3.0f, 1.5f), 0.0f, "Tree");
 
-		vegRocks.emplace_back(glm::vec3(5.0f, 0.0f, -5.0f), 1, glm::vec3(1.0f, 1.0f, 1.0f), 0.0f, "Test Tree");
+		vegRocks.emplace_back(glm::vec3(-10.0f, -1.0f, -5.0f), 3, glm::vec3(1.0f, 1.0f, 1.0f), 120.0f, "Tree");
+		vegRocks.emplace_back(glm::vec3(-13.0f, -2.0f, -5.0f), 3, glm::vec3(1.0f, 1.0f, 1.0f), 120.0f, "Tree");
+		vegRocks.emplace_back(glm::vec3(-11.0f, 0.0f, -8.0f), 3, glm::vec3(1.0f, 1.0f, 1.0f), 120.0f, "Tree");
+
+		vegRocks.emplace_back(glm::vec3( 15.0f, -2.0f, 10.0f), 5, glm::vec3(1.0f, 1.0f, 1.0f), 120.0f, "Rock");
+
+
+
+		//vegRocks.emplace_back(glm::vec3(5.0f, 0.0f, -5.0f), 2, glm::vec3(1.0f, 1.0f, 1.0f), 0.0f, "Test Tree");
+		//vegRocks.emplace_back(glm::vec3(5.0f, 0.0f, -5.0f), 2, glm::vec3(1.0f, 1.0f, 1.0f), 0.0f, "Test Tree");
+
 
 
         /// STRUCTURES
@@ -732,20 +664,70 @@ class HuntGame : public BaseProject {
 			structures[102+i].angle2 = 90.0f;
 		}		
 
-        structures.emplace_back(glm::vec3(0.0f, 0.0f, 10.0f), 3, glm::vec3(1.0f, 1.0f, 1.0f), 0.0f, "Cottage");
-        structures.emplace_back(glm::vec3(10.0f, 0.0f, -10.0f), 3, glm::vec3(1.0f, 1.0f, 1.0f), 0.0f, "House");
-        structures.emplace_back(glm::vec3(4.0f, 0.0f, -10.0f), 1, glm::vec3(0.01f, 0.01f, 0.01f), -90.0f, "fence");
-        structures.emplace_back(glm::vec3(5.5f, 0.0f, -10.0f), 1, glm::vec3(0.01f, 0.01f, 0.01f), -90.0f, "fence");
-        structures.emplace_back(glm::vec3(0.0f, -1.0f, 0.0f), 2, glm::vec3(1.0f, 1.0f, 1.0f), 0.0f, "TOWER");
+        //structures.emplace_back(glm::vec3(0.0f, 0.0f, 10.0f), 3, glm::vec3(1.0f, 1.0f, 1.0f), 0.0f, "Cottage");
+        //structures.emplace_back(glm::vec3(10.0f, 0.0f, -10.0f), 3, glm::vec3(1.0f, 1.0f, 1.0f), 0.0f, "House");
+        //structures.emplace_back(glm::vec3(4.0f, 0.0f, -10.0f), 1, glm::vec3(0.01f, 0.01f, 0.01f), -90.0f, "fence");
+        //structures.emplace_back(glm::vec3(5.5f, 0.0f, -10.0f), 1, glm::vec3(0.01f, 0.01f, 0.01f), -90.0f, "fence");
+        //structures.emplace_back(glm::vec3(0.0f, -1.0f, 0.0f), 2, glm::vec3(1.0f, 1.0f, 1.0f), 0.0f, "TOWER");
 
-        // ANIMALS
-		glm::vec3 modelMin(-1.0f, -0.5f, -1.0f);
-		glm::vec3 modelMax(  1.0f, 1.5f, 1.0f); 
-        for(int i = 0; i < NANIMAL; i ++){
-	        animals.emplace_back(glm::vec3(0.0f + i*2.0f, 1.0f, 0.0f), i, glm::vec3(1.0f, 1.0f, 1.0f), 0.0f, "animal");
-	        animals[i].updateBoundingBox(modelMin, modelMax);
-	        createBoundingBoxModel(MBBox, animals[i].bbox, VDBBox);
-        }
+        //ANIMALS
+
+
+		animals.emplace_back(glm::vec3(2.0f, 0.0f, 10.0f), 0, glm::vec3(1.0f, 1.0f, 1.0f), randomFloat(0.0f, 360.0f), "animal");
+		animals.emplace_back(glm::vec3(5.0f, 0.0f, 30.0f), 1, glm::vec3(1.0f, 1.0f, 1.0f), randomFloat(0.0f, 360.0f), "animal");
+		animals.emplace_back(glm::vec3(7.0f, 0.0f, 6.0f), 2, glm::vec3(1.0f, 1.0f, 1.0f), randomFloat(0.0f, 360.0f), "animal");
+		animals.emplace_back(glm::vec3(9.0f, 0.0f, 20.0f), 3, glm::vec3(1.0f, 1.0f, 1.0f), randomFloat(0.0f, 360.0f), "animal");
+		animals.emplace_back(glm::vec3(11.0f, 0.0f, 0.0f), 4, glm::vec3(1.0f, 1.0f, 1.0f), randomFloat(0.0f, 360.0f), "animal");
+
+		animals.emplace_back(glm::vec3(12.0f, 0.0f, 5.0f), 5, glm::vec3(1.0f, 1.0f, 1.0f), randomFloat(0.0f, 360.0f), "animal");
+		animals.emplace_back(glm::vec3(25.0f, 0.0f, 14.0f), 6, glm::vec3(1.0f, 1.0f, 1.0f), randomFloat(0.0f, 360.0f), "animal");
+		animals.emplace_back(glm::vec3(37.0f, 0.0f, 30.0f), 7, glm::vec3(1.0f, 1.0f, 1.0f), randomFloat(0.0f, 360.0f), "animal");
+		animals.emplace_back(glm::vec3(19.0f, 0.0f, 20.0f), 8, glm::vec3(1.0f, 1.0f, 1.0f), randomFloat(0.0f, 360.0f), "animal");
+		animals.emplace_back(glm::vec3(31.0f, 0.0f, 09.0f), 9, glm::vec3(1.0f, 1.0f, 1.0f), randomFloat(0.0f, 360.0f), "animal");
+
+		animals.emplace_back(glm::vec3(-38.0f, 0.0f, 20.0f), 0, glm::vec3(1.0f, 1.0f, 1.0f), randomFloat(0.0f, 360.0f), "animal");
+		animals.emplace_back(glm::vec3(-5.0f, 0.0f, 30.0f), 1, glm::vec3(1.0f, 1.0f, 1.0f), randomFloat(0.0f, 360.0f), "animal");
+		animals.emplace_back(glm::vec3(-17.0f, 0.0f, 6.0f), 2, glm::vec3(1.0f, 1.0f, 1.0f), randomFloat(0.0f, 360.0f), "animal");
+		animals.emplace_back(glm::vec3(-9.0f, 0.0f, 20.0f), 3, glm::vec3(1.0f, 1.0f, 1.0f), randomFloat(0.0f, 360.0f), "animal");
+		animals.emplace_back(glm::vec3(-11.0f, 0.0f, 0.0f), 4, glm::vec3(1.0f, 1.0f, 1.0f), randomFloat(0.0f, 360.0f), "animal");
+
+		animals.emplace_back(glm::vec3(-39.0f, 0.0f, 5.0f), 5, glm::vec3(1.0f, 1.0f, 1.0f), randomFloat(0.0f, 360.0f), "animal");
+		animals.emplace_back(glm::vec3(-25.0f, 0.0f, 14.0f), 6, glm::vec3(1.0f, 1.0f, 1.0f), randomFloat(0.0f, 360.0f), "animal");
+		animals.emplace_back(glm::vec3(-37.0f, 0.0f, 33.0f), 7, glm::vec3(1.0f, 1.0f, 1.0f), randomFloat(0.0f, 360.0f), "animal");
+		animals.emplace_back(glm::vec3(-19.0f, 0.0f, 38.0f), 8, glm::vec3(1.0f, 1.0f, 1.0f), randomFloat(0.0f, 360.0f), "animal");
+		animals.emplace_back(glm::vec3(-31.0f, 0.0f, 09.0f), 9, glm::vec3(1.0f, 1.0f, 1.0f), randomFloat(0.0f, 360.0f), "animal");
+
+		animals.emplace_back(glm::vec3(-10.0f, 0.0f, -22.0f), 4, glm::vec3(1.0f, 1.0f, 1.0f), randomFloat(0.0f, 360.0f), "animal");
+		animals.emplace_back(glm::vec3(-25.0f, 0.0f, -30.0f), 3, glm::vec3(1.0f, 1.0f, 1.0f), randomFloat(0.0f, 360.0f), "animal");
+		animals.emplace_back(glm::vec3(-37.0f, 0.0f, -6.0f), 2, glm::vec3(1.0f, 1.0f, 1.0f), randomFloat(0.0f, 360.0f), "animal");
+		animals.emplace_back(glm::vec3(-19.0f, 0.0f, -22.0f), 1, glm::vec3(1.0f, 1.0f, 1.0f), randomFloat(0.0f, 360.0f), "animal");
+		animals.emplace_back(glm::vec3(-31.0f, 0.0f, -10.0f), 0, glm::vec3(1.0f, 1.0f, 1.0f), randomFloat(0.0f, 360.0f), "animal");
+
+		animals.emplace_back(glm::vec3(-39.0f, 0.0f, -15.0f), 9, glm::vec3(1.0f, 1.0f, 1.0f), randomFloat(0.0f, 360.0f), "animal");
+		animals.emplace_back(glm::vec3(-25.0f, 0.0f, -4.0f), 8, glm::vec3(1.0f, 1.0f, 1.0f), randomFloat(0.0f, 360.0f), "animal");
+		animals.emplace_back(glm::vec3(-37.0f, 0.0f, -13.0f), 7, glm::vec3(1.0f, 1.0f, 1.0f), randomFloat(0.0f, 360.0f), "animal");
+		animals.emplace_back(glm::vec3(-19.0f, 0.0f, -28.0f), 6, glm::vec3(1.0f, 1.0f, 1.0f), randomFloat(0.0f, 360.0f), "animal");
+		animals.emplace_back(glm::vec3(-31.0f, 0.0f, -19.0f), 5, glm::vec3(1.0f, 1.0f, 1.0f), randomFloat(0.0f, 360.0f), "animal");
+
+		animals.emplace_back(glm::vec3(10.0f, 0.0f, -32.0f), 4, glm::vec3(1.0f, 1.0f, 1.0f), randomFloat(0.0f, 360.0f), "animal");
+		animals.emplace_back(glm::vec3(25.0f, 0.0f, -30.0f), 3, glm::vec3(1.0f, 1.0f, 1.0f), randomFloat(0.0f, 360.0f), "animal");
+		animals.emplace_back(glm::vec3(37.0f, 0.0f, -26.0f), 2, glm::vec3(1.0f, 1.0f, 1.0f), randomFloat(0.0f, 360.0f), "animal");
+		animals.emplace_back(glm::vec3(19.0f, 0.0f, -22.0f), 1, glm::vec3(1.0f, 1.0f, 1.0f), randomFloat(0.0f, 360.0f), "animal");
+		animals.emplace_back(glm::vec3(31.0f, 0.0f, -10.0f), 0, glm::vec3(1.0f, 1.0f, 1.0f), randomFloat(0.0f, 360.0f), "animal");
+
+		animals.emplace_back(glm::vec3(29.0f, 0.0f, 15.0f), 9, glm::vec3(1.0f, 1.0f, 1.0f), randomFloat(0.0f, 360.0f), "animal");
+		animals.emplace_back(glm::vec3(35.0f, 0.0f, 4.0f), 8, glm::vec3(1.0f, 1.0f, 1.0f), randomFloat(0.0f, 360.0f), "animal");
+		animals.emplace_back(glm::vec3(7.0f, 0.0f, 13.0f), 7, glm::vec3(1.0f, 1.0f, 1.0f), randomFloat(0.0f, 360.0f), "animal");
+		animals.emplace_back(glm::vec3(19.0f, 0.0f, 28.0f), 6, glm::vec3(1.0f, 1.0f, 1.0f), randomFloat(0.0f, 360.0f), "animal");
+		animals.emplace_back(glm::vec3(36.0f, 0.0f, 19.0f), 5, glm::vec3(1.0f, 1.0f, 1.0f), randomFloat(0.0f, 360.0f), "animal");
+
+		// animals.emplace_back(glm::vec3(2.0f, 0.0f, 0.0f), 0, glm::vec3(1.0f, 1.0f, 1.0f), 0.0f, "animal");
+		// animals.emplace_back(glm::vec3(2.0f, 0.0f, 0.0f), 0, glm::vec3(1.0f, 1.0f, 1.0f), 0.0f, "animal");
+		// animals.emplace_back(glm::vec3(2.0f, 0.0f, 0.0f), 0, glm::vec3(1.0f, 1.0f, 1.0f), 0.0f, "animal");
+		// animals.emplace_back(glm::vec3(2.0f, 0.0f, 0.0f), 0, glm::vec3(1.0f, 1.0f, 1.0f), 0.0f, "animal");
+		// animals.emplace_back(glm::vec3(2.0f, 0.0f, 0.0f), 0, glm::vec3(1.0f, 1.0f, 1.0f), 0.0f, "animal");
+
+
 
         // balls for visualiing ray
         for(int i = 0; i < NBALLS; i ++){
@@ -762,9 +744,9 @@ class HuntGame : public BaseProject {
 		// WARNING!!!!!!!!
 		// Must be set before initializing the text and the scene
 		// Update the number of elements to correctly size the descriptor sets pool
-		DPSZs.uniformBlocksInPool = 500;
-		DPSZs.texturesInPool = 400;
-		DPSZs.setsInPool = 400;
+		DPSZs.uniformBlocksInPool = 600;
+		DPSZs.texturesInPool = 500;
+		DPSZs.setsInPool = 500;
 
 		std::cout << "Initializing text\n";
 		txt.init(this, &outText);
@@ -784,7 +766,7 @@ class HuntGame : public BaseProject {
 		PEmission.create();
 		PskyBox.create();
 		PHUD.create();
-		PBBox.create();
+		//PBBox.create();
         
 		// Here you define the data set
 		DSsun.init(this, &DSLEmission, {&Tsun});
@@ -792,7 +774,7 @@ class HuntGame : public BaseProject {
 		DSground.init(this, &DSLBlinn, {&TGrass});
         DSAx.init(this, &DSLBlinn, {&T1});
         DSCrosshair.init(this, &DSLHUD, {&TCrosshair});
-        DSBBox.init(this, &DSLBBox, {&T1});
+       // DSBBox.init(this, &DSLBBox, {&T1});
 		DSskyBox.init(this, &DSLskyBox, {&TskyBox, &Tstars});
 		DSGun.init(this, &DSLBlinn, {&TGun});
 		DSMenuScreen.init(this, &DSLHUD, {&TMenuScreen});
@@ -831,7 +813,7 @@ class HuntGame : public BaseProject {
 		PBlinn.cleanup();
 		PEmission.cleanup();
 		PHUD.cleanup();
-		PBBox.cleanup();
+		// PBBox.cleanup();
 		PskyBox.cleanup();
 
 		DSsun.cleanup();
@@ -840,7 +822,7 @@ class HuntGame : public BaseProject {
 		DSground.cleanup();
         DSAx.cleanup();
         DSCrosshair.cleanup();
-        DSBBox.cleanup();
+        //DSBBox.cleanup();
 		DSskyBox.cleanup();
 		DSGun.cleanup();
 		DSMenuScreen.cleanup();
@@ -883,7 +865,7 @@ class HuntGame : public BaseProject {
         }
 
 		MCrosshair.cleanup();
-		MBBox.cleanup();
+		//MBBox.cleanup();
 		Msun.cleanup();
 		Mmoon.cleanup();
 		Mground.cleanup();
@@ -919,7 +901,7 @@ class HuntGame : public BaseProject {
 		PBlinn.destroy();
 		PEmission.destroy();
 		PHUD.destroy();
-		PBBox.destroy();
+		// PBBox.destroy();
 		PskyBox.destroy();
 
 		txt.localCleanup();		
@@ -996,11 +978,11 @@ class HuntGame : public BaseProject {
 		vkCmdDrawIndexed(commandBuffer,
 					static_cast<uint32_t>(MskyBox.indices.size()), 1, 0, 0, 0);
 
-		PBBox.bind(commandBuffer);
-		MBBox.bind(commandBuffer);
-		DSBBox.bind(commandBuffer, PBBox, 0, currentImage);
-		vkCmdDrawIndexed(commandBuffer,
-				static_cast<uint32_t>(MBBox.indices.size()), 1, 0, 0, 0);	
+		// PBBox.bind(commandBuffer);
+		// MBBox.bind(commandBuffer);
+		// DSBBox.bind(commandBuffer, PBBox, 0, currentImage);
+		// vkCmdDrawIndexed(commandBuffer,
+		// 		static_cast<uint32_t>(MBBox.indices.size()), 1, 0, 0, 0);	
 
 		PHUD.bind(commandBuffer);
 		MCrosshair.bind(commandBuffer);
@@ -1119,38 +1101,39 @@ class HuntGame : public BaseProject {
 
 				// fence perimeter bounds
 				if(Pos.x > 40.5f){
-					std::cout << "Pos x too big "<< Pos.x << "\n";
+					//std::cout << "Pos x too big "<< Pos.x << "\n";
 					Pos = glm::vec3( 40.5f, Pos.y, Pos.z);
 				}
 				if(Pos.x < -41.5f){
-					std::cout << "Pos x too small "<< Pos.x << "\n";
+					//std::cout << "Pos x too small "<< Pos.x << "\n";
 					Pos = glm::vec3( -41.5f, Pos.y, Pos.z);
 				}
 				if(Pos.z > 40.0f){
-					std::cout << "Pos z too big "<< Pos.z << "\n";
+					//std::cout << "Pos z too big "<< Pos.z << "\n";
 					Pos = glm::vec3( Pos.x, Pos.y, 40.0f);
 				}
 				if(Pos.z < -44.5f){
-					std::cout << "Pos z too small "<< Pos.z << "\n";
+					//std::cout << "Pos z too small "<< Pos.z << "\n";
 					Pos = glm::vec3( Pos.x, Pos.y, -44.5f);
 				}
 
 				bool collision_detected = false;
         		for (int index = 51; index < NVEGROCK; index++) {
 					float objRadius = 1.0f;
-					if(vegRocks[index].modelID < 4){
-				
-						if (checkCollision(Pos + FirstPos, 0.5f, vegRocks[index].pos, 1.0f)) {
-							std::cout << "collided" << "\n";
-							std::cout << vegRocks[index].scale.x << "\n";
-							std::cout << vegRocks[index].desc << "\n";
+					if(vegRocks[index].desc == "Rock"){
+						objRadius = 2.0f;
+					}
+						if (checkCollision(Pos + FirstPos, 0.5f, vegRocks[index].pos, objRadius)) {
+							//std::cout << "collided" << "\n";
+							//std::cout << vegRocks[index].scale.x << "\n";
+							//std::cout << vegRocks[index].desc << "\n";
 							glm::vec3 collision_direction = glm::normalize( (Pos + FirstPos) - vegRocks[index].pos);
 							collision_direction = glm::vec3(collision_direction.x, 0.0f, collision_direction.z);
 							float pushback_distance = (2.5f) - glm::length((Pos + FirstPos) - vegRocks[index].pos);
 							//Pos = Pos + pushback_distance * collision_direction; // bouncy
 							Pos = lastPos;  // stick 
 						}
-					}
+					
 				}
 
 			
@@ -1200,12 +1183,6 @@ class HuntGame : public BaseProject {
 								
 				// Shoots only during the match
 				if (currScene == MATCH) {
-
-					//RebuildPipeline();
-					// std::cout << "New Ray Direction: " << ray.direction.x << ", " << ray.direction.y << ", " << ray.direction.z << std::endl;
-					std::cout << "player pos " << PlayerPos.x << ", " << PlayerPos.y << ", " << PlayerPos.z << std::endl;
-
-					//std::cout << "animal: " << animals[0].pos.x << ", " << animals[0].pos.y << ", " << animals[0].pos.z << std::endl;
 
 					float t0, t1;
 					for (int index = 0; index < NANIMAL; index++) {
