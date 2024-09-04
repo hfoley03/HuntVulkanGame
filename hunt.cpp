@@ -180,7 +180,7 @@ void shoot(){
 	std::cout << "shoot" << std::endl;
 }
 
-
+// currently unused
 bool rayIntersectsBox(const glm::vec3& rayOrigin, const glm::vec3& rayDirection, const BoundingBox& box) {
     float tmin = (box.min.x - rayOrigin.x) / (rayDirection.x * -1.0);
     float tmax = (box.max.x - rayOrigin.x) / (rayDirection.x * -1.0);
@@ -222,8 +222,6 @@ bool rayIntersectsSphere(const glm::vec3& rayOrigin, const glm::vec3& rayDirecti
     return true;
 }
 
-
-
 struct Ray {
     glm::vec3 origin;
     glm::vec3 direction;
@@ -259,18 +257,14 @@ glm::vec3 extractPlayerPositionFromViewMatrix(const glm::mat4& viewMatrix) {
 }
 
 bool checkCollision(glm::vec3 playerPos, float playerRad, glm::vec3 objectPos, float objectRad){
-
+	// we can ignore the z axis for collisions
 	glm::vec2 playXZ = glm::vec2(playerPos.x, playerPos.z);
 	glm::vec2 objXZ = glm::vec2(objectPos.x, objectPos.z);
-
 	float distSquared = glm::length(playerPos - objectPos);
 	float radSummed = playerRad + objectRad;
 	float radSummedSquared = radSummed * radSummed;
-
 	return distSquared < radSummedSquared;
 }
-
-// void resolveCollision()
 
 // MAIN ! 
 class HuntGame : public BaseProject {
@@ -658,7 +652,6 @@ class HuntGame : public BaseProject {
         
 
         // Rocks around perimeter 
-
         float dist = 10.0f;
         float prev_dist = -60.0f;
         for(int i = 0; i < 12; i++){
@@ -689,8 +682,6 @@ class HuntGame : public BaseProject {
         }
 
         // TREES
-
-
         vegRocks.emplace_back(glm::vec3(40.0f, 0.0f, -32.0f), 1, glm::vec3(1.0f, 1.0f, 1.0f), 0.0f, "Top Right");
 
         vegRocks.emplace_back(glm::vec3(20.0f, 0.0f, -29.0f), 3, glm::vec3(1.0f, 1.0f, 1.0f), 0.0f, "Top Right");
@@ -748,7 +739,6 @@ class HuntGame : public BaseProject {
         structures.emplace_back(glm::vec3(0.0f, -1.0f, 0.0f), 2, glm::vec3(1.0f, 1.0f, 1.0f), 0.0f, "TOWER");
 
         // ANIMALS
-
 		glm::vec3 modelMin(-1.0f, -0.5f, -1.0f);
 		glm::vec3 modelMax(  1.0f, 1.5f, 1.0f); 
         for(int i = 0; i < NANIMAL; i ++){
@@ -1185,9 +1175,7 @@ class HuntGame : public BaseProject {
 									MOVE_SPEED * m.x * deltaT, MOVE_SPEED * m.y * deltaT, MOVE_SPEED * m.z * deltaT))
 														* ViewMatrix;
 			}
-<<<<<<< HEAD
 			PlayerPos = extractPlayerPositionFromViewMatrix(ViewMatrix);
-=======
 		} else if (currScene == GAMEOVER) {
 
 			crosshairParUBO.visible = false;
@@ -1196,7 +1184,6 @@ class HuntGame : public BaseProject {
 
 		} else {
 			std::cout << "Error, wrong scene : " << currScene << "\n";
->>>>>>> refs/remotes/origin/main
 		}
 
 		// Updates descriptor sets
@@ -1350,6 +1337,7 @@ class HuntGame : public BaseProject {
 		BlinnUniformBufferObject blinnUbo{};
 		BlinnMatParUniformBufferObject blinnMatParUbo{};
 
+		// for visualizing bounding box of animals
 		// BlinnUniformBufferObject bboxUbo{};
         // bboxUbo.mMat = glm::mat4(1);
         // bboxUbo.nMat = glm::mat4(1);
