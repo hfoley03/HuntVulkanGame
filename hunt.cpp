@@ -316,6 +316,7 @@ class HuntGame : public BaseProject {
 	// Other application parameters
 	int currScene = 0;
 	int subpass = 0;
+	int aliveAnimals = NANIMAL;
 		
 	glm::vec3 CamPos = glm::vec3(0.0, 0.1, 5.0);
 	glm::mat4 ViewMatrix;
@@ -1102,6 +1103,10 @@ class HuntGame : public BaseProject {
 							if(rayIntersectsSphere(ray.origin, ray.direction, animals[index].pos, 0.5, t0, t1)){ 
 								std::cout<< "Sphere HIT" << std::endl;
 								animals[index].visible = false;
+								aliveAnimals--;
+								if (aliveAnimals == 0) {
+									currScene = GAMEOVER;
+								}
 								RebuildPipeline();
 							}
 						}
@@ -1142,15 +1147,15 @@ class HuntGame : public BaseProject {
 				debounce = true;
 				curDebounce = GLFW_KEY_ENTER;
 
-				if (currScene == STARTMENU || currScene == MATCH)
-					currScene++;
-				else if (currScene == GAMEOVER)
+				if (currScene == STARTMENU || GAMEOVER) {
 					currScene = MATCH;
-				else
-					std::cout << "Error, wrong scene : " << currScene << "\n";
-
+					for (int index = 0; index < NANIMAL; index++) {
+						animals[index].visible = true;
+					}
+					aliveAnimals = NANIMAL;
+					RebuildPipeline();
+				}
 				std::cout << "Scene : " << currScene << "\n";
-				RebuildPipeline();
 			}
 		} else {
 			if((curDebounce == GLFW_KEY_ENTER) && debounce) {
