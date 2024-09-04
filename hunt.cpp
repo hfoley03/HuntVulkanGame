@@ -9,10 +9,52 @@
 bool isDebugMode = false;
 
 std::vector<SingleText> outText = {
-	{2, {"Welcome to our hunting game!", "Press ENTER to start the game","",""}, 0, 0},
-	{2, {"Let the hunt begin!","","",""}, 0, 0},
-	{2, {"Game over","Press ENTER to start again","",""}, 0, 0},
+	{16, {"Welcome user!!",
+		"",
+		"This is a hunting game where your current goal is to catch all of the animals",
+		"in the shortest time possible.",
+		"",
+		"",
+		"You have been given a rifle:",
+		"",
+		"- Press <SPACE_BAR> or left-click with the mouse to shoot.",
+		"- Press <W, A,S, D> to move",
+		"- Press the arrow keys or use the mouse to look around and aim at your target.",
+		"",
+		"",
+		"",
+		"",
+		"Whenever you're ready, press ‹ENTER> to start the game!"}, 0, 0},
+	{0, {"","","",""}, 0, 0},
+	{16, {"GAMEOVER",
+		"",
+		"Well done, you found all the animals in the map!!",
+		"",
+		"You have completed your task in 0 minutes and 0 seconds.",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"Press <ENTER> to start a new game.",
+		"",
+		"Press <ESC> to exit."}, 0, 0},
 };
+
+// std::vector<SingleText> outText = {
+// 	{4, {"Welcome user!!",
+// 		"",
+// 		"This is a hunting game where your current goal is to catch all of the animals in the shortest time possible.",
+// 		"Whenever you're ready, press ‹ENTER> to start the game!"}, 0, 0},
+// 	{0, {"","","",""}, 0, 0},
+// 	{4, {"Well done, you found all the animals in the map!!",
+// 		"You have completed your task in 0 minutes and 0 seconds.",
+// 		"Press <ENTER> to start a new game.",
+// 		"Press <ESC> to exit."}, 0, 0},
+// };
 
 // THE NUMBER OF INSTANCES OF ANIMALS, VEGITATION/ROCKS, STRUCTURES
 #define NANIMAL 5 
@@ -60,6 +102,11 @@ struct SkyBoxUniformBufferObject {
 
 struct SkyBoxParUniformBufferObject {
 	alignas(4) float daytime;
+};
+
+struct HUDParUniformBufferObject {
+	alignas(4) float alpha;
+	alignas(4) bool visible;
 };
 
 struct UniformBufferObject {
@@ -263,6 +310,8 @@ class HuntGame : public BaseProject {
     Model MCrosshair;
     Model MBBox;
 	Model MskyBox;
+	Model MMenuScreen;
+	Model MGameOver;
 	
 	Model MGun;
     
@@ -292,6 +341,8 @@ class HuntGame : public BaseProject {
     DescriptorSet DSBalls[NBALLS];
 	DescriptorSet DSskyBox;
 	DescriptorSet DSGun;
+	DescriptorSet DSMenuScreen;
+	DescriptorSet DSGameOver;
 
 
    // Textures
@@ -313,10 +364,13 @@ class HuntGame : public BaseProject {
 	 float maxLod = 0;
 	 int mmm = 0;
 
+	Texture TMenuScreen;
+	Texture TGameOver;
 	
 	// Other application parameters
 	int currScene = 0;
 	int subpass = 0;
+	int aliveAnimals = NANIMAL;
 		
 	glm::vec3 CamPos = glm::vec3(0.0, 0.1, 5.0);
 	glm::vec3 PlayerPos = glm::vec3(0.0, 0.1, 5.0);
@@ -398,7 +452,8 @@ class HuntGame : public BaseProject {
 					{3, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(SkyBoxParUniformBufferObject), 1}
 				});
 		DSLHUD.init(this, {
-    			{0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 0, 1}  // Crosshairs texture sampler
+    			{0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 0, 1},
+				{1, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(HUDParUniformBufferObject), 1},
 				});
 		DSLBBox.init(this, {
     			{0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT, sizeof(BlinnUniformBufferObject), 1} //BoundingBoxUniformBufferObject
@@ -524,6 +579,39 @@ class HuntGame : public BaseProject {
 
 		MCrosshair.indices.insert(MCrosshair.indices.end(), quadIndices.begin(), quadIndices.end());
 		MCrosshair.initMesh(this, &VDHUD);
+ 
+		// Define the 4 vertices of the quad
+		// std::vector<HUDVertex> menuScreenVertices = {
+		//     {{-0.9f, -0.9f}, {0.0f, 0.0f}},  
+		//     {{ 0.9f, -0.9f}, {1.0f, 0.0f}},  
+		//     {{ 0.9f,  0.9f}, {1.0f, 1.0f}},  
+		//     {{-0.9f,  0.9f}, {0.0f, 1.0f}},
+		// };
+		std::vector<HUDVertex> menuScreenVertices = {
+		    {{-1.0f, -1.0f}, {0.0f, 0.0f}},  
+		    {{ 1.0f, -1.0f}, {1.0f, 0.0f}},  
+		    {{ 1.0f,  1.0f}, {1.0f, 1.0f}},  
+		    {{-1.0f,  1.0f}, {0.0f, 1.0f}},
+		};
+
+		// Insert the vertices
+		for (const auto& vertex : menuScreenVertices) {
+		    std::vector<unsigned char> menuScreenVertexData(mainStride, 0);
+		    HUDVertex* MSV_vertex = (HUDVertex*)(&menuScreenVertexData[0]);
+		    
+		    MSV_vertex->pos = vertex.pos;
+		    MSV_vertex->UV = vertex.UV;
+		    
+		    MMenuScreen.vertices.insert(MMenuScreen.vertices.end(), menuScreenVertexData.begin(), menuScreenVertexData.end());
+			MGameOver.vertices.insert(MGameOver.vertices.end(), menuScreenVertexData.begin(), menuScreenVertexData.end());
+		}
+
+		std::vector<unsigned int> msquadIndices = {0, 1, 2, 2, 3, 0};
+
+		MMenuScreen.indices.insert(MMenuScreen.indices.end(), msquadIndices.begin(), msquadIndices.end());
+		MMenuScreen.initMesh(this, &VDHUD);
+		MGameOver.indices.insert(MGameOver.indices.end(), msquadIndices.begin(), msquadIndices.end());
+		MGameOver.initMesh(this, &VDHUD);
 
 
         // Create the textures
@@ -546,6 +634,11 @@ class HuntGame : public BaseProject {
 		// 					  maxAnisotropy,
 		// 					  maxLod
 		// 	);				
+		// TMenuScreen.init(this, "textures/startmenu_background.jpg");
+		// TGameOver.init(this, "textures/gameover_background.png");
+
+		TMenuScreen.init(this, "textures/black_background.jpg");
+		TGameOver.init(this, "textures/black_background.jpg");
         
         TStructures[0].init(this, "textures/cottage_diffuse.png");
         TStructures[1].init(this, "textures/fenceDiffuse.jpg");
@@ -712,6 +805,8 @@ class HuntGame : public BaseProject {
         DSBBox.init(this, &DSLBBox, {&T1});
 		DSskyBox.init(this, &DSLskyBox, {&TskyBox, &Tstars});
 		DSGun.init(this, &DSLBlinn, {&TGun});
+		DSMenuScreen.init(this, &DSLHUD, {&TMenuScreen});
+		DSGameOver.init(this, &DSLHUD, {&TGameOver});
 
 
         for (DescriptorSet &DSAnimal: DSAnimals) {
@@ -758,6 +853,8 @@ class HuntGame : public BaseProject {
         DSBBox.cleanup();
 		DSskyBox.cleanup();
 		DSGun.cleanup();
+		DSMenuScreen.cleanup();
+		DSGameOver.cleanup();
 
 
         for (DescriptorSet &DSAnimal: DSAnimals) {
@@ -788,6 +885,8 @@ class HuntGame : public BaseProject {
         Tanimal.cleanup();
         TCrosshair.cleanup();
         TGun.cleanup();	
+		TMenuScreen.cleanup();
+		TGameOver.cleanup();
 
         for (Texture &Tstruct: TStructures) {
             Tstruct.cleanup();
@@ -801,6 +900,9 @@ class HuntGame : public BaseProject {
         MAx.cleanup();
         MBall.cleanup();
         MGun.cleanup();
+		MMenuScreen.cleanup();
+		MGameOver.cleanup();
+
         for (Model &MAnimal: MAnimals) {
             MAnimal.cleanup();
         }
@@ -916,6 +1018,17 @@ class HuntGame : public BaseProject {
 		vkCmdDrawIndexed(commandBuffer,
 				static_cast<uint32_t>(MCrosshair.indices.size()), 1, 0, 0, 0);	
 
+		
+		MMenuScreen.bind(commandBuffer);
+		DSMenuScreen.bind(commandBuffer, PHUD, 0, currentImage);
+		vkCmdDrawIndexed(commandBuffer,
+				static_cast<uint32_t>(MMenuScreen.indices.size()), 1, 0, 0, 0);
+
+		MGameOver.bind(commandBuffer);
+		DSGameOver.bind(commandBuffer, PHUD, 0, currentImage);
+		vkCmdDrawIndexed(commandBuffer,
+				static_cast<uint32_t>(MGameOver.indices.size()), 1, 0, 0, 0);
+
             
 		txt.populateCommandBuffer(commandBuffer, currentImage, currScene);
 	}
@@ -960,7 +1073,26 @@ class HuntGame : public BaseProject {
 		static float CamPitch = glm::radians(0.0f);
 		static float CamYaw   = M_PI;
 
-		if (currScene == MATCH) {
+		HUDParUniformBufferObject crosshairParUBO = {};
+		HUDParUniformBufferObject menuScreenParUBO = {};
+		HUDParUniformBufferObject gameOverParUBO = {};
+
+		crosshairParUBO.alpha = 1.0f;
+		menuScreenParUBO.alpha = 0.9f;
+		gameOverParUBO.alpha = 0.9f;
+
+		if (currScene == STARTMENU) {
+			
+			crosshairParUBO.visible = false;
+			menuScreenParUBO.visible = true;
+			gameOverParUBO.visible = false;
+
+		} else if (currScene == MATCH) {
+
+			crosshairParUBO.visible = true;
+			menuScreenParUBO.visible = false;
+			gameOverParUBO.visible = false;
+			
 			if (!isDebugMode)
 			{
 				glm::vec3 FirstPos = glm::vec3(2, 1, 5);
@@ -1053,8 +1185,25 @@ class HuntGame : public BaseProject {
 									MOVE_SPEED * m.x * deltaT, MOVE_SPEED * m.y * deltaT, MOVE_SPEED * m.z * deltaT))
 														* ViewMatrix;
 			}
+<<<<<<< HEAD
 			PlayerPos = extractPlayerPositionFromViewMatrix(ViewMatrix);
+=======
+		} else if (currScene == GAMEOVER) {
+
+			crosshairParUBO.visible = false;
+			menuScreenParUBO.visible = false;
+			gameOverParUBO.visible = true;
+
+		} else {
+			std::cout << "Error, wrong scene : " << currScene << "\n";
+>>>>>>> refs/remotes/origin/main
 		}
+
+		// Updates descriptor sets
+		DSCrosshair.map(currentImage, &crosshairParUBO, 1);
+		DSMenuScreen.map(currentImage, &menuScreenParUBO, 1);
+		DSGameOver.map(currentImage, &gameOverParUBO, 1);
+
 		static float subpassTimer = 0.0;
 
 		if(glfwGetKey(window, GLFW_KEY_SPACE)) {
@@ -1077,6 +1226,10 @@ class HuntGame : public BaseProject {
 							if(rayIntersectsSphere(ray.origin, ray.direction, animals[index].pos, 0.5, t0, t1)){ 
 								std::cout<< "Sphere HIT" << std::endl;
 								animals[index].visible = false;
+								aliveAnimals--;
+								if (aliveAnimals == 0) {
+									currScene = GAMEOVER;
+								}
 								RebuildPipeline();
 							}
 						}
@@ -1117,15 +1270,15 @@ class HuntGame : public BaseProject {
 				debounce = true;
 				curDebounce = GLFW_KEY_ENTER;
 
-				if (currScene == STARTMENU || currScene == MATCH)
-					currScene++;
-				else if (currScene == GAMEOVER)
+				if (currScene == STARTMENU || GAMEOVER) {
 					currScene = MATCH;
-				else
-					std::cout << "Error, wrong scene : " << currScene << "\n";
-
+					for (int index = 0; index < NANIMAL; index++) {
+						animals[index].visible = true;
+					}
+					aliveAnimals = NANIMAL;
+					RebuildPipeline();
+				}
 				std::cout << "Scene : " << currScene << "\n";
-				RebuildPipeline();
 			}
 		} else {
 			if((curDebounce == GLFW_KEY_ENTER) && debounce) {
