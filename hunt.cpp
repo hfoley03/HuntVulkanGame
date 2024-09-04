@@ -5,8 +5,10 @@
 #include "modules/TextMaker.hpp"
 #include "utils.hpp"
 #include <cstdlib> 
+#include <ctime>
 
 bool isDebugMode = false;
+float dayCyclePhase;
 
 std::vector<SingleText> outText = {
 	{16, {"Welcome user!!",
@@ -86,7 +88,6 @@ std::vector<SingleText> outText = {
 #define GAMEOVER 3
 
 #define GAMEDURATION 60.0f
-
 
 struct BlinnUniformBufferObject {
 	alignas(16) glm::mat4 mvpMat;
@@ -385,12 +386,13 @@ class HuntGame : public BaseProject {
 	int subpass = 0;
 	int aliveAnimals = NANIMAL;
 	float startTime;
+	// float dayCyclePhase = 3.0f *M_PI/2.0f;
 		
 	glm::vec3 CamPos = glm::vec3(0.0, 0.1, 5.0);
 	glm::vec3 PlayerPos = glm::vec3(0.0, 0.1, 5.0);
 	glm::mat4 ViewMatrix;
 	float CamAlpha = 0.0f;
-	float CamBeta = 0.0f;
+	float CamBeta = 0.0f;	
 
 	float Ar;
 
@@ -1075,7 +1077,7 @@ class HuntGame : public BaseProject {
 			tTime = (tTime > TturnTime) ? (tTime - TturnTime) : tTime;
 		}
 
-		float dayTime = sin(cTime * angTurnTimeFact);
+		float dayTime = sin(cTime * angTurnTimeFact + dayCyclePhase);
 		
 		const float ROT_SPEED = glm::radians(120.0f);
 		const float MOVE_SPEED = 10.0f;
@@ -1319,7 +1321,7 @@ class HuntGame : public BaseProject {
 		// Global
 		GlobalUniformBufferObject gubo{};
 		// gubo.lightDir = glm::vec3(cos(glm::radians(135.0f)) * cos(cTime * angTurnTimeFact), sin(glm::radians(135.0f)), cos(glm::radians(135.0f)) * sin(cTime * angTurnTimeFact));
-		gubo.lightDir = glm::vec3(cos(cTime * angTurnTimeFact), dayTime, 0.0f);
+		gubo.lightDir = glm::vec3(cos(cTime * angTurnTimeFact + dayCyclePhase), dayTime, 0.0f);
 
 		float intensity = glm::min(0.0f, dayTime);
 		float maxDegree = 0.342f;
@@ -1530,6 +1532,15 @@ int main(int argc, char* argv[]) {
         std::cout << "Running in Release mode" << std::endl;
         // Release-specific code here
     }
+	auto now = std::chrono::high_resolution_clock::now();
+    auto duration = now.time_since_epoch();
+    unsigned int seed = static_cast<unsigned int>(duration.count());
+    srand(seed);
+    std::cout << "Seed: " << seed << std::endl;
+
+    dayCyclePhase = ((float)rand() / RAND_MAX) * (2.0f * M_PI);
+    std::cout << "dayCyclePhase: " << dayCyclePhase << std::endl;
+	
 
     HuntGame app;
 
