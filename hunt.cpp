@@ -8,10 +8,52 @@
 bool isDebugMode = false;
 
 std::vector<SingleText> outText = {
-	{2, {"Welcome to our hunting game!", "Press ENTER to start the game","a","b"}, 10, 0},
-	{2, {"Let the hunt begin!","","",""}, 0, 0},
-	{2, {"Game over","Press ENTER to start again","",""}, 0, 0},
+	{16, {"Welcome user!!",
+		"",
+		"This is a hunting game where your current goal is to catch all of the animals",
+		"in the shortest time possible.",
+		"",
+		"",
+		"You have been given a rifle:",
+		"",
+		"- Press <SPACE_BAR> or left-click with the mouse to shoot.",
+		"- Press <W, A,S, D> to move",
+		"- Press the arrow keys or use the mouse to look around and aim at your target.",
+		"",
+		"",
+		"",
+		"",
+		"Whenever you're ready, press ‹ENTER> to start the game!"}, 0, 0},
+	{0, {"","","",""}, 0, 0},
+	{16, {"GAMEOVER",
+		"",
+		"Well done, you found all the animals in the map!!",
+		"",
+		"You have completed your task in 0 minutes and 0 seconds.",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"Press <ENTER> to start a new game.",
+		"",
+		"Press <ESC> to exit."}, 0, 0},
 };
+
+// std::vector<SingleText> outText = {
+// 	{4, {"Welcome user!!",
+// 		"",
+// 		"This is a hunting game where your current goal is to catch all of the animals in the shortest time possible.",
+// 		"Whenever you're ready, press ‹ENTER> to start the game!"}, 0, 0},
+// 	{0, {"","","",""}, 0, 0},
+// 	{4, {"Well done, you found all the animals in the map!!",
+// 		"You have completed your task in 0 minutes and 0 seconds.",
+// 		"Press <ENTER> to start a new game.",
+// 		"Press <ESC> to exit."}, 0, 0},
+// };
 
 // THE NUMBER OF INSTANCES OF ANIMALS, VEGITATION/ROCKS, STRUCTURES
 #define NANIMAL 5 
@@ -246,7 +288,7 @@ class HuntGame : public BaseProject {
 	Pipeline PskyBox;
 
 	// Scenes and texts
-    // TextMaker txt;
+    TextMaker txt;
     
     // Models
     Model MAx; // xyz axis object
@@ -579,8 +621,11 @@ class HuntGame : public BaseProject {
 		// 					  maxAnisotropy,
 		// 					  maxLod
 		// 	);				
-		TMenuScreen.init(this, "textures/startmenu_background.jpg");
-		TGameOver.init(this, "textures/gameover_background.png");
+		// TMenuScreen.init(this, "textures/startmenu_background.jpg");
+		// TGameOver.init(this, "textures/gameover_background.png");
+
+		TMenuScreen.init(this, "textures/black_background.jpg");
+		TGameOver.init(this, "textures/black_background.jpg");
         
         TStructures[0].init(this, "textures/cottage_diffuse.png");
         TStructures[1].init(this, "textures/fenceDiffuse.jpg");
@@ -699,7 +744,7 @@ class HuntGame : public BaseProject {
 		DPSZs.setsInPool = 400;
 
 		std::cout << "Initializing text\n";
-		// txt.init(this, &outText);
+		txt.init(this, &outText);
 
 		std::cout << "Initialization completed!\n";
 		std::cout << "Uniform Blocks in the Pool  : " << DPSZs.uniformBlocksInPool << "\n";
@@ -750,7 +795,7 @@ class HuntGame : public BaseProject {
 			
 		DSGlobal.init(this, &DSLGlobal, {});
 
-		// txt.pipelinesAndDescriptorSetsInit();		
+		txt.pipelinesAndDescriptorSetsInit();		
 
 		std::cout << "Descriptor Set init!\n";
 
@@ -791,7 +836,7 @@ class HuntGame : public BaseProject {
         for (DescriptorSet &DSBall: DSBalls) {
             DSBall.cleanup();
         };
-		// txt.pipelinesAndDescriptorSetsCleanup();
+		txt.pipelinesAndDescriptorSetsCleanup();
 
         std::cout << "Descriptor Set cleanup!\n";
 
@@ -854,7 +899,7 @@ class HuntGame : public BaseProject {
 		PBBox.destroy();
 		PskyBox.destroy();
 
-		// txt.localCleanup();		
+		txt.localCleanup();		
 	}
 	
 	// Here it is the creation of the command buffer:
@@ -952,7 +997,7 @@ class HuntGame : public BaseProject {
 				static_cast<uint32_t>(MGameOver.indices.size()), 1, 0, 0, 0);
 
             
-		// txt.populateCommandBuffer(commandBuffer, currentImage, currScene);
+		txt.populateCommandBuffer(commandBuffer, currentImage, currScene);
 	}
 
 	// Here is where you update the uniforms.

@@ -1,7 +1,7 @@
 
 struct SingleText {
 	int usedLines;
-	const char *l[4];
+	const char *l[16];
 	int start;
 	int len;
 };
@@ -115,16 +115,22 @@ struct TextMaker {
 		
 		float PtoTdx = -0.95;
 		float PtoTdy = -0.95;
-		float PtoTsx = 2.0/800.0;
-		float PtoTsy = 2.0/600.0;
+		// float PtoTsx = 2.0/800.0;
+		// float PtoTsy = 2.0/600.0;
+
+		float PtoTsx = 2.0/1200.0;
+		float PtoTsy = 2.0/900.0;
 		
 		int minChar = 32;
 		int maxChar = 127;
 		int texW = 1024;
 		int texH = 512;
 		
-		int tpx = 0;
-		int tpy = 0;
+		// int tpx = 0;
+		// int tpy = 0;
+
+		int tpx = 20;
+		int tpy = 50;
 		
 		int ib = 0, k = 0;
 		for(auto& Txt : *Texts) {
@@ -194,10 +200,13 @@ struct TextMaker {
 					}
 				}
 				tpy += Fonts[FontId].lineHeight;
-				tpx = 0;	
+				// tpx = 0;	
+				tpx = 20;	
 			}
-			tpx = 0;
-			tpy = 0;
+			// tpx = 0;
+			// tpy = 0;
+			tpx = 20;
+			tpy = 50;
 			Txt.len = ib - Txt.start;
 		}
 		
