@@ -5,8 +5,10 @@
 #include "modules/TextMaker.hpp"
 #include "utils.hpp"
 #include <cstdlib> 
+#include <ctime>
 
 bool isDebugMode = false;
+float dayCyclePhase;
 
 std::vector<SingleText> outText = {
 	{16, {"Welcome user!!",
@@ -24,13 +26,29 @@ std::vector<SingleText> outText = {
 		"",
 		"",
 		"",
-		"Whenever you're ready, press ‹ENTER> to start the game!"}, 0, 0},
+		"Whenever you're ready, press <ENTER> to start the game!"}, 0, 0},
 	{0, {"","","",""}, 0, 0},
-	{16, {"GAMEOVER",
+	{16, {"YOU WIN!!",
 		"",
 		"Well done, you found all the animals in the map!!",
 		"",
-		"You have completed your task in 0 minutes and 0 seconds.",
+		"You managed to complete your task in the time given.",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"Press <ENTER> to start a new game.",
+		"",
+		"Press <ESC> to exit."}, 0, 0},
+	{16, {"GAMEOVER :(",
+		"",
+		"I'm sorry, but time is up",
+		"",
+		"You didn't manage to completed your task in the time given.",
 		"",
 		"",
 		"",
@@ -63,11 +81,13 @@ std::vector<SingleText> outText = {
 #define NBALLS 1
 
 // GAME SCENES
-#define NUMSCENES 3
+#define NUMSCENES 4
 #define STARTMENU 0
 #define MATCH 1
-#define GAMEOVER 2
+#define GAMEWIN 2
+#define GAMEOVER 3
 
+#define GAMEDURATION 60.0f
 
 struct BlinnUniformBufferObject {
 	alignas(16) glm::mat4 mvpMat;
@@ -220,7 +240,7 @@ class HuntGame : public BaseProject {
     //Model MBBox;
 	Model MskyBox;
 	Model MMenuScreen;
-	Model MGameOver;
+	// Model MGameOver;
 	
 	Model MGun;
     
@@ -253,7 +273,7 @@ class HuntGame : public BaseProject {
 	DescriptorSet DSskyBox;
 	DescriptorSet DSGun;
 	DescriptorSet DSMenuScreen;
-	DescriptorSet DSGameOver;
+	// DescriptorSet DSGameOver;
 
 
    // Textures
@@ -276,18 +296,20 @@ class HuntGame : public BaseProject {
 	 int mmm = 0;
 
 	Texture TMenuScreen;
-	Texture TGameOver;
+	// Texture TGameOver;
 	
 	// Other application parameters
 	int currScene = 0;
 	int subpass = 0;
 	int aliveAnimals = NANIMAL;
+	float startTime;
+	// float dayCyclePhase = 3.0f *M_PI/2.0f;
 		
 	glm::vec3 CamPos = glm::vec3(0.0, 0.1, 5.0);
 	glm::vec3 PlayerPos = glm::vec3(0.0, 0.1, 5.0);
 	glm::mat4 ViewMatrix;
 	float CamAlpha = 0.0f;
-	float CamBeta = 0.0f;
+	float CamBeta = 0.0f;	
 
 	float Ar;
 
@@ -514,15 +536,15 @@ class HuntGame : public BaseProject {
 		    MSV_vertex->UV = vertex.UV;
 		    
 		    MMenuScreen.vertices.insert(MMenuScreen.vertices.end(), menuScreenVertexData.begin(), menuScreenVertexData.end());
-			MGameOver.vertices.insert(MGameOver.vertices.end(), menuScreenVertexData.begin(), menuScreenVertexData.end());
+			// MGameOver.vertices.insert(MGameOver.vertices.end(), menuScreenVertexData.begin(), menuScreenVertexData.end());
 		}
 
 		std::vector<unsigned int> msquadIndices = {0, 1, 2, 2, 3, 0};
 
 		MMenuScreen.indices.insert(MMenuScreen.indices.end(), msquadIndices.begin(), msquadIndices.end());
 		MMenuScreen.initMesh(this, &VDHUD);
-		MGameOver.indices.insert(MGameOver.indices.end(), msquadIndices.begin(), msquadIndices.end());
-		MGameOver.initMesh(this, &VDHUD);
+		// MGameOver.indices.insert(MGameOver.indices.end(), msquadIndices.begin(), msquadIndices.end());
+		// MGameOver.initMesh(this, &VDHUD);
 
 
         // Create the textures
@@ -549,7 +571,7 @@ class HuntGame : public BaseProject {
 		// TGameOver.init(this, "textures/gameover_background.png");
 
 		TMenuScreen.init(this, "textures/black_background.jpg");
-		TGameOver.init(this, "textures/black_background.jpg");
+		// TGameOver.init(this, "textures/black_background.jpg");
         
         TStructures[0].init(this, "textures/cottage_diffuse.png");
         TStructures[1].init(this, "textures/fenceDiffuse.jpg");
@@ -778,7 +800,7 @@ class HuntGame : public BaseProject {
 		DSskyBox.init(this, &DSLskyBox, {&TskyBox, &Tstars});
 		DSGun.init(this, &DSLBlinn, {&TGun});
 		DSMenuScreen.init(this, &DSLHUD, {&TMenuScreen});
-		DSGameOver.init(this, &DSLHUD, {&TGameOver});
+		// DSGameOver.init(this, &DSLHUD, {&TGameOver});
 
 
         for (DescriptorSet &DSAnimal: DSAnimals) {
@@ -826,7 +848,7 @@ class HuntGame : public BaseProject {
 		DSskyBox.cleanup();
 		DSGun.cleanup();
 		DSMenuScreen.cleanup();
-		DSGameOver.cleanup();
+		// DSGameOver.cleanup();
 
 
         for (DescriptorSet &DSAnimal: DSAnimals) {
@@ -858,7 +880,7 @@ class HuntGame : public BaseProject {
         TCrosshair.cleanup();
         TGun.cleanup();	
 		TMenuScreen.cleanup();
-		TGameOver.cleanup();
+		// TGameOver.cleanup();
 
         for (Texture &Tstruct: TStructures) {
             Tstruct.cleanup();
@@ -873,7 +895,7 @@ class HuntGame : public BaseProject {
         MBall.cleanup();
         MGun.cleanup();
 		MMenuScreen.cleanup();
-		MGameOver.cleanup();
+		// MGameOver.cleanup();
 
         for (Model &MAnimal: MAnimals) {
             MAnimal.cleanup();
@@ -996,10 +1018,10 @@ class HuntGame : public BaseProject {
 		vkCmdDrawIndexed(commandBuffer,
 				static_cast<uint32_t>(MMenuScreen.indices.size()), 1, 0, 0, 0);
 
-		MGameOver.bind(commandBuffer);
-		DSGameOver.bind(commandBuffer, PHUD, 0, currentImage);
-		vkCmdDrawIndexed(commandBuffer,
-				static_cast<uint32_t>(MGameOver.indices.size()), 1, 0, 0, 0);
+		// MGameOver.bind(commandBuffer);
+		// DSGameOver.bind(commandBuffer, PHUD, 0, currentImage);
+		// vkCmdDrawIndexed(commandBuffer,
+		// 		static_cast<uint32_t>(MGameOver.indices.size()), 1, 0, 0, 0);
 
             
 		txt.populateCommandBuffer(commandBuffer, currentImage, currScene);
@@ -1037,7 +1059,7 @@ class HuntGame : public BaseProject {
 			tTime = (tTime > TturnTime) ? (tTime - TturnTime) : tTime;
 		}
 
-		float dayTime = sin(cTime * angTurnTimeFact);
+		float dayTime = sin(cTime * angTurnTimeFact + dayCyclePhase);
 		
 		const float ROT_SPEED = glm::radians(120.0f);
 		const float MOVE_SPEED = 10.0f;
@@ -1047,23 +1069,23 @@ class HuntGame : public BaseProject {
 
 		HUDParUniformBufferObject crosshairParUBO = {};
 		HUDParUniformBufferObject menuScreenParUBO = {};
-		HUDParUniformBufferObject gameOverParUBO = {};
+		// HUDParUniformBufferObject gameOverParUBO = {};
 
 		crosshairParUBO.alpha = 1.0f;
 		menuScreenParUBO.alpha = 0.9f;
-		gameOverParUBO.alpha = 0.9f;
+		// gameOverParUBO.alpha = 0.9f;
 
 		if (currScene == STARTMENU) {
 			
 			crosshairParUBO.visible = false;
 			menuScreenParUBO.visible = true;
-			gameOverParUBO.visible = false;
+			// gameOverParUBO.visible = false;
 
 		} else if (currScene == MATCH) {
 
 			crosshairParUBO.visible = true;
 			menuScreenParUBO.visible = false;
-			gameOverParUBO.visible = false;
+			// gameOverParUBO.visible = false;
 			
 			if (!isDebugMode)
 			{
@@ -1159,11 +1181,11 @@ class HuntGame : public BaseProject {
 														* ViewMatrix;
 			}
 			PlayerPos = extractPlayerPositionFromViewMatrix(ViewMatrix);
-		} else if (currScene == GAMEOVER) {
+		} else if (currScene == GAMEOVER || currScene == GAMEWIN) {
 
 			crosshairParUBO.visible = false;
-			menuScreenParUBO.visible = false;
-			gameOverParUBO.visible = true;
+			menuScreenParUBO.visible = true;
+			// gameOverParUBO.visible = true;
 
 		} else {
 			std::cout << "Error, wrong scene : " << currScene << "\n";
@@ -1172,7 +1194,7 @@ class HuntGame : public BaseProject {
 		// Updates descriptor sets
 		DSCrosshair.map(currentImage, &crosshairParUBO, 1);
 		DSMenuScreen.map(currentImage, &menuScreenParUBO, 1);
-		DSGameOver.map(currentImage, &gameOverParUBO, 1);
+		// DSGameOver.map(currentImage, &gameOverParUBO, 1);
 
 		static float subpassTimer = 0.0;
 
@@ -1192,7 +1214,7 @@ class HuntGame : public BaseProject {
 								animals[index].visible = false;
 								aliveAnimals--;
 								if (aliveAnimals == 0) {
-									currScene = GAMEOVER;
+									currScene = GAMEWIN;
 								}
 								RebuildPipeline();
 							}
@@ -1234,12 +1256,13 @@ class HuntGame : public BaseProject {
 				debounce = true;
 				curDebounce = GLFW_KEY_ENTER;
 
-				if (currScene == STARTMENU || GAMEOVER) {
+				if (currScene == STARTMENU || GAMEOVER || GAMEWIN) {
 					currScene = MATCH;
 					for (int index = 0; index < NANIMAL; index++) {
 						animals[index].visible = true;
 					}
 					aliveAnimals = NANIMAL;
+					startTime = cTime;
 					RebuildPipeline();
 				}
 				std::cout << "Scene : " << currScene << "\n";
@@ -1264,13 +1287,18 @@ class HuntGame : public BaseProject {
 		glm::mat4 ViewPrj =  M * Mv;
 		glm::mat4 baseTr = glm::mat4(1.0f);		
 
-		ray = calculateRayFromScreenCenter(Mv, M);						
+		ray = calculateRayFromScreenCenter(Mv, M);
+
+		if (currScene==MATCH && (cTime - startTime > GAMEDURATION)) {
+			currScene = GAMEOVER;
+			RebuildPipeline();
+		}
 
 		// updates global uniforms
 		// Global
 		GlobalUniformBufferObject gubo{};
 		// gubo.lightDir = glm::vec3(cos(glm::radians(135.0f)) * cos(cTime * angTurnTimeFact), sin(glm::radians(135.0f)), cos(glm::radians(135.0f)) * sin(cTime * angTurnTimeFact));
-		gubo.lightDir = glm::vec3(cos(cTime * angTurnTimeFact), dayTime, 0.0f);
+		gubo.lightDir = glm::vec3(cos(cTime * angTurnTimeFact + dayCyclePhase), dayTime, 0.0f);
 
 		float intensity = glm::min(0.0f, dayTime);
 		float maxDegree = 0.342f;
@@ -1481,6 +1509,15 @@ int main(int argc, char* argv[]) {
         std::cout << "Running in Release mode" << std::endl;
         // Release-specific code here
     }
+	auto now = std::chrono::high_resolution_clock::now();
+    auto duration = now.time_since_epoch();
+    unsigned int seed = static_cast<unsigned int>(duration.count());
+    srand(seed);
+    std::cout << "Seed: " << seed << std::endl;
+
+    dayCyclePhase = ((float)rand() / RAND_MAX) * (2.0f * M_PI);
+    std::cout << "dayCyclePhase: " << dayCyclePhase << std::endl;
+	
 
     HuntGame app;
 
