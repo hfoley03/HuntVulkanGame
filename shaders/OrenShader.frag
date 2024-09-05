@@ -25,10 +25,12 @@ layout(set = 1, binding = 2) uniform BlinnParUniformBufferObject {
 
 layout(set = 1, binding = 1) uniform sampler2D tex;
 
+
 // Oren-Nayar diffuse model implementation
 void main() {
     float ambientIntensity = (gubo.ambient - (-1.0f)) / (1.0f - (-1.0f)) * (0.09f - 0.025f) + 0.025f;
     vec3 Norm = normalize(fragNorm);
+
     vec3 EyeDir = normalize(gubo.eyePos - fragPos);
     vec3 lightDir = normalize(gubo.lightDir);
     vec3 lightColor = gubo.dayLightColor.rgb;

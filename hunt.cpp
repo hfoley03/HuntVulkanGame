@@ -373,6 +373,7 @@ class HuntGame : public BaseProject {
     Texture TStructures[4];
     Texture TCrosshair;
 	Texture TskyBox, Tstars;
+	Texture TRock;
 
 	 VkFilter magFilter = VK_FILTER_NEAREST;
 	 VkFilter minFilter = VK_FILTER_NEAREST;
@@ -551,11 +552,7 @@ class HuntGame : public BaseProject {
           
 		// Pipelines [Shader couples]
 		PBlinn.init(this, &VDBlinn,  "shaders/BlinnVert.spv",    "shaders/BlinnFrag.spv", {&DSLGlobal, &DSLBlinn});
-
 		POren.init(this, &VDOren,  "shaders/OrenVert.spv",    "shaders/OrenFrag.spv", {&DSLGlobal, &DSLOren});
-
-	//	POren.init(this, &VDOren,  "shaders/BlinnVert.spv",    "shaders/BlinnFrag.spv", {&DSLGlobal, &DSLOren});
-
 		PEmission.init(this, &VDEmission,  "shaders/EmissionVert.spv",    "shaders/EmissionFrag.spv", {&DSLEmission});
 		PskyBox.init(this, &VDskyBox, "shaders/SkyBoxVert.spv", "shaders/SkyBoxFrag.spv", {&DSLskyBox});
 		PskyBox.setAdvancedFeatures(VK_COMPARE_OP_LESS_OR_EQUAL, VK_POLYGON_MODE_FILL,
@@ -684,6 +681,9 @@ class HuntGame : public BaseProject {
         TCrosshair.init(this, "textures/cros.png");
         TGun.init(this, "textures/gun.png");
         TGrass.init(this, "textures/grass1.jpg");
+		TRock.init(this, "textures/rock2.jpg", VK_FORMAT_R8G8B8A8_UNORM);
+
+		
         // TGrass.init(this, "textures/grass1.jpg", VK_FORMAT_R8G8B8A8_SRGB, false);
         // TGrass.createTextureSampler(
 		// 					  magFilter,
@@ -1003,7 +1003,7 @@ class HuntGame : public BaseProject {
 
 
 	void localCleanup() {	
-
+		TRock.cleanup();
 		Tsun.cleanup();
 		Tmoon.cleanup();
 		Tground.cleanup();
