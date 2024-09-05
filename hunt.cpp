@@ -102,6 +102,17 @@ struct BlinnMatParUniformBufferObject {
 	alignas(4) 	float scaleUV;
 };
 
+struct OrenUniformBufferObject {
+	alignas(16) glm::mat4 mvpMat;
+	alignas(16) glm::mat4 mMat;
+	alignas(16) glm::mat4 nMat;
+};
+
+struct OrenMatParUniformBufferObject {
+	alignas(4)  float Roughness;
+	alignas(4) 	float scaleUV;
+};
+
 struct EmissionUniformBufferObject {
 	alignas(16) glm::mat4 mvpMat;
 };
@@ -138,6 +149,12 @@ struct UniformBufferObject {
 };
 
 struct BlinnVertex {
+	glm::vec3 pos;
+	glm::vec3 norm;
+	glm::vec2 UV;
+};
+
+struct OrenVertex {
 	glm::vec3 pos;
 	glm::vec3 norm;
 	glm::vec2 UV;
@@ -277,6 +294,7 @@ class HuntGame : public BaseProject {
 	// Descriptor Layouts ["classes" of what will be passed to the shaders]
 	DescriptorSetLayout DSLGlobal;	    // For Global values
 	DescriptorSetLayout DSLBlinn;	    // For Blinn Objects
+	DescriptorSetLayout DSLOren;
 	DescriptorSetLayout DSLEmission;	// For Emission Objects
 	DescriptorSetLayout DSLHUD;
 	DescriptorSetLayout DSLBBox;
@@ -284,6 +302,7 @@ class HuntGame : public BaseProject {
 
 	// Vertex formats
 	VertexDescriptor VDBlinn;
+	VertexDescriptor VDOren;
 	VertexDescriptor VDEmission;
 	VertexDescriptor VDHUD;
 	VertexDescriptor VDBBox;
@@ -291,6 +310,7 @@ class HuntGame : public BaseProject {
 
 	// Pipelines [Shader couples]
 	Pipeline PBlinn;
+	Pipeline POren;
 	Pipeline PEmission;
 	Pipeline PHUD;
 	//Pipeline PBBox;
@@ -447,6 +467,11 @@ class HuntGame : public BaseProject {
 					{1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 0, 1},
 					{2, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(BlinnMatParUniformBufferObject), 1}
 				});
+		DSLOren.init(this, {
+					{0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT, sizeof(OrenUniformBufferObject), 1},
+					{1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 0, 1},
+					{2, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(OrenMatParUniformBufferObject), 1}
+				});
 		DSLEmission.init(this, {
 					{0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT, sizeof(EmissionUniformBufferObject), 1},
 					{1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 0, 1},
@@ -478,6 +503,18 @@ class HuntGame : public BaseProject {
 				  {0, 2, VK_FORMAT_R32G32_SFLOAT, offsetof(BlinnVertex, UV),
 				         sizeof(glm::vec2), UV}
 				});
+
+		VDOren.init(this, {
+				  {0, sizeof(OrenVertex), VK_VERTEX_INPUT_RATE_VERTEX}
+				}, {
+				  {0, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(OrenVertex, pos),
+				         sizeof(glm::vec3), POSITION},
+				  {0, 1, VK_FORMAT_R32G32B32_SFLOAT, offsetof(OrenVertex, norm),
+				         sizeof(glm::vec3), NORMAL},
+				  {0, 2, VK_FORMAT_R32G32_SFLOAT, offsetof(OrenVertex, UV),
+				         sizeof(glm::vec2), UV}
+				});
+
 		VDEmission.init(this, {
 				  {0, sizeof(EmissionVertex), VK_VERTEX_INPUT_RATE_VERTEX}
 				}, {
@@ -514,6 +551,11 @@ class HuntGame : public BaseProject {
           
 		// Pipelines [Shader couples]
 		PBlinn.init(this, &VDBlinn,  "shaders/BlinnVert.spv",    "shaders/BlinnFrag.spv", {&DSLGlobal, &DSLBlinn});
+
+		POren.init(this, &VDOren,  "shaders/OrenVert.spv",    "shaders/OrenFrag.spv", {&DSLGlobal, &DSLOren});
+
+	//	POren.init(this, &VDOren,  "shaders/BlinnVert.spv",    "shaders/BlinnFrag.spv", {&DSLGlobal, &DSLOren});
+
 		PEmission.init(this, &VDEmission,  "shaders/EmissionVert.spv",    "shaders/EmissionFrag.spv", {&DSLEmission});
 		PskyBox.init(this, &VDskyBox, "shaders/SkyBoxVert.spv", "shaders/SkyBoxFrag.spv", {&DSLskyBox});
 		PskyBox.setAdvancedFeatures(VK_COMPARE_OP_LESS_OR_EQUAL, VK_POLYGON_MODE_FILL,
@@ -544,18 +586,18 @@ class HuntGame : public BaseProject {
         MAnimals[8].init(this, &VDBlinn, "models/animals/goat_001.mgcg", MGCG);
         MAnimals[9].init(this, &VDBlinn, "models/animals/lion_female_001.mgcg", MGCG);
 
-        MVegRocks[0].init(this, &VDBlinn, "models/VegRocks/vegetation.001.mgcg", MGCG);
-        MVegRocks[1].init(this, &VDBlinn, "models/VegRocks/vegetation.018.mgcg", MGCG);
-        MVegRocks[2].init(this, &VDBlinn, "models/VegRocks/vegetation.022.mgcg", MGCG);
-        MVegRocks[3].init(this, &VDBlinn, "models/VegRocks/vegetation.025.mgcg", MGCG);
-        MVegRocks[4].init(this, &VDBlinn, "models/VegRocks/vegetation.044.mgcg", MGCG); //rock tree
-        MVegRocks[5].init(this, &VDBlinn, "models/VegRocks/vegetation.045.mgcg", MGCG); //big rock
-        MVegRocks[6].init(this, &VDBlinn, "models/VegRocks/vegetation.048.mgcg", MGCG); // rock grass
-        MVegRocks[7].init(this, &VDBlinn, "models/VegRocks/vegetation.049.mgcg", MGCG); // rock grass
-        MVegRocks[8].init(this, &VDBlinn, "models/VegRocks/vegetation.mgcg", MGCG); // rock grass
-        MVegRocks[9].init(this, &VDBlinn, "models/VegRocks/vegetation.100.mgcg", MGCG); // rock grass
-        MVegRocks[10].init(this, &VDBlinn, "models/VegRocks/vegetation.103.mgcg", MGCG); // rock grass
-        MVegRocks[11].init(this, &VDBlinn, "models/VegRocks/vegetation.106.mgcg", MGCG); // rock grass
+        MVegRocks[0].init(this, &VDOren, "models/VegRocks/vegetation.001.mgcg", MGCG);
+        MVegRocks[1].init(this, &VDOren, "models/VegRocks/vegetation.018.mgcg", MGCG);
+        MVegRocks[2].init(this, &VDOren, "models/VegRocks/vegetation.022.mgcg", MGCG);
+        MVegRocks[3].init(this, &VDOren, "models/VegRocks/vegetation.025.mgcg", MGCG);
+        MVegRocks[4].init(this, &VDOren, "models/VegRocks/vegetation.044.mgcg", MGCG); //rock tree
+        MVegRocks[5].init(this, &VDOren, "models/VegRocks/vegetation.045.mgcg", MGCG); //big rock
+        MVegRocks[6].init(this, &VDOren, "models/VegRocks/vegetation.048.mgcg", MGCG); // rock grass
+        MVegRocks[7].init(this, &VDOren, "models/VegRocks/vegetation.049.mgcg", MGCG); // rock grass
+        MVegRocks[8].init(this, &VDOren, "models/VegRocks/vegetation.mgcg", MGCG); // rock grass
+        MVegRocks[9].init(this, &VDOren, "models/VegRocks/vegetation.100.mgcg", MGCG); // rock grass
+        MVegRocks[10].init(this, &VDOren, "models/VegRocks/vegetation.103.mgcg", MGCG); // rock grass
+        MVegRocks[11].init(this, &VDOren, "models/VegRocks/vegetation.106.mgcg", MGCG); // rock grass
 
         MStructures[0].init(this, &VDBlinn, "models/structure/cottage.obj", OBJ);
         MStructures[1].init(this, &VDBlinn, "models/structure/fence.obj", OBJ);
@@ -871,6 +913,7 @@ class HuntGame : public BaseProject {
 	void pipelinesAndDescriptorSetsInit() {
 		// This creates a new pipeline (with the current surface), using its shaders
 		PBlinn.create();
+		POren.create();
 		PEmission.create();
 		PskyBox.create();
 		PHUD.create();
@@ -895,7 +938,7 @@ class HuntGame : public BaseProject {
         };
 
         for (DescriptorSet &DSVegRock: DSVegRocks) {
-            DSVegRock.init(this, &DSLBlinn, {&T1});
+            DSVegRock.init(this, &DSLOren, {&T1});
         };
 
         for (int index = 0; index < NSTRUCTURES; index++) {
@@ -920,6 +963,7 @@ class HuntGame : public BaseProject {
 	void pipelinesAndDescriptorSetsCleanup() {
 		// Cleanup pipelines
 		PBlinn.cleanup();
+		POren.cleanup();
 		PEmission.cleanup();
 		PHUD.cleanup();
 		// PBBox.cleanup();
@@ -1002,6 +1046,7 @@ class HuntGame : public BaseProject {
 
 		// Cleanup descriptor set layouts
 		DSLBlinn.cleanup();
+		DSLOren.cleanup();
 		DSLEmission.cleanup();
 		DSLGlobal.cleanup();
 		DSLHUD.cleanup();
@@ -1010,6 +1055,7 @@ class HuntGame : public BaseProject {
 		
 		// Destroies the pipelines
 		PBlinn.destroy();
+		POren.destroy();
 		PEmission.destroy();
 		PHUD.destroy();
 		// PBBox.destroy();
@@ -1023,6 +1069,16 @@ class HuntGame : public BaseProject {
 	// with their buffers and textures
 	
 	void populateCommandBuffer(VkCommandBuffer commandBuffer, int currentImage) {
+
+		POren.bind(commandBuffer);
+		DSGlobal.bind(commandBuffer, POren, 0, currentImage);
+		for (int index = 0; index < NVEGROCK; index++) {
+		    const Instance& instance = vegRocks[index];
+            MVegRocks[instance.modelID].bind(commandBuffer);
+            DSVegRocks[index].bind(commandBuffer, POren, 1, currentImage);
+            vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(MVegRocks[instance.modelID].indices.size()), 1, 0, 0, 0);
+        }
+
 		// binds the pipeline
 		PBlinn.bind(commandBuffer);
 		// The models (both index and vertex buffers)
@@ -1037,12 +1093,6 @@ class HuntGame : public BaseProject {
             vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(MAnimals[instance.modelID].indices.size()), 1, 0, 0, 0);
         }
 
-		for (int index = 0; index < NVEGROCK; index++) {
-		    const Instance& instance = vegRocks[index];
-            MVegRocks[instance.modelID].bind(commandBuffer);
-            DSVegRocks[index].bind(commandBuffer, PBlinn, 1, currentImage);
-            vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(MVegRocks[instance.modelID].indices.size()), 1, 0, 0, 0);
-        }
 
 		for (int index = 0; index < NSTRUCTURES; index++) {
 		    const Instance& instance = structures[index];
@@ -1116,7 +1166,8 @@ class HuntGame : public BaseProject {
 		// vkCmdDrawIndexed(commandBuffer,
 		// 		static_cast<uint32_t>(MGameOver.indices.size()), 1, 0, 0, 0);
 
-            
+
+
 		txt.populateCommandBuffer(commandBuffer, currentImage, currScene);
 	}
 
@@ -1568,24 +1619,7 @@ class HuntGame : public BaseProject {
         	}
         }
 
-        // VEG ROCKs
-        for (int model = 0; model < NVEGROCK; model++) {
-        	const Instance& instance = vegRocks[model];
 
- 			blinnUbo.mMat = glm::translate(glm::mat4(1.0f),
-                                           instance.pos) 
- 											* glm::rotate(glm::mat4(1.0f), glm::radians(0.0f),glm::vec3(1.0f, 0.0f, 0.0f))
- 											* glm::rotate(glm::scale(glm::mat4(1), instance.scale), glm::radians(instance.angle),glm::vec3(0.0f, 1.0f, 0.0f)) * baseTr;
-
-
-        	blinnUbo.mvpMat = ViewPrj * blinnUbo.mMat;
-        	blinnUbo.nMat = glm::inverse(glm::transpose(blinnUbo.mMat));
-
-            DSVegRocks[model].map(currentImage, &blinnUbo, 0);
-
-			blinnMatParUbo.Power = 2000.0;
-        	DSVegRocks[model].map(currentImage, &blinnMatParUbo, 2);
-        }
 
         // STRUCUTRES
         for (int model = 0; model < NSTRUCTURES; model++) {
@@ -1622,6 +1656,34 @@ class HuntGame : public BaseProject {
 	        	DSBalls[model].map(currentImage, &blinnMatParUbo, 2);
 	        }
     	}
+		
+		DSGlobal.map(currentImage, &gubo, 0);
+
+		OrenUniformBufferObject orenUbo{};
+		OrenMatParUniformBufferObject orenMatParUbo{};
+
+        orenUbo.mMat = glm::mat4(1);
+        orenUbo.nMat = glm::mat4(1);
+        orenUbo.mvpMat = ViewPrj;
+		orenMatParUbo.scaleUV = 1.0;
+		orenMatParUbo.Roughness = 0.5;
+
+		// VEG ROCKs
+        for (int model = 0; model < NVEGROCK; model++) {
+        	const Instance& instance = vegRocks[model];
+
+ 			orenUbo.mMat = glm::translate(glm::mat4(1.0f),
+                                           instance.pos) 
+ 											* glm::rotate(glm::mat4(1.0f), glm::radians(0.0f),glm::vec3(1.0f, 0.0f, 0.0f))
+ 											* glm::rotate(glm::scale(glm::mat4(1), instance.scale), glm::radians(instance.angle),glm::vec3(0.0f, 1.0f, 0.0f)) * baseTr;
+
+
+        	orenUbo.mvpMat = ViewPrj * orenUbo.mMat;
+        	orenUbo.nMat = glm::inverse(glm::transpose(orenUbo.mMat));
+
+            DSVegRocks[model].map(currentImage, &orenUbo, 0);
+        	DSVegRocks[model].map(currentImage, &orenMatParUbo, 2);
+        }
 	}
 };
 
