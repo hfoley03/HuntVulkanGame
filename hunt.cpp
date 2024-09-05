@@ -198,8 +198,74 @@ void shoot(){
 	std::cout << "shoot" << std::endl;
 }
 
+void generateScopeVertices(std::vector<HUDVertex>& vertices, const glm::vec2& center, float radius, int segmentCount, float Ar) {
+    // four screen corners
+	std::vector<HUDVertex> quadVertices = {
+        {{-1.0f, -1.0f}, {0.9f, 0.5f}},  
+        {{ 1.0f, -1.0f}, {0.9f, 0.5f}},  
+        {{ 1.0f,  1.0f}, {0.9f, 0.5f}},  
+        {{-1.0f,  1.0f}, {0.9f, 0.5f}}   
+    };
+
+	std::cout << "ASPECT RATIO _________ " << "\n";
+		std::cout << Ar << "\n";
+	std::cout << "ASPECT RATIO _________ " << "\n";
 
 
+    vertices.insert(vertices.end(), quadVertices.begin(), quadVertices.end());
+
+    vertices.push_back({center, {0.9f, 0.5f}}); // centre
+
+    float angleStep = 2.0f * M_PI / segmentCount;
+    for (int i = 0; i <= segmentCount; ++i) {  
+        float angle = i * angleStep;
+        //glm::vec2 pos = center + glm::vec2(radius * cos(angle), radius * sin(angle));
+		glm::vec2 pos = center + glm::vec2(radius * cos(angle), radius * sin(angle) * Ar );
+        vertices.push_back({pos, {0.9f, 0.5f}});
+    }
+}
+
+void generateScopeIndices(std::vector<unsigned int>& indices, int segmentCount) {
+	indices.push_back(1); // top right
+	indices.push_back(2); // bottom right
+	indices.push_back(5); // 0 degs of circle
+
+	for (int i = 0; i < 16; i++) {
+		indices.push_back(2);
+		indices.push_back(5 + i);
+		indices.push_back(6 + i);
+    }
+
+	indices.push_back(2); // bottom right
+	indices.push_back(3); //bottom left
+	indices.push_back(5 + 16); // bottom of circle 
+
+	for (int i = 0; i < 16; i++) {
+		indices.push_back(3);
+		indices.push_back(21 + i);
+		indices.push_back(22 + i);
+    }
+	indices.push_back(3);
+	indices.push_back(0);
+	indices.push_back(5 + 16*2);
+
+	for (int i = 0; i < 16; i++) {
+		indices.push_back(0);
+		indices.push_back(37 + i);
+		indices.push_back(38 + i);
+    }
+
+	indices.push_back(0);
+	indices.push_back(1);
+	indices.push_back(5 + 16*3);
+
+	for (int i = 0; i < 16; i++) {
+		indices.push_back(1);
+		indices.push_back(53 + i);
+		indices.push_back(54 + i);
+    }
+
+}
 
 // MAIN ! 
 class HuntGame : public BaseProject {
@@ -237,6 +303,7 @@ class HuntGame : public BaseProject {
 	Model Mmoon;
     Model Mground;
     Model MCrosshair;
+	Model MScope;
     //Model MBBox;
 	Model MskyBox;
 	Model MMenuScreen;
@@ -261,7 +328,7 @@ class HuntGame : public BaseProject {
 
     
     // Descriptor Sets
-    DescriptorSet DSGlobal, DSAx, DSCrosshair;
+    DescriptorSet DSGlobal, DSAx, DSCrosshair, DSScope;
     DescriptorSet DSsun;
 	DescriptorSet DSmoon;
     DescriptorSet DSground;
@@ -313,6 +380,9 @@ class HuntGame : public BaseProject {
 
 	float Ar;
 	float cameraZoom = 50.0f;
+	float zoomInAngle = 20.0f;
+	float zoomOutAngle = 50.0f;
+
 
 
 	// for visualisation of the bounding box only
@@ -514,6 +584,18 @@ class HuntGame : public BaseProject {
 
 		MCrosshair.indices.insert(MCrosshair.indices.end(), quadIndices.begin(), quadIndices.end());
 		MCrosshair.initMesh(this, &VDHUD);
+
+		std::vector<HUDVertex> vertices;
+		std::vector<unsigned int> indices;
+
+		float radius = 0.25f; 
+		int segmentCount = 64;
+		generateScopeVertices(vertices, glm::vec2(0.0f, 0.0f), radius, segmentCount, Ar);
+		generateScopeIndices(indices, segmentCount);
+
+		MScope.vertices.insert(MScope.vertices.end(), reinterpret_cast<unsigned char*>(vertices.data()), reinterpret_cast<unsigned char*>(vertices.data()) + vertices.size() * sizeof(HUDVertex));
+		MScope.indices.insert(MScope.indices.end(), indices.begin(), indices.end());
+		MScope.initMesh(this, &VDHUD);
  
 		// Define the 4 vertices of the quad
 		// std::vector<HUDVertex> menuScreenVertices = {
@@ -798,6 +880,7 @@ class HuntGame : public BaseProject {
 		DSground.init(this, &DSLBlinn, {&TGrass});
         DSAx.init(this, &DSLBlinn, {&T1});
         DSCrosshair.init(this, &DSLHUD, {&TCrosshair});
+		DSScope.init(this, &DSLHUD, {&TGun});
        // DSBBox.init(this, &DSLBBox, {&T1});
 		DSskyBox.init(this, &DSLskyBox, {&TskyBox, &Tstars});
 		DSGun.init(this, &DSLBlinn, {&TGun});
@@ -846,6 +929,7 @@ class HuntGame : public BaseProject {
 		DSground.cleanup();
         DSAx.cleanup();
         DSCrosshair.cleanup();
+		DSScope.cleanup();
         //DSBBox.cleanup();
 		DSskyBox.cleanup();
 		DSGun.cleanup();
@@ -889,6 +973,7 @@ class HuntGame : public BaseProject {
         }
 
 		MCrosshair.cleanup();
+		MScope.cleanup();
 		//MBBox.cleanup();
 		Msun.cleanup();
 		Mmoon.cleanup();
@@ -1014,7 +1099,11 @@ class HuntGame : public BaseProject {
 		vkCmdDrawIndexed(commandBuffer,
 				static_cast<uint32_t>(MCrosshair.indices.size()), 1, 0, 0, 0);	
 
-		
+		MScope.bind(commandBuffer);
+		DSScope.bind(commandBuffer, PHUD, 0, currentImage);
+		vkCmdDrawIndexed(commandBuffer,
+				static_cast<uint32_t>(MScope.indices.size()), 1, 0, 0, 0);	
+
 		MMenuScreen.bind(commandBuffer);
 		DSMenuScreen.bind(commandBuffer, PHUD, 0, currentImage);
 		vkCmdDrawIndexed(commandBuffer,
@@ -1196,6 +1285,11 @@ class HuntGame : public BaseProject {
 
 		// Updates descriptor sets
 		DSCrosshair.map(currentImage, &crosshairParUBO, 1);
+
+		if(cameraZoom == zoomInAngle){
+			DSScope.map(currentImage, &crosshairParUBO, 1);
+		}
+
 		DSMenuScreen.map(currentImage, &menuScreenParUBO, 1);
 		// DSGameOver.map(currentImage, &gameOverParUBO, 1);
 
@@ -1208,7 +1302,7 @@ class HuntGame : public BaseProject {
 								
 				// Shoots only during the match
 				if (currScene == MATCH) {
-
+					::printVec3(ray.origin);
 					float t0, t1;
 					for (int index = 0; index < NANIMAL; index++) {
 						if(animals[index].visible){
@@ -1242,9 +1336,20 @@ class HuntGame : public BaseProject {
 			if(!debounce) {
 				debounce = true;
 				curDebounce = GLFW_KEY_Z;
-				cameraZoom = 25.0f;
+				std::cout<< cameraZoom << "\n";
 
-				std::cout<< "zoom out" << "\n";
+				if(cameraZoom == zoomInAngle){
+					cameraZoom = zoomOutAngle;
+					std::cout<< "zoom out" << "\n";
+					RebuildPipeline();
+
+				}
+				else if (cameraZoom == zoomOutAngle){
+					cameraZoom = zoomInAngle;
+					std::cout<< "zoom in" << "\n";
+					RebuildPipeline();
+				}
+
 			}
 		} else {
 			if((curDebounce == GLFW_KEY_Z) && debounce) {
@@ -1252,21 +1357,7 @@ class HuntGame : public BaseProject {
 				curDebounce = 0;
 			}
 		}
-
-		if(glfwGetKey(window, GLFW_KEY_X)) {
-			if(!debounce) {
-				debounce = true;
-				curDebounce = GLFW_KEY_X;
-				cameraZoom = 50.0f;
-
-				std::cout<< "zoom in" << "\n";
-			}
-		} else {
-			if((curDebounce == GLFW_KEY_X) && debounce) {
-				debounce = false;
-				curDebounce = 0;
-			}
-		}		
+	
 
 		if(glfwGetKey(window, GLFW_KEY_V)) {
 			if(!debounce) {
@@ -1429,28 +1520,32 @@ class HuntGame : public BaseProject {
         DSground.map(currentImage, &blinnMatParUbo, 2);
 
         // GUN
-		glm::mat4 gunModelMatrix = 
- 								  glm::translate(glm::mat4(1.0f), PlayerPos) 
-								* glm::rotate(glm::mat4(1.0f), (CamYaw), glm::vec3(0.0f, 1.0f, 0.0f))
-								* glm::rotate(glm::mat4(1.0f), (CamPitch + glm::radians(10.0f)), glm::vec3(1.0f, 0.0f, 0.0f))
-								* glm::rotate(glm::mat4(1.0f), glm::radians(90.0f),glm::vec3(0.0f, 1.0f, 0.0f))
-								* glm::translate(glm::mat4(1.0f), glm::vec3(0.45f, -0.25f, 0.0f));
+			glm::mat4 gunModelMatrix = 
+									glm::translate(glm::mat4(1.0f), PlayerPos) 
+									* glm::rotate(glm::mat4(1.0f), (CamYaw), glm::vec3(0.0f, 1.0f, 0.0f))
+									* glm::rotate(glm::mat4(1.0f), (CamPitch + glm::radians(10.0f)), glm::vec3(1.0f, 0.0f, 0.0f))
+									* glm::rotate(glm::mat4(1.0f), glm::radians(90.0f),glm::vec3(0.0f, 1.0f, 0.0f))
+									* glm::translate(glm::mat4(1.0f), glm::vec3(0.45f, -0.25f, 0.0f));
 
 
-		blinnUbo.mMat = gunModelMatrix;
-    	blinnUbo.mvpMat = ViewPrj * blinnUbo.mMat;
-    	blinnUbo.nMat = glm::inverse(glm::transpose(blinnUbo.mMat));
-        DSGun.map(currentImage, &blinnUbo, 0);
+			blinnUbo.mMat = gunModelMatrix;
+			blinnUbo.mvpMat = ViewPrj * blinnUbo.mMat;
+			blinnUbo.nMat = glm::inverse(glm::transpose(blinnUbo.mMat));
 
-		blinnMatParUbo.Power = 2000.0;
-		blinnMatParUbo.scaleUV = 1.0;
-    	DSGun.map(currentImage, &blinnMatParUbo, 2);
+			blinnMatParUbo.Power = 2000.0;
+			blinnMatParUbo.scaleUV = 1.0;
+
+		if(cameraZoom == zoomOutAngle){
+			DSGun.map(currentImage, &blinnUbo, 0);
+			DSGun.map(currentImage, &blinnMatParUbo, 2);
+		}
 
         // ANIMALS
         for (int model = 0; model < NANIMAL; model++) {
         	const Instance& instance = animals[model];
         	if(instance.visible == true)
-        	{
+        	{                  
+				
 	 			blinnUbo.mMat = glm::translate(glm::mat4(1.0f),
 	                                           instance.pos) 
 	 											* glm::rotate(glm::mat4(1.0f), glm::radians(90.0f),glm::vec3(1.0f, 0.0f, 0.0f))

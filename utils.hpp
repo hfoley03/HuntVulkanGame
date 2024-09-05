@@ -42,6 +42,8 @@ struct Ray {
     glm::vec3 direction;
 };
 
+
+
 // calculate ray from the screen center (crosshair)
 Ray calculateRayFromScreenCenter(const glm::mat4& viewMatrix, const glm::mat4& projectionMatrix) {
     glm::vec2 ndcCoords(0.0f, 0.0f); // Center of the screen in NDC
