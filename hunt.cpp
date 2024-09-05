@@ -19,10 +19,10 @@ std::vector<SingleText> outText = {
 		"",
 		"You have been given a rifle:",
 		"",
-		"- Press <SPACE_BAR> or left-click with the mouse to shoot.",
 		"- Press <W, A,S, D> to move",
+		"- Press <SPACE_BAR> or left-click with the mouse to shoot.",
+		"- Press <Z> to zoom in and out.",
 		"- Press the arrow keys or use the mouse to look around and aim at your target.",
-		"",
 		"",
 		"",
 		"",
@@ -88,6 +88,8 @@ std::vector<SingleText> outText = {
 #define GAMEOVER 3
 
 #define GAMEDURATION 60.0f
+#define ZOUT_ROT_SPEED glm::radians(120.0f);
+#define ZIN_ROT_SPEED glm::radians(60.0f);
 
 struct BlinnUniformBufferObject {
 	alignas(16) glm::mat4 mvpMat;
@@ -1153,7 +1155,14 @@ class HuntGame : public BaseProject {
 
 		float dayTime = sin(cTime * angTurnTimeFact + dayCyclePhase);
 		
-		const float ROT_SPEED = glm::radians(120.0f);
+		float ROT_SPEED = glm::radians(120.0f);
+
+		if (cameraZoom==zoomOutAngle) {
+			ROT_SPEED = ZOUT_ROT_SPEED;
+		} else {
+			ROT_SPEED = ZIN_ROT_SPEED;
+		}
+
 		const float MOVE_SPEED = 10.0f;
 		
 		static float CamPitch = glm::radians(0.0f);
@@ -1209,7 +1218,7 @@ class HuntGame : public BaseProject {
 				glm::vec3 uz = glm::vec3(sin(CamYaw), 0.0f, cos(CamYaw));
 
 				CamYaw -= ROT_SPEED * deltaT * r.y;
-				CamPitch -= ROT_SPEED * deltaT * r.x;
+				CamPitch -= ROT_SPEED*0.5f * deltaT * r.x;
 				
 				Pos = lastPos + ux * dampedVelx + uz * dampedVelz;
 
