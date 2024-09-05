@@ -91,6 +91,14 @@ std::vector<SingleText> outText = {
 #define ZOUT_ROT_SPEED glm::radians(120.0f);
 #define ZIN_ROT_SPEED glm::radians(60.0f);
 
+// LIGHTS PARAMETERS
+#define G_FACTOR 1.0f
+#define BETA 0.75f
+// #define C_IN 0.4591524628390111
+// #define C_OUT 0.5401793718338013
+#define C_IN 0.99
+#define C_OUT 0.97
+
 struct BlinnUniformBufferObject {
 	alignas(16) glm::mat4 mvpMat;
 	alignas(16) glm::mat4 mMat;
@@ -98,8 +106,13 @@ struct BlinnUniformBufferObject {
 };
 
 struct BlinnMatParUniformBufferObject {
-	alignas(4)  float Power;
-	alignas(4) 	float scaleUV;
+	alignas(4) float Power;
+	alignas(4) float scaleUV;
+	alignas(4) float gFactor;
+	alignas(4) float beta;
+	alignas(4) float cIn;
+	alignas(4) float cOut;
+
 };
 
 struct OrenUniformBufferObject {
@@ -127,6 +140,8 @@ struct GlobalUniformBufferObject {
 	alignas(16) glm::vec3 eyePos;
 	alignas(16) glm::vec4 nightLightColor;
 	alignas(4) float ambient;
+	alignas(16) glm::vec3 pointLightColor;
+	alignas(16) glm::vec3 userDir;
 };
 
 struct SkyBoxUniformBufferObject {
@@ -1427,6 +1442,7 @@ class HuntGame : public BaseProject {
 				printMat4("ViewMatrix  ", ViewMatrix);				
 				std::cout << "cTime    = " << cTime    << ";\n";
 				std::cout << "tTime    = " << tTime    << ";\n";
+				printVec3("User Dir  = ", extractPlayerDirectionFromViewMatrix(ViewMatrix));
 			}
 		} else {
 			if((curDebounce == GLFW_KEY_V) && debounce) {
@@ -1513,13 +1529,15 @@ class HuntGame : public BaseProject {
 			);
 		
 		gubo.nightLightColor = glm::vec4(
-			0.1f * nightIntensity, 
-			0.4f * nightIntensity, 
-			0.4f * nightIntensity, 
+			0.1f * nightIntensity * 0.25f, 
+			0.4f * nightIntensity * 0.25f, 
+			0.4f * nightIntensity * 0.25f, 
 			1.0f
 			);
 		gubo.eyePos = glm::vec3(glm::inverse(ViewMatrix) * glm::vec4(0, 0, 0, 1));
+		gubo.userDir = extractPlayerDirectionFromViewMatrix(ViewMatrix);
 		gubo.ambient = dayTime;
+		gubo.pointLightColor = glm::vec3(1.0f, 1.0f, 0.3f);
 		DSGlobal.map(currentImage, &gubo, 0);
 
 		// objects
@@ -1562,6 +1580,10 @@ class HuntGame : public BaseProject {
         blinnUbo.mvpMat = ViewPrj;
         blinnMatParUbo.Power = 200.0;
 		blinnMatParUbo.scaleUV = 1.0;
+		blinnMatParUbo.gFactor = G_FACTOR;
+		blinnMatParUbo.beta = BETA;
+		blinnMatParUbo.cIn = C_IN;
+		blinnMatParUbo.cOut = C_OUT;
 
         // AXIS
         DSAx.map(currentImage, &blinnUbo, 0); 

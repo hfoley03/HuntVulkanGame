@@ -19,11 +19,17 @@ layout(set = 0, binding = 0) uniform GlobalUniformBufferObject {
 	vec3 eyePos;
 	vec4 nightLightColor;
 	float ambient;
+	vec3 pointLightColor;
+	vec3 userDir;
 } gubo;
 
 layout(set = 1, binding = 2) uniform BlinnParUniformBufferObject {
 	float Pow;
 	float scaleUV;
+	float gFactor;
+	float beta;
+	float cIn;
+	float cOut;
 } mubo;
 
 layout(set = 1, binding = 1) uniform sampler2D tex;
@@ -32,7 +38,7 @@ layout(set = 1, binding = 1) uniform sampler2D tex;
 // The scene is lit by a single Spot Light
 void main() {
 
-	float ambientIntensity = (gubo.ambient - (-1.0f)) / (1.0f - (-1.0f)) * (0.09f - 0.025f) + 0.025f;
+	float ambientIntensity = (gubo.ambient - (-1.0f)) / (1.0f - (-1.0f)) * (0.09f - 0.005f) + 0.005f;
 	vec3 Norm = normalize(fragNorm);
 	vec3 EyeDir = normalize(gubo.eyePos - fragPos);
 	
@@ -52,7 +58,18 @@ void main() {
 	vec3 sunLight = Diffuse * lightColor  + Specular * lightColor;
 	vec3 moonLight = (nightDiffuse + nightSpecular) * nightLightColor;
 	// vec3 col  = Diffuse * lightColor  + Specular * specularLightColor + Ambient;
-	vec3 col  = sunLight + moonLight + Ambient;
+
+	vec3 pointLightDir = EyeDir;
+	vec3 pointLightColor = pow(mubo.gFactor / length(gubo.eyePos - fragPos), mubo.beta) * gubo.pointLightColor;
+
+	float dim = clamp((dot(pointLightDir, -gubo.userDir) - mubo.cOut) / (mubo.cIn - mubo.cOut),0.0,1.0);
+
+	vec3 pointDiffuse = texture(tex, fragUV * mubo.scaleUV).rgb * (1-ambientIntensity) * max(dot(Norm, pointLightDir),0.0);
+	vec3 pointSpecular = vec3(pow(max(dot(Norm, normalize(pointLightDir + EyeDir)),0.0), mubo.Pow));
+
+	vec3 pointLight = (pointDiffuse + pointSpecular) * dim * pointLightColor;
+
+	vec3 col  = sunLight + moonLight + pointLight + Ambient;
 	
 	outColor = vec4(col, 1.0f);
 //	outColor = vec4(gubo.eyePos/5.0+vec3(0.5),1.0);
