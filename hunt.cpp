@@ -77,7 +77,7 @@ std::vector<SingleText> outText = {
 // THE NUMBER OF INSTANCES OF ANIMALS, VEGITATION/ROCKS, STRUCTURES
 #define NANIMAL 40
 #define NVEGROCK 80
-#define NSTRUCTURES 136
+#define NSTRUCTURES 137
 #define NBALLS 1
 
 // GAME SCENES
@@ -192,11 +192,6 @@ struct skyBoxVertex {
 	glm::vec3 pos;
 };
 
-struct Colliders {
-    glm::vec3 pos;
-    float radius;
-    std::string desc;
-};
 
 
 // class used to create instances of an object
@@ -208,28 +203,12 @@ public:
     glm::vec3 scale;    // Scale
     float angle;        // Angle for rotation
     std::string desc;   // Description of the instance
-    //BoundingBox bbox;   // Bounding box for collision detection
     bool visible = true;
 	float angle2 = 0.0f;
 
-
     Instance(const glm::vec3& position, int id, const glm::vec3& scl, float ang, const std::string& description)
         : pos(position), modelID(id), scale(scl), angle(ang), desc(description) {}
-
-    // void updateBoundingBox(const glm::vec3& modelMin, const glm::vec3& modelMax) {
-    // glm::vec3 scaledMin = modelMin * scale;
-    // glm::vec3 scaledMax = modelMax * scale;
-
-    //  rotation todo
-
-    // bbox.min = pos + scaledMin;
-    // bbox.max = pos + scaledMax;
-	// }
 };
-
-void shoot(){
-	std::cout << "shoot" << std::endl;
-}
 
 void generateScopeVertices(std::vector<HUDVertex>& vertices, const glm::vec2& center, float radius, int segmentCount, float Ar) {
     // four screen corners
@@ -239,20 +218,12 @@ void generateScopeVertices(std::vector<HUDVertex>& vertices, const glm::vec2& ce
         {{ 1.0f,  1.0f}, {0.9f, 0.5f}},  
         {{-1.0f,  1.0f}, {0.9f, 0.5f}}   
     };
-
-	std::cout << "ASPECT RATIO _________ " << "\n";
-		std::cout << Ar << "\n";
-	std::cout << "ASPECT RATIO _________ " << "\n";
-
-
     vertices.insert(vertices.end(), quadVertices.begin(), quadVertices.end());
-
     vertices.push_back({center, {0.9f, 0.5f}}); // centre
 
     float angleStep = 2.0f * M_PI / segmentCount;
     for (int i = 0; i <= segmentCount; ++i) {  
         float angle = i * angleStep;
-        //glm::vec2 pos = center + glm::vec2(radius * cos(angle), radius * sin(angle));
 		glm::vec2 pos = center + glm::vec2(radius * cos(angle), radius * sin(angle) * Ar );
         vertices.push_back({pos, {0.9f, 0.5f}});
     }
@@ -297,7 +268,6 @@ void generateScopeIndices(std::vector<unsigned int>& indices, int segmentCount) 
 		indices.push_back(53 + i);
 		indices.push_back(54 + i);
     }
-
 }
 
 // MAIN ! 
@@ -305,103 +275,47 @@ class HuntGame : public BaseProject {
 	protected:
 	Ray ray;
 
-	// Descriptor Layouts ["classes" of what will be passed to the shaders]
-	DescriptorSetLayout DSLGlobal;	    // For Global values
-	DescriptorSetLayout DSLBlinn;	    // For Blinn Objects
-	DescriptorSetLayout DSLOren;
-	DescriptorSetLayout DSLEmission;	// For Emission Objects
-	DescriptorSetLayout DSLHUD;
-	DescriptorSetLayout DSLBBox;
-	DescriptorSetLayout DSLskyBox;	// For skyBox
+	DescriptorSetLayout DSLGlobal, DSLBlinn, DSLOren, DSLEmission, DSLHUD, DSLBBox, DSLskyBox;
 
-	// Vertex formats
-	VertexDescriptor VDBlinn;
-	VertexDescriptor VDOren;
-	VertexDescriptor VDEmission;
-	VertexDescriptor VDHUD;
-	VertexDescriptor VDBBox;
-	VertexDescriptor VDskyBox;
+	VertexDescriptor VDBlinn, VDOren, VDEmission, VDHUD, VDBBox, VDskyBox;
 
-	// Pipelines [Shader couples]
-	Pipeline PBlinn;
-	Pipeline POren;
-	Pipeline PEmission;
-	Pipeline PHUD;
-	//Pipeline PBBox;
-	Pipeline PskyBox;
+	Pipeline PBlinn, POren, PEmission, PHUD, PskyBox;
 
 	// Scenes and texts
     TextMaker txt;
     
     // Models
-    Model MAx; // xyz axis object
-    Model Msun;
-	Model Mmoon;
-    Model Mground;
-    Model MCrosshair;
-	Model MScope;
-    //Model MBBox;
-	Model MskyBox;
-	Model MMenuScreen;
+    Model MAx,Msun, Mmoon, Mground, MCrosshair, MScope, MskyBox, MMenuScreen, MGun, MBall;
 	// Model MGameOver;
-	
-	Model MGun;
-    
-    Model MBall;
+	Model MVegRocks[12], MStructures[4], MAnimals[10];
+
     std::vector<Instance> balls;
-
-	// we have 12 different models of different vegitiation and rocks, but we can have many more instances of these models
-    Model MVegRocks[12];
-    std::vector<Instance> vegRocks; // vector holding all instances of the vegrocks
-
-    Model MStructures[4];
+    std::vector<Instance> vegRocks; 
     std::vector<Instance> structures;
-
-    Model MAnimals[10];
     std::vector<Instance> animals;
 
-    std::vector<Colliders> colliders;
-
-    
     // Descriptor Sets
-    DescriptorSet DSGlobal, DSAx, DSCrosshair, DSScope;
-    DescriptorSet DSsun;
-	DescriptorSet DSmoon;
-    DescriptorSet DSground;
-    DescriptorSet DSAnimals[NANIMAL];
-    DescriptorSet DSVegRocks[NVEGROCK];
-    DescriptorSet DSStructures[NSTRUCTURES];
-    //DescriptorSet DSBBox;
-    DescriptorSet DSBalls[NBALLS];
-	DescriptorSet DSskyBox;
-	DescriptorSet DSGun;
-	DescriptorSet DSMenuScreen;
+	DescriptorSet DSGlobal, DSAx, DSCrosshair, DSScope, DSsun, DSmoon, DSground, DSskyBox, DSGun, DSMenuScreen;
+
+	DescriptorSet DSAnimals[NANIMAL], DSVegRocks[NVEGROCK], DSStructures[NSTRUCTURES], DSBalls[NBALLS];
+
 	// DescriptorSet DSGameOver;
 
-
    // Textures
-    Texture T1, Tanimal, TGun, TGrass;
-    Texture Tsun;
-	Texture Tmoon;
-    Texture Tground;
-    Texture TStructures[4];
-    Texture TCrosshair;
-	Texture TskyBox, Tstars;
-	Texture TRock;
-
-	 VkFilter magFilter = VK_FILTER_NEAREST;
-	 VkFilter minFilter = VK_FILTER_NEAREST;
-	 VkSamplerAddressMode addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-	 VkSamplerAddressMode addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-	 VkSamplerMipmapMode mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
-	 VkBool32 anisotropyEnable = VK_FALSE;
-	 float maxAnisotropy = 1;
-	 float maxLod = 0;
-	 int mmm = 0;
-
-	Texture TMenuScreen;
+	Texture T1, Tanimal, TGun, TGrass, Tsun, Tmoon, Tground, TCrosshair, TskyBox, Tstars, TRock, TMenuScreen;
+	Texture TStructures[4];
 	// Texture TGameOver;
-	
+
+	VkFilter magFilter = VK_FILTER_NEAREST;
+	VkFilter minFilter = VK_FILTER_NEAREST;
+	VkSamplerAddressMode addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+	VkSamplerAddressMode addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+	VkSamplerMipmapMode mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
+	VkBool32 anisotropyEnable = VK_FALSE;
+	float maxAnisotropy = 1;
+	float maxLod = 0;
+	int mmm = 0;
+
 	// Other application parameters
 	int currScene = 0;
 	int subpass = 0;
@@ -422,39 +336,6 @@ class HuntGame : public BaseProject {
 
 	bool isTorchOn = false;
 
-
-
-	// for visualisation of the bounding box only
-	// void createBoundingBoxModel(Model& MBBox, const BoundingBox& bbox, VertexDescriptor& VDBBox) {
-	//     int mainStride = sizeof(BBoxVertex); 
-
-	//     std::vector<BBoxVertex> bboxVertices = {
-	//         {bbox.min},  // Vertex 0: (min.x, min.y, min.z)
-	//         {{bbox.max.x, bbox.min.y, bbox.min.z}},  // Vertex 1: (max.x, min.y, min.z)
-	//         {{bbox.min.x, bbox.max.y, bbox.min.z}},  // Vertex 2: (min.x, max.y, min.z)
-	//         {{bbox.min.x, bbox.min.y, bbox.max.z}},  // Vertex 3: (min.x, min.y, max.z)
-	//         {{bbox.max.x, bbox.max.y, bbox.min.z}},  // Vertex 4: (max.x, max.y, min.z)
-	//         {{bbox.max.x, bbox.min.y, bbox.max.z}},  // Vertex 5: (max.x, min.y, max.z)
-	//         {{bbox.min.x, bbox.max.y, bbox.max.z}},  // Vertex 6: (min.x, max.y, max.z)
-	//         {bbox.max},  // Vertex 7: (max.x, max.y, max.z)
-	//     };
-	//     for (const auto& vertex : bboxVertices) {
-	//         std::vector<unsigned char> vertexData(mainStride, 0);
-	//         BBoxVertex* V_vertex = (BBoxVertex*)(&vertexData[0]);
-
-	//         V_vertex->pos = vertex.pos;
-
-	//         MBBox.vertices.insert(MBBox.vertices.end(), vertexData.begin(), vertexData.end());
-	//     }
-	//     std::vector<uint32_t> bboxIndices = {
-	//         0, 1,  1, 5,  5, 3,  3, 0,
-	//         2, 4,  4, 7,  7, 6,  6, 2,
-	//         0, 2,  1, 4,  5, 7,  3, 6
-	//     };
-	//     MBBox.indices.insert(MBBox.indices.end(), bboxIndices.begin(), bboxIndices.end());
-	//     MBBox.initMesh(this, &VDBBox);
-	// }
-	
 	// Here you set the main application parameters
 	void setWindowParameters() {
 		// window size, titile and initial background
@@ -564,8 +445,6 @@ class HuntGame : public BaseProject {
 				         sizeof(glm::vec3), POSITION}
 				});
 
-
-          
 		// Pipelines [Shader couples]
 		PBlinn.init(this, &VDBlinn,  "shaders/BlinnVert.spv",    "shaders/BlinnFrag.spv", {&DSLGlobal, &DSLBlinn});
 		POren.init(this, &VDOren,  "shaders/OrenVert.spv",    "shaders/OrenFrag.spv", {&DSLGlobal, &DSLOren});
@@ -575,8 +454,6 @@ class HuntGame : public BaseProject {
  								    VK_CULL_MODE_BACK_BIT, false);
 		PHUD.init(this, &VDHUD, "shaders/HUDVert.spv", "shaders/HUDFrag.spv", {&DSLHUD});
         PHUD.setAdvancedFeatures(VK_COMPARE_OP_LESS_OR_EQUAL, VK_POLYGON_MODE_FILL, VK_CULL_MODE_NONE, true);
-        // PBBox.init(this, &VDBBox, "shaders/BBoxVert.spv", "shaders/BBoxFrag.spv", {&DSLBBox});
-        // PBBox.setAdvancedFeatures(VK_COMPARE_OP_LESS_OR_EQUAL, VK_POLYGON_MODE_FILL, VK_CULL_MODE_NONE, false);
 
 		// Create models
         MAx.init(this, &VDBlinn, "models/axis.obj", OBJ);
@@ -592,7 +469,6 @@ class HuntGame : public BaseProject {
         MAnimals[2].init(this, &VDBlinn, "models/animals/wolf_002.mgcg", MGCG);
         MAnimals[3].init(this, &VDBlinn, "models/animals/zebra_001.mgcg", MGCG);
         MAnimals[4].init(this, &VDBlinn, "models/animals/bear_001.mgcg", MGCG);
-
         MAnimals[5].init(this, &VDBlinn, "models/animals/bison_001.mgcg", MGCG);
         MAnimals[6].init(this, &VDBlinn, "models/animals/bull_001.mgcg", MGCG);
         MAnimals[7].init(this, &VDBlinn, "models/animals/duck_001.mgcg", MGCG);
@@ -617,26 +493,21 @@ class HuntGame : public BaseProject {
         MStructures[2].init(this, &VDBlinn, "models/structure/tower.obj", OBJ);
         MStructures[3].init(this, &VDBlinn, "models/structure/woodhouse.obj", OBJ);
 
+		// building up vertices and indices for HUD crosshairs to use
     	int mainStride = sizeof(HUDVertex);  
-		// Define the 4 vertices of the quad
 		std::vector<HUDVertex> quadVertices = {
 		    {{-0.1f, -0.1f}, {0.0f, 0.0f}},  
 		    {{ 0.1f, -0.1f}, {1.0f, 0.0f}},  
 		    {{ 0.1f,  0.1f}, {1.0f, 1.0f}},  
 		    {{-0.1f,  0.1f}, {0.0f, 1.0f}},
 		};
-
-		// Insert the vertices
 		for (const auto& vertex : quadVertices) {
 		    std::vector<unsigned char> vertexData(mainStride, 0);
 		    HUDVertex* V_vertex = (HUDVertex*)(&vertexData[0]);
-		    
 		    V_vertex->pos = vertex.pos;
 		    V_vertex->UV = vertex.UV;
-		    
 		    MCrosshair.vertices.insert(MCrosshair.vertices.end(), vertexData.begin(), vertexData.end());
 		}
-
 		std::vector<unsigned int> quadIndices = {0, 1, 2, 2, 3, 0};
 
 		MCrosshair.indices.insert(MCrosshair.indices.end(), quadIndices.begin(), quadIndices.end());
@@ -644,8 +515,7 @@ class HuntGame : public BaseProject {
 
 		std::vector<HUDVertex> vertices;
 		std::vector<unsigned int> indices;
-
-		float radius = 0.25f; 
+		float radius = 0.35f; 
 		int segmentCount = 64;
 		generateScopeVertices(vertices, glm::vec2(0.0f, 0.0f), radius, segmentCount, Ar);
 		generateScopeIndices(indices, segmentCount);
@@ -697,20 +567,7 @@ class HuntGame : public BaseProject {
         TCrosshair.init(this, "textures/cros.png");
         TGun.init(this, "textures/gun.png");
         TGrass.init(this, "textures/grass1.jpg");
-		TRock.init(this, "textures/rock2.jpg", VK_FORMAT_R8G8B8A8_UNORM);
-
-		
-        // TGrass.init(this, "textures/grass1.jpg", VK_FORMAT_R8G8B8A8_SRGB, false);
-        // TGrass.createTextureSampler(
-		// 					  magFilter,
-		// 					  minFilter,
-		// 					  addressModeU,
-		// 					  addressModeV,
-		// 					  mipmapMode,
-		// 					  anisotropyEnable,
-		// 					  maxAnisotropy,
-		// 					  maxLod
-		// 	);				
+		TRock.init(this, "textures/rock2.jpg", VK_FORMAT_R8G8B8A8_UNORM);		
 		// TMenuScreen.init(this, "textures/startmenu_background.jpg");
 		// TGameOver.init(this, "textures/gameover_background.png");
 
@@ -725,7 +582,6 @@ class HuntGame : public BaseProject {
 		TskyBox.init(this, "textures/starmap_g4k.jpg");
 		Tstars.init(this, "textures/bluecloud_up.jpg");
 
-        // emplace_back creates an instance of an object using it's constructor and then places it into a vector of instances
 
 		//corner rocks
         vegRocks.emplace_back(glm::vec3(70.0f, -1.0f, -70.0f), 4, glm::vec3(1.5f, 3.0f, 1.5f), 120.0f, "Top Right");
@@ -733,7 +589,6 @@ class HuntGame : public BaseProject {
         vegRocks.emplace_back(glm::vec3(70.0f, -1.0f, 70.0f), 4, glm::vec3(2.0f, 2.5f, 2.0f), 120.0f, "Back Right");
         vegRocks.emplace_back(glm::vec3(-70.0f, -1.0f, 70.0f), 4, glm::vec3(2.5f, 3.5f, 2.5f), 120.0f, "Back Left");
         
-
         // Rocks around perimeter 
         float dist = 10.0f;
         float prev_dist = -60.0f;
@@ -804,13 +659,6 @@ class HuntGame : public BaseProject {
 
 		vegRocks.emplace_back(glm::vec3( 15.0f, -2.0f, 10.0f), 5, glm::vec3(1.0f, 1.0f, 1.0f), 120.0f, "Rock");
 
-
-
-		//vegRocks.emplace_back(glm::vec3(5.0f, 0.0f, -5.0f), 2, glm::vec3(1.0f, 1.0f, 1.0f), 0.0f, "Test Tree");
-		//vegRocks.emplace_back(glm::vec3(5.0f, 0.0f, -5.0f), 2, glm::vec3(1.0f, 1.0f, 1.0f), 0.0f, "Test Tree");
-
-
-
         /// STRUCTURES
 
 
@@ -834,7 +682,7 @@ class HuntGame : public BaseProject {
         //structures.emplace_back(glm::vec3(10.0f, 0.0f, -10.0f), 3, glm::vec3(1.0f, 1.0f, 1.0f), 0.0f, "House");
         //structures.emplace_back(glm::vec3(4.0f, 0.0f, -10.0f), 1, glm::vec3(0.01f, 0.01f, 0.01f), -90.0f, "fence");
         //structures.emplace_back(glm::vec3(5.5f, 0.0f, -10.0f), 1, glm::vec3(0.01f, 0.01f, 0.01f), -90.0f, "fence");
-        //structures.emplace_back(glm::vec3(0.0f, -1.0f, 0.0f), 2, glm::vec3(1.0f, 1.0f, 1.0f), 0.0f, "TOWER");
+        structures.emplace_back(glm::vec3(-23.0f, -1.0f, 24.0f), 2, glm::vec3(1.0f, 1.0f, 1.0f), 0.0f, "TOWER");
 
         //ANIMALS
 
@@ -845,7 +693,7 @@ class HuntGame : public BaseProject {
 		animals.emplace_back(glm::vec3(9.0f, 0.0f, 20.0f), 3, glm::vec3(1.0f, 1.0f, 1.0f), randomFloat(0.0f, 360.0f), "animal");
 		animals.emplace_back(glm::vec3(11.0f, 0.0f, 0.0f), 4, glm::vec3(1.0f, 1.0f, 1.0f), randomFloat(0.0f, 360.0f), "animal");
 
-		animals.emplace_back(glm::vec3(12.0f, 0.0f, 5.0f), 5, glm::vec3(1.0f, 1.0f, 1.0f), randomFloat(0.0f, 360.0f), "animal");
+		animals.emplace_back(glm::vec3(14.0f, 0.0f, 5.0f), 5, glm::vec3(1.0f, 1.0f, 1.0f), randomFloat(0.0f, 360.0f), "animal");
 		animals.emplace_back(glm::vec3(25.0f, 0.0f, 14.0f), 6, glm::vec3(1.0f, 1.0f, 1.0f), randomFloat(0.0f, 360.0f), "animal");
 		animals.emplace_back(glm::vec3(37.0f, 0.0f, 30.0f), 7, glm::vec3(1.0f, 1.0f, 1.0f), randomFloat(0.0f, 360.0f), "animal");
 		animals.emplace_back(glm::vec3(19.0f, 0.0f, 20.0f), 8, glm::vec3(1.0f, 1.0f, 1.0f), randomFloat(0.0f, 360.0f), "animal");
@@ -887,24 +735,10 @@ class HuntGame : public BaseProject {
 		animals.emplace_back(glm::vec3(19.0f, 0.0f, 28.0f), 6, glm::vec3(1.0f, 1.0f, 1.0f), randomFloat(0.0f, 360.0f), "animal");
 		animals.emplace_back(glm::vec3(36.0f, 0.0f, 19.0f), 5, glm::vec3(1.0f, 1.0f, 1.0f), randomFloat(0.0f, 360.0f), "animal");
 
-		// animals.emplace_back(glm::vec3(2.0f, 0.0f, 0.0f), 0, glm::vec3(1.0f, 1.0f, 1.0f), 0.0f, "animal");
-		// animals.emplace_back(glm::vec3(2.0f, 0.0f, 0.0f), 0, glm::vec3(1.0f, 1.0f, 1.0f), 0.0f, "animal");
-		// animals.emplace_back(glm::vec3(2.0f, 0.0f, 0.0f), 0, glm::vec3(1.0f, 1.0f, 1.0f), 0.0f, "animal");
-		// animals.emplace_back(glm::vec3(2.0f, 0.0f, 0.0f), 0, glm::vec3(1.0f, 1.0f, 1.0f), 0.0f, "animal");
-		// animals.emplace_back(glm::vec3(2.0f, 0.0f, 0.0f), 0, glm::vec3(1.0f, 1.0f, 1.0f), 0.0f, "animal");
-
-
-
         // balls for visualiing ray
         for(int i = 0; i < NBALLS; i ++){
 	        balls.emplace_back(glm::vec3(0.0f + i, 0.0f, 0.0f), i, glm::vec3(0.1f, 0.1f, 0.1f), 0.0f, "ball");
         }
-
-
-
-
-
-
 
 		// Descriptor pool sizes
 		// WARNING!!!!!!!!
@@ -933,7 +767,6 @@ class HuntGame : public BaseProject {
 		PEmission.create();
 		PskyBox.create();
 		PHUD.create();
-		//PBBox.create();
         
 		// Here you define the data set
 		DSsun.init(this, &DSLEmission, {&Tsun});
@@ -942,7 +775,6 @@ class HuntGame : public BaseProject {
         DSAx.init(this, &DSLBlinn, {&T1});
         DSCrosshair.init(this, &DSLHUD, {&TCrosshair});
 		DSScope.init(this, &DSLHUD, {&TGun});
-       // DSBBox.init(this, &DSLBBox, {&T1});
 		DSskyBox.init(this, &DSLskyBox, {&TskyBox, &Tstars});
 		DSGun.init(this, &DSLBlinn, {&TGun});
 		DSMenuScreen.init(this, &DSLHUD, {&TMenuScreen});
@@ -982,7 +814,6 @@ class HuntGame : public BaseProject {
 		POren.cleanup();
 		PEmission.cleanup();
 		PHUD.cleanup();
-		// PBBox.cleanup();
 		PskyBox.cleanup();
 
 		DSsun.cleanup();
@@ -992,7 +823,6 @@ class HuntGame : public BaseProject {
         DSAx.cleanup();
         DSCrosshair.cleanup();
 		DSScope.cleanup();
-        //DSBBox.cleanup();
 		DSskyBox.cleanup();
 		DSGun.cleanup();
 		DSMenuScreen.cleanup();
@@ -1036,7 +866,6 @@ class HuntGame : public BaseProject {
 
 		MCrosshair.cleanup();
 		MScope.cleanup();
-		//MBBox.cleanup();
 		Msun.cleanup();
 		Mmoon.cleanup();
 		Mground.cleanup();
@@ -1083,6 +912,24 @@ class HuntGame : public BaseProject {
 	// Here it is the creation of the command buffer:
 	// You send to the GPU all the objects you want to draw,
 	// with their buffers and textures
+
+	void soShootMe(){
+				::printVec3(ray.origin);
+		float t0, t1;
+		for (int index = 0; index < NANIMAL; index++) {
+			if(animals[index].visible){
+				if(rayIntersectsSphere(ray.origin, ray.direction, animals[index].pos, 0.5, t0, t1)){ 
+					std::cout<< "Sphere HIT" << std::endl;
+					animals[index].visible = false;
+					aliveAnimals--;
+					if (aliveAnimals == 0) {
+						currScene = GAMEWIN;
+					}
+					RebuildPipeline();
+				}
+			}
+		}
+	}
 	
 	void populateCommandBuffer(VkCommandBuffer commandBuffer, int currentImage) {
 
@@ -1307,7 +1154,6 @@ class HuntGame : public BaseProject {
 					Pos = glm::vec3( Pos.x, Pos.y, -44.5f);
 				}
 
-				bool collision_detected = false;
         		for (int index = 51; index < NVEGROCK; index++) {
 					float objRadius = 1.0f;
 					if(vegRocks[index].desc == "Rock"){
@@ -1323,7 +1169,15 @@ class HuntGame : public BaseProject {
 							//Pos = Pos + pushback_distance * collision_direction; // bouncy
 							Pos = lastPos;  // stick 
 						}
-					
+				}
+
+				glm::vec3 towerPos = glm::vec3(-23.0f, -1.0f, 24.0f);
+
+				if (checkCollision(Pos + FirstPos, 0.5f,towerPos, 1.3f ) ) {
+							glm::vec3 collision_direction = glm::normalize( (Pos + FirstPos) - towerPos);
+							collision_direction = glm::vec3(collision_direction.x, 0.0f, collision_direction.z);
+							float pushback_distance = (2.5f) - glm::length((Pos + FirstPos) - towerPos);
+							Pos = lastPos;  // stick 
 				}
 
 			
@@ -1378,21 +1232,22 @@ class HuntGame : public BaseProject {
 								
 				// Shoots only during the match
 				if (currScene == MATCH) {
-					::printVec3(ray.origin);
-					float t0, t1;
-					for (int index = 0; index < NANIMAL; index++) {
-						if(animals[index].visible){
-							if(rayIntersectsSphere(ray.origin, ray.direction, animals[index].pos, 0.5, t0, t1)){ 
-								std::cout<< "Sphere HIT" << std::endl;
-								animals[index].visible = false;
-								aliveAnimals--;
-								if (aliveAnimals == 0) {
-									currScene = GAMEWIN;
-								}
-								RebuildPipeline();
-							}
-						}
-					}
+					soShootMe();
+					// ::printVec3(ray.origin);
+					// float t0, t1;
+					// for (int index = 0; index < NANIMAL; index++) {
+					// 	if(animals[index].visible){
+					// 		if(rayIntersectsSphere(ray.origin, ray.direction, animals[index].pos, 0.5, t0, t1)){ 
+					// 			std::cout<< "Sphere HIT" << std::endl;
+					// 			animals[index].visible = false;
+					// 			aliveAnimals--;
+					// 			if (aliveAnimals == 0) {
+					// 				currScene = GAMEWIN;
+					// 			}
+					// 			RebuildPipeline();
+					// 		}
+					// 	}
+					// }
 				}
 			}
 		} else {
@@ -1567,17 +1422,6 @@ class HuntGame : public BaseProject {
 		gubo.cOut = C_OUT;
 		DSGlobal.map(currentImage, &gubo, 0);
 
-		// objects
-		BlinnUniformBufferObject blinnUbo{};
-		BlinnMatParUniformBufferObject blinnMatParUbo{};
-
-		// for visualizing bounding box of animals
-		// BlinnUniformBufferObject bboxUbo{};
-        // bboxUbo.mMat = glm::mat4(1);
-        // bboxUbo.nMat = glm::mat4(1);
-        // bboxUbo.mvpMat = ViewPrj;
-    	//DSBBox.map(currentImage, &bboxUbo, 0);
-
 		EmissionUniformBufferObject emissionUbo{};
 		EmissionParUniformBufferObject epubo{};
 
@@ -1601,7 +1445,10 @@ class HuntGame : public BaseProject {
 		SkyBoxParUniformBufferObject dtubo{};
 		dtubo.daytime = dayTime;
 		DSskyBox.map(currentImage, &dtubo, 3);
-		           
+
+
+		BlinnUniformBufferObject blinnUbo{};
+		BlinnMatParUniformBufferObject blinnMatParUbo{};   
         blinnUbo.mMat = glm::mat4(1);
         blinnUbo.nMat = glm::mat4(1);
         blinnUbo.mvpMat = ViewPrj;
@@ -1625,20 +1472,18 @@ class HuntGame : public BaseProject {
         DSground.map(currentImage, &blinnMatParUbo, 2);
 
         // GUN
-			glm::mat4 gunModelMatrix = 
-									glm::translate(glm::mat4(1.0f), PlayerPos) 
-									* glm::rotate(glm::mat4(1.0f), (CamYaw), glm::vec3(0.0f, 1.0f, 0.0f))
-									* glm::rotate(glm::mat4(1.0f), (CamPitch + glm::radians(10.0f)), glm::vec3(1.0f, 0.0f, 0.0f))
-									* glm::rotate(glm::mat4(1.0f), glm::radians(90.0f),glm::vec3(0.0f, 1.0f, 0.0f))
-									* glm::translate(glm::mat4(1.0f), glm::vec3(0.45f, -0.25f, 0.0f));
+		glm::mat4 gunModelMatrix = 
+								glm::translate(glm::mat4(1.0f), PlayerPos) 
+								* glm::rotate(glm::mat4(1.0f), (CamYaw), glm::vec3(0.0f, 1.0f, 0.0f))
+								* glm::rotate(glm::mat4(1.0f), (CamPitch + glm::radians(10.0f)), glm::vec3(1.0f, 0.0f, 0.0f))
+								* glm::rotate(glm::mat4(1.0f), glm::radians(90.0f),glm::vec3(0.0f, 1.0f, 0.0f))
+								* glm::translate(glm::mat4(1.0f), glm::vec3(0.45f, -0.25f, 0.0f));
+		blinnUbo.mMat = gunModelMatrix;
+		blinnUbo.mvpMat = ViewPrj * blinnUbo.mMat;
+		blinnUbo.nMat = glm::inverse(glm::transpose(blinnUbo.mMat));
 
-
-			blinnUbo.mMat = gunModelMatrix;
-			blinnUbo.mvpMat = ViewPrj * blinnUbo.mMat;
-			blinnUbo.nMat = glm::inverse(glm::transpose(blinnUbo.mMat));
-
-			blinnMatParUbo.Power = 2000.0;
-			blinnMatParUbo.scaleUV = 1.0;
+		blinnMatParUbo.Power = 20.0;
+		blinnMatParUbo.scaleUV = 1.0;
 
 		if(cameraZoom == zoomOutAngle){
 			DSGun.map(currentImage, &blinnUbo, 0);
@@ -1686,7 +1531,6 @@ class HuntGame : public BaseProject {
         }
 
 		if (isDebugMode){
-
 	        // debugging balls glm::vec3 rayEnd = rayOrigin + rayDirection * 2.0f;
 	        for (int model = 0; model < NBALLS; model++) {
 	        	const Instance& instance = balls[model];
@@ -1759,7 +1603,9 @@ int main(int argc, char* argv[]) {
     srand(seed);
     std::cout << "Seed: " << seed << std::endl;
 
-    dayCyclePhase = ((float)rand() / RAND_MAX) * (2.0f * M_PI);
+    // dayCyclePhase = ((float)rand() / RAND_MAX) * (2.0f * M_PI);
+    dayCyclePhase = (0.80f * M_PI);
+
     std::cout << "dayCyclePhase: " << dayCyclePhase << std::endl;
 	
 

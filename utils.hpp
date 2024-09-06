@@ -93,42 +93,7 @@ bool checkCollision(glm::vec3 playerPos, float playerRad, glm::vec3 objectPos, f
 	return distSquared < radSummedSquared;
 }
 
-struct BoundingBox {
-    glm::vec3 min;  // min corner
-    glm::vec3 max;  // max corner
-    BoundingBox() : min(0.0f), max(0.0f) {}
-    BoundingBox(const glm::vec3& minCorner, const glm::vec3& maxCorner)
-        : min(minCorner), max(maxCorner) {}
-};
 
-// currently unused
-bool rayIntersectsBox(const glm::vec3& rayOrigin, const glm::vec3& rayDirection, const BoundingBox& box) {
-    float tmin = (box.min.x - rayOrigin.x) / (rayDirection.x * -1.0);
-    float tmax = (box.max.x - rayOrigin.x) / (rayDirection.x * -1.0);
-    
-    if (tmin > tmax) std::swap(tmin, tmax);
-    
-    float tymin = (box.min.y - rayOrigin.y) / (rayDirection.y * -1.0);
-    float tymax = (box.max.y - rayOrigin.y) / (rayDirection.y * -1.0);
-    
-    if (tymin > tymax) std::swap(tymin, tymax);
-    
-    if ((tmin > tymax) || (tymin > tmax))
-        return false;
-    
-    tmin = std::max(tmin, tymin);
-    tmax = std::min(tmax, tymax);
-    
-    float tzmin = (box.min.z - rayOrigin.z) / rayDirection.z;
-    float tzmax = (box.max.z - rayOrigin.z) / rayDirection.z;
-    
-    if (tzmin > tzmax) std::swap(tzmin, tzmax);
-    
-    if ((tmin > tzmax) || (tzmin > tmax))
-        return false;
-    
-    return true;
-}
 
 void printVec3(glm::vec3 vecThree){
     std::cout << "Vec3 Values: " << vecThree.x << ", " << vecThree.y << ", " << vecThree.z << "\n";

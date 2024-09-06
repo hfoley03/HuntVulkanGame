@@ -1,4 +1,3 @@
-
 struct SingleText {
 	int usedLines;
 	const char *l[16];
