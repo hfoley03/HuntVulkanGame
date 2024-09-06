@@ -16,6 +16,12 @@ layout(set = 0, binding = 0) uniform GlobalUniformBufferObject {
     vec3 eyePos;
     vec4 nightLightColor;
     float ambient;
+	vec3 spotLightColor;
+	vec3 userDir;
+    float gFactor;
+	float beta;
+	float cIn;
+	float cOut;
 } gubo;
 
 layout(set = 1, binding = 2) uniform BlinnParUniformBufferObject {
@@ -28,7 +34,7 @@ layout(set = 1, binding = 1) uniform sampler2D tex;
 
 // Oren-Nayar diffuse model implementation
 void main() {
-    float ambientIntensity = (gubo.ambient - (-1.0f)) / (1.0f - (-1.0f)) * (0.09f - 0.025f) + 0.025f;
+    float ambientIntensity = (gubo.ambient - (-1.0f)) / (1.0f - (-1.0f)) * (0.09f - 0.005f) + 0.005f;
     vec3 Norm = normalize(fragNorm);
 
     vec3 EyeDir = normalize(gubo.eyePos - fragPos);
@@ -63,7 +69,21 @@ void main() {
     vec3 sunLight = Diffuse * lightColor;
     vec3 moonLight = nightDiffuse * nightLightColor;
 
-    vec3 col = sunLight + moonLight + Ambient;
+    vec3 spotLightDir = EyeDir;
+	vec3 spotLightColor = pow(gubo.gFactor / length(gubo.eyePos - fragPos), gubo.beta) * gubo.spotLightColor;
+	float dim = clamp((dot(spotLightDir, -gubo.userDir) - gubo.cOut) / (gubo.cIn - gubo.cOut),0.0,1.0);
+
+    float spotCosThetaI = max(dot(Norm, spotLightDir), 0.0);
+    float spotCosThetaR = max(dot(Norm, -spotLightDir), 0.0);
+    float spotSinThetaI = sqrt(1.0 - cosThetaI * cosThetaI);
+    float spotSinThetaR = sqrt(1.0 - cosThetaR * cosThetaR);
+
+    vec3 spotDiffuse = texture(tex, fragUV * mubo.scaleUV).rgb * (1.0 - ambientIntensity) *
+                   ((A + B * max(0.0, spotCosThetaI * spotCosThetaR - spotSinThetaI * spotSinThetaR)) * max(spotCosThetaI, 0.0));
+
+	vec3 spotLight = spotDiffuse * dim * spotLightColor;
+
+    vec3 col = sunLight + moonLight + spotLight + Ambient;
     
     outColor = vec4(col, 1.0f);
    // outColor = vec4(1.0f, 0.0f, 0.0f, 1.0f);

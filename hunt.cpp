@@ -108,11 +108,6 @@ struct BlinnUniformBufferObject {
 struct BlinnMatParUniformBufferObject {
 	alignas(4) float Power;
 	alignas(4) float scaleUV;
-	alignas(4) float gFactor;
-	alignas(4) float beta;
-	alignas(4) float cIn;
-	alignas(4) float cOut;
-
 };
 
 struct OrenUniformBufferObject {
@@ -142,6 +137,10 @@ struct GlobalUniformBufferObject {
 	alignas(4) float ambient;
 	alignas(16) glm::vec3 pointLightColor;
 	alignas(16) glm::vec3 userDir;
+	alignas(4) float gFactor;
+	alignas(4) float beta;
+	alignas(4) float cIn;
+	alignas(4) float cOut;
 };
 
 struct SkyBoxUniformBufferObject {
@@ -1537,7 +1536,17 @@ class HuntGame : public BaseProject {
 		gubo.eyePos = glm::vec3(glm::inverse(ViewMatrix) * glm::vec4(0, 0, 0, 1));
 		gubo.userDir = extractPlayerDirectionFromViewMatrix(ViewMatrix);
 		gubo.ambient = dayTime;
-		gubo.pointLightColor = glm::vec3(1.0f, 1.0f, 0.3f);
+
+		if (dayTime > 0.0f) {
+			gubo.pointLightColor = glm::vec3(0.0f);
+		} else {
+			gubo.pointLightColor = glm::vec3(1.0f, 1.0f, 0.3f);
+		}
+		// gubo.pointLightColor = glm::vec3(1.0f, 1.0f, 0.3f);
+		gubo.gFactor = G_FACTOR;
+		gubo.beta = BETA;
+		gubo.cIn = C_IN;
+		gubo.cOut = C_OUT;
 		DSGlobal.map(currentImage, &gubo, 0);
 
 		// objects
@@ -1580,10 +1589,6 @@ class HuntGame : public BaseProject {
         blinnUbo.mvpMat = ViewPrj;
         blinnMatParUbo.Power = 200.0;
 		blinnMatParUbo.scaleUV = 1.0;
-		blinnMatParUbo.gFactor = G_FACTOR;
-		blinnMatParUbo.beta = BETA;
-		blinnMatParUbo.cIn = C_IN;
-		blinnMatParUbo.cOut = C_OUT;
 
         // AXIS
         DSAx.map(currentImage, &blinnUbo, 0); 

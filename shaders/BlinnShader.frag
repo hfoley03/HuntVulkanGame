@@ -21,15 +21,15 @@ layout(set = 0, binding = 0) uniform GlobalUniformBufferObject {
 	float ambient;
 	vec3 pointLightColor;
 	vec3 userDir;
+	float gFactor;
+	float beta;
+	float cIn;
+	float cOut;
 } gubo;
 
 layout(set = 1, binding = 2) uniform BlinnParUniformBufferObject {
 	float Pow;
 	float scaleUV;
-	float gFactor;
-	float beta;
-	float cIn;
-	float cOut;
 } mubo;
 
 layout(set = 1, binding = 1) uniform sampler2D tex;
@@ -60,9 +60,9 @@ void main() {
 	// vec3 col  = Diffuse * lightColor  + Specular * specularLightColor + Ambient;
 
 	vec3 pointLightDir = EyeDir;
-	vec3 pointLightColor = pow(mubo.gFactor / length(gubo.eyePos - fragPos), mubo.beta) * gubo.pointLightColor;
+	vec3 pointLightColor = pow(gubo.gFactor / length(gubo.eyePos - fragPos), gubo.beta) * gubo.pointLightColor;
 
-	float dim = clamp((dot(pointLightDir, -gubo.userDir) - mubo.cOut) / (mubo.cIn - mubo.cOut),0.0,1.0);
+	float dim = clamp((dot(pointLightDir, -gubo.userDir) - gubo.cOut) / (gubo.cIn - gubo.cOut),0.0,1.0);
 
 	vec3 pointDiffuse = texture(tex, fragUV * mubo.scaleUV).rgb * (1-ambientIntensity) * max(dot(Norm, pointLightDir),0.0);
 	vec3 pointSpecular = vec3(pow(max(dot(Norm, normalize(pointLightDir + EyeDir)),0.0), mubo.Pow));
