@@ -420,6 +420,8 @@ class HuntGame : public BaseProject {
 	float zoomInAngle = 20.0f;
 	float zoomOutAngle = 50.0f;
 
+	bool isTorchOn = false;
+
 
 
 	// for visualisation of the bounding box only
@@ -1449,6 +1451,22 @@ class HuntGame : public BaseProject {
 				curDebounce = 0;
 			}
 		}
+
+		// Torch Light On/Off
+		if(glfwGetKey(window, GLFW_KEY_U)) {
+			if(!debounce) {
+				debounce = true;
+				curDebounce = GLFW_KEY_U;
+
+				isTorchOn = !isTorchOn;
+				std::cout << "Torch On/Off button toggled\n";
+			}
+		} else {
+			if((curDebounce == GLFW_KEY_U) && debounce) {
+				debounce = false;
+				curDebounce = 0;
+			}
+		}
 		
 		if(glfwGetKey(window, GLFW_KEY_ENTER)) {
 			if(!debounce) {
@@ -1537,12 +1555,12 @@ class HuntGame : public BaseProject {
 		gubo.userDir = extractPlayerDirectionFromViewMatrix(ViewMatrix);
 		gubo.ambient = dayTime;
 
-		if (dayTime > 0.0f) {
-			gubo.pointLightColor = glm::vec3(0.0f);
-		} else {
-			gubo.pointLightColor = glm::vec3(1.0f, 1.0f, 0.3f);
-		}
-		// gubo.pointLightColor = glm::vec3(1.0f, 1.0f, 0.3f);
+		// Torch light
+		if (isTorchOn)
+			gubo.pointLightColor = glm::vec3(1.0f, 1.0f, 0.3f);	// On
+		else
+			gubo.pointLightColor = glm::vec3(0.0f);				// Off
+
 		gubo.gFactor = G_FACTOR;
 		gubo.beta = BETA;
 		gubo.cIn = C_IN;
