@@ -77,7 +77,7 @@ std::vector<SingleText> outText = {
 // THE NUMBER OF INSTANCES OF ANIMALS, VEGITATION/ROCKS, STRUCTURES
 #define NANIMAL 40
 #define NVEGROCK 80
-#define NSTRUCTURES 137
+#define NSTRUCTURES 136
 #define NBALLS 1
 
 // GAME SCENES
@@ -117,6 +117,17 @@ struct OrenUniformBufferObject {
 };
 
 struct OrenMatParUniformBufferObject {
+	alignas(4)  float Roughness;
+	alignas(4) 	float scaleUV;
+};
+
+struct NMapUniformBufferObject {
+	alignas(16) glm::mat4 mvpMat;
+	alignas(16) glm::mat4 mMat;
+	alignas(16) glm::mat4 nMat;
+};
+
+struct NMapMatParUniformBufferObject {
 	alignas(4)  float Roughness;
 	alignas(4) 	float scaleUV;
 };
@@ -174,6 +185,12 @@ struct OrenVertex {
 	glm::vec2 UV;
 };
 
+struct NMapVertex {
+	glm::vec3 pos;
+	glm::vec3 norm;
+	glm::vec2 UV;
+};
+
 struct EmissionVertex {
 	glm::vec3 pos;
 	glm::vec2 UV;
@@ -184,18 +201,12 @@ struct HUDVertex {
     glm::vec2 UV;
 };
 
-struct BBoxVertex {
-	glm::vec3 pos;
-};
-
 struct skyBoxVertex {
 	glm::vec3 pos;
 };
 
 
-
 // class used to create instances of an object
-
 class Instance {
 public:
     glm::vec3 pos;      // Instance position
@@ -275,19 +286,21 @@ class HuntGame : public BaseProject {
 	protected:
 	Ray ray;
 
-	DescriptorSetLayout DSLGlobal, DSLBlinn, DSLOren, DSLEmission, DSLHUD, DSLBBox, DSLskyBox;
+	DescriptorSetLayout DSLGlobal, DSLBlinn, DSLOren, DSLEmission, DSLHUD, DSLskyBox, DSLNMap;
 
-	VertexDescriptor VDBlinn, VDOren, VDEmission, VDHUD, VDBBox, VDskyBox;
+	VertexDescriptor VDBlinn, VDOren, VDEmission, VDHUD, VDskyBox, VDNMap;
 
-	Pipeline PBlinn, POren, PEmission, PHUD, PskyBox;
+	Pipeline PBlinn, POren, PEmission, PHUD, PskyBox, PNMAp;
 
 	// Scenes and texts
     TextMaker txt;
     
     // Models
-    Model MAx,Msun, Mmoon, Mground, MCrosshair, MScope, MskyBox, MMenuScreen, MGun, MBall;
+    Model MAx,Msun, Mmoon, Mground, MCrosshair, MScope, MskyBox, MMenuScreen, MGun, MBall, MTower;
 	// Model MGameOver;
 	Model MVegRocks[12], MStructures[4], MAnimals[10];
+
+	glm::vec3 towerPos = glm::vec3(-23.0f, -1.0f, 24.0f);
 
     std::vector<Instance> balls;
     std::vector<Instance> vegRocks; 
@@ -295,14 +308,16 @@ class HuntGame : public BaseProject {
     std::vector<Instance> animals;
 
     // Descriptor Sets
-	DescriptorSet DSGlobal, DSAx, DSCrosshair, DSScope, DSsun, DSmoon, DSground, DSskyBox, DSGun, DSMenuScreen;
+	DescriptorSet DSGlobal, DSAx, DSCrosshair, DSScope, DSsun, DSmoon, DSground, DSskyBox, DSGun, DSMenuScreen, DSTower;
 
 	DescriptorSet DSAnimals[NANIMAL], DSVegRocks[NVEGROCK], DSStructures[NSTRUCTURES], DSBalls[NBALLS];
 
 	// DescriptorSet DSGameOver;
 
    // Textures
-	Texture T1, Tanimal, TGun, TGrass, Tsun, Tmoon, Tground, TCrosshair, TskyBox, Tstars, TRock, TMenuScreen;
+	Texture T1, Tanimal, TGun, TGrass, Tsun, Tmoon, Tground, TCrosshair, TskyBox, Tstars, TMenuScreen;
+	Texture TTowerNMap;
+	Texture TTowerDiff;
 	Texture TStructures[4];
 	// Texture TGameOver;
 
@@ -370,6 +385,12 @@ class HuntGame : public BaseProject {
 					{1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 0, 1},
 					{2, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(OrenMatParUniformBufferObject), 1}
 				});
+		DSLNMap.init(this, {
+					{0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT, sizeof(NMapUniformBufferObject), 1},
+					{1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 0, 1},
+					{2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 0, 1},
+					{3, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(NMapMatParUniformBufferObject), 1}
+				});
 		DSLEmission.init(this, {
 					{0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT, sizeof(EmissionUniformBufferObject), 1},
 					{1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 0, 1},
@@ -385,9 +406,7 @@ class HuntGame : public BaseProject {
     			{0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 0, 1},
 				{1, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(HUDParUniformBufferObject), 1},
 				});
-		DSLBBox.init(this, {
-    			{0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT, sizeof(BlinnUniformBufferObject), 1} //BoundingBoxUniformBufferObject
-				});
+
 
         
 		// Vertex descriptors
@@ -410,6 +429,17 @@ class HuntGame : public BaseProject {
 				  {0, 1, VK_FORMAT_R32G32B32_SFLOAT, offsetof(OrenVertex, norm),
 				         sizeof(glm::vec3), NORMAL},
 				  {0, 2, VK_FORMAT_R32G32_SFLOAT, offsetof(OrenVertex, UV),
+				         sizeof(glm::vec2), UV}
+				});
+
+		VDNMap.init(this, {
+				  {0, sizeof(NMapVertex), VK_VERTEX_INPUT_RATE_VERTEX}
+				}, {
+				  {0, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(NMapVertex, pos),
+				         sizeof(glm::vec3), POSITION},
+				  {0, 1, VK_FORMAT_R32G32B32_SFLOAT, offsetof(NMapVertex, norm),
+				         sizeof(glm::vec3), NORMAL},
+				  {0, 2, VK_FORMAT_R32G32_SFLOAT, offsetof(NMapVertex, UV),
 				         sizeof(glm::vec2), UV}
 				});
 
@@ -438,16 +468,12 @@ class HuntGame : public BaseProject {
 				         sizeof(glm::vec2), UV}
 				});
 
-		VDBBox.init(this, {
-				  {0, sizeof(BBoxVertex), VK_VERTEX_INPUT_RATE_VERTEX}
-				}, {
-				  {0, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(BBoxVertex, pos),
-				         sizeof(glm::vec3), POSITION}
-				});
-
 		// Pipelines [Shader couples]
 		PBlinn.init(this, &VDBlinn,  "shaders/BlinnVert.spv",    "shaders/BlinnFrag.spv", {&DSLGlobal, &DSLBlinn});
 		POren.init(this, &VDOren,  "shaders/OrenVert.spv",    "shaders/OrenFrag.spv", {&DSLGlobal, &DSLOren});
+		
+		PNMAp.init(this, &VDNMap,  "shaders/NMapVert.spv", "shaders/NMapFrag.spv", {&DSLGlobal, &DSLNMap});
+		
 		PEmission.init(this, &VDEmission,  "shaders/EmissionVert.spv",    "shaders/EmissionFrag.spv", {&DSLEmission});
 		PskyBox.init(this, &VDskyBox, "shaders/SkyBoxVert.spv", "shaders/SkyBoxFrag.spv", {&DSLskyBox});
 		PskyBox.setAdvancedFeatures(VK_COMPARE_OP_LESS_OR_EQUAL, VK_POLYGON_MODE_FILL,
@@ -463,6 +489,8 @@ class HuntGame : public BaseProject {
 		MBall.init(this, &VDBlinn, "models/Sphere.obj", OBJ);
 		MskyBox.init(this, &VDskyBox, "models/SkyBoxCube.obj", OBJ);
 		MGun.init(this, &VDBlinn, "models/gun.obj", OBJ);
+		MTower.init(this, &VDNMap, "models/structure/tower.obj", OBJ);
+
         
         MAnimals[0].init(this, &VDBlinn, "models/animals/rhinoceros_001.mgcg", MGCG);
         MAnimals[1].init(this, &VDBlinn, "models/animals/tiger_001.mgcg", MGCG);
@@ -490,8 +518,10 @@ class HuntGame : public BaseProject {
 
         MStructures[0].init(this, &VDBlinn, "models/structure/cottage.obj", OBJ);
         MStructures[1].init(this, &VDBlinn, "models/structure/fence.obj", OBJ);
-        MStructures[2].init(this, &VDBlinn, "models/structure/tower.obj", OBJ);
+        MStructures[2].init(this, &VDNMap, "models/structure/tower.obj", OBJ);
         MStructures[3].init(this, &VDBlinn, "models/structure/woodhouse.obj", OBJ);
+
+		
 
 		// building up vertices and indices for HUD crosshairs to use
     	int mainStride = sizeof(HUDVertex);  
@@ -567,7 +597,9 @@ class HuntGame : public BaseProject {
         TCrosshair.init(this, "textures/cros.png");
         TGun.init(this, "textures/gun.png");
         TGrass.init(this, "textures/grass1.jpg");
-		TRock.init(this, "textures/rock2.jpg", VK_FORMAT_R8G8B8A8_UNORM);		
+		TTowerNMap.init(this, "textures/Tower_Nor.jpg", VK_FORMAT_R8G8B8A8_UNORM);
+		TTowerDiff.init(this, "textures/Tower_Col.jpg");		
+		
 		// TMenuScreen.init(this, "textures/startmenu_background.jpg");
 		// TGameOver.init(this, "textures/gameover_background.png");
 
@@ -682,7 +714,6 @@ class HuntGame : public BaseProject {
         //structures.emplace_back(glm::vec3(10.0f, 0.0f, -10.0f), 3, glm::vec3(1.0f, 1.0f, 1.0f), 0.0f, "House");
         //structures.emplace_back(glm::vec3(4.0f, 0.0f, -10.0f), 1, glm::vec3(0.01f, 0.01f, 0.01f), -90.0f, "fence");
         //structures.emplace_back(glm::vec3(5.5f, 0.0f, -10.0f), 1, glm::vec3(0.01f, 0.01f, 0.01f), -90.0f, "fence");
-        structures.emplace_back(glm::vec3(-23.0f, -1.0f, 24.0f), 2, glm::vec3(1.0f, 1.0f, 1.0f), 0.0f, "TOWER");
 
         //ANIMALS
 
@@ -763,6 +794,7 @@ class HuntGame : public BaseProject {
 	void pipelinesAndDescriptorSetsInit() {
 		// This creates a new pipeline (with the current surface), using its shaders
 		PBlinn.create();
+		PNMAp.create();
 		POren.create();
 		PEmission.create();
 		PskyBox.create();
@@ -778,6 +810,8 @@ class HuntGame : public BaseProject {
 		DSskyBox.init(this, &DSLskyBox, {&TskyBox, &Tstars});
 		DSGun.init(this, &DSLBlinn, {&TGun});
 		DSMenuScreen.init(this, &DSLHUD, {&TMenuScreen});
+		DSTower.init(this, &DSLNMap, {&TTowerDiff, &TTowerNMap});
+
 		// DSGameOver.init(this, &DSLHUD, {&TGameOver});
 
 
@@ -811,6 +845,7 @@ class HuntGame : public BaseProject {
 	void pipelinesAndDescriptorSetsCleanup() {
 		// Cleanup pipelines
 		PBlinn.cleanup();
+		PNMAp.cleanup();
 		POren.cleanup();
 		PEmission.cleanup();
 		PHUD.cleanup();
@@ -825,6 +860,7 @@ class HuntGame : public BaseProject {
 		DSScope.cleanup();
 		DSskyBox.cleanup();
 		DSGun.cleanup();
+		DSTower.cleanup();
 		DSMenuScreen.cleanup();
 		// DSGameOver.cleanup();
 
@@ -849,7 +885,7 @@ class HuntGame : public BaseProject {
 
 
 	void localCleanup() {	
-		TRock.cleanup();
+		TTowerNMap.cleanup();
 		Tsun.cleanup();
 		Tmoon.cleanup();
 		Tground.cleanup();
@@ -858,6 +894,7 @@ class HuntGame : public BaseProject {
         TCrosshair.cleanup();
         TGun.cleanup();	
 		TMenuScreen.cleanup();
+		TTowerDiff.cleanup();
 		// TGameOver.cleanup();
 
         for (Texture &Tstruct: TStructures) {
@@ -873,6 +910,7 @@ class HuntGame : public BaseProject {
         MBall.cleanup();
         MGun.cleanup();
 		MMenuScreen.cleanup();
+		MTower.cleanup();
 		// MGameOver.cleanup();
 
         for (Model &MAnimal: MAnimals) {
@@ -888,22 +926,23 @@ class HuntGame : public BaseProject {
 		TskyBox.cleanup();
 		Tstars.cleanup();
 		MskyBox.cleanup();
+		
 
 		// Cleanup descriptor set layouts
 		DSLBlinn.cleanup();
+		DSLNMap.cleanup();
 		DSLOren.cleanup();
 		DSLEmission.cleanup();
 		DSLGlobal.cleanup();
 		DSLHUD.cleanup();
-		DSLBBox.cleanup();
 		DSLskyBox.cleanup();
 		
 		// Destroies the pipelines
 		PBlinn.destroy();
+		PNMAp.destroy();
 		POren.destroy();
 		PEmission.destroy();
 		PHUD.destroy();
-		// PBBox.destroy();
 		PskyBox.destroy();
 
 		txt.localCleanup();		
@@ -941,6 +980,13 @@ class HuntGame : public BaseProject {
             DSVegRocks[index].bind(commandBuffer, POren, 1, currentImage);
             vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(MVegRocks[instance.modelID].indices.size()), 1, 0, 0, 0);
         }
+
+		PNMAp.bind(commandBuffer);
+		MTower.bind(commandBuffer);
+		DSGlobal.bind(commandBuffer, PNMAp, 0, currentImage);
+		DSTower.bind(commandBuffer, PNMAp, 1, currentImage);
+		vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(MTower.indices.size()), 1, 0, 0, 0);
+        
 
 		// binds the pipeline
 		PBlinn.bind(commandBuffer);
@@ -1001,12 +1047,6 @@ class HuntGame : public BaseProject {
 		DSskyBox.bind(commandBuffer, PskyBox, 0, currentImage);
 		vkCmdDrawIndexed(commandBuffer,
 					static_cast<uint32_t>(MskyBox.indices.size()), 1, 0, 0, 0);
-
-		// PBBox.bind(commandBuffer);
-		// MBBox.bind(commandBuffer);
-		// DSBBox.bind(commandBuffer, PBBox, 0, currentImage);
-		// vkCmdDrawIndexed(commandBuffer,
-		// 		static_cast<uint32_t>(MBBox.indices.size()), 1, 0, 0, 0);	
 
 		PHUD.bind(commandBuffer);
 		MCrosshair.bind(commandBuffer);
@@ -1170,8 +1210,6 @@ class HuntGame : public BaseProject {
 							Pos = lastPos;  // stick 
 						}
 				}
-
-				glm::vec3 towerPos = glm::vec3(-23.0f, -1.0f, 24.0f);
 
 				if (checkCollision(Pos + FirstPos, 0.5f,towerPos, 1.3f ) ) {
 							glm::vec3 collision_direction = glm::normalize( (Pos + FirstPos) - towerPos);
@@ -1573,10 +1611,26 @@ class HuntGame : public BaseProject {
             DSVegRocks[model].map(currentImage, &orenUbo, 0);
         	DSVegRocks[model].map(currentImage, &orenMatParUbo, 2);
         }
+
+				NMapUniformBufferObject nmapUbo{};
+		NMapMatParUniformBufferObject nmapMatParUbo{};
+
+        nmapUbo.mMat = glm::mat4(1);
+
+		nmapUbo.mMat = glm::translate(glm::mat4(1.0f),
+								towerPos) 
+								* glm::rotate(glm::mat4(1.0f), glm::radians(0.0f),glm::vec3(0.0f, 1.0f, 0.0f))
+								* glm::rotate(glm::mat4(1), glm::radians(0.0f),glm::vec3(1.0f, 0.0f, 0.0f)) * baseTr;
+
+		nmapUbo.mvpMat = ViewPrj * nmapUbo.mMat;
+		nmapUbo.nMat = glm::inverse(glm::transpose(nmapUbo.mMat));
+		nmapMatParUbo.scaleUV = 1.0;
+		nmapMatParUbo.Roughness = 0.5;
+
+		DSTower.map(currentImage, &nmapUbo, 0);
+		DSTower.map(currentImage, &nmapMatParUbo, 3);
 	}
 };
-
-
 
 // This is the main: probably you do not need to touch this!
 int main(int argc, char* argv[]) {
