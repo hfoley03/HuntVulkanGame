@@ -77,7 +77,7 @@ std::vector<SingleText> outText = {
 // THE NUMBER OF INSTANCES OF ANIMALS, VEGITATION/ROCKS, STRUCTURES
 #define NANIMAL 40
 #define NVEGROCK 80
-#define NSTRUCTURES 136
+#define NSTRUCTURES 137
 #define NBALLS 1
 
 // GAME SCENES
@@ -152,6 +152,10 @@ struct GlobalUniformBufferObject {
 	alignas(4) float beta;
 	alignas(4) float cIn;
 	alignas(4) float cOut;
+	struct { alignas(16) glm::vec3 v;} lightDirArray[1];
+	struct { alignas(16) glm::vec3 v;} lightPos[1];
+	alignas(16) glm::vec4 lightColor[1];
+
 };
 
 struct SkyBoxUniformBufferObject {
@@ -518,7 +522,7 @@ class HuntGame : public BaseProject {
 
         MStructures[0].init(this, &VDBlinn, "models/structure/cottage.obj", OBJ);
         MStructures[1].init(this, &VDBlinn, "models/structure/fence.obj", OBJ);
-        MStructures[2].init(this, &VDNMap, "models/structure/tower.obj", OBJ);
+        MStructures[2].init(this, &VDBlinn, "models/structure/fence.obj", OBJ);
         MStructures[3].init(this, &VDBlinn, "models/structure/woodhouse.obj", OBJ);
 
 		
@@ -608,7 +612,7 @@ class HuntGame : public BaseProject {
         
         TStructures[0].init(this, "textures/cottage_diffuse.png");
         TStructures[1].init(this, "textures/fenceDiffuse.jpg");
-        TStructures[2].init(this, "textures/Tower_Col.jpg");
+        TStructures[2].init(this, "textures/fenceDiffuse.jpg");
         TStructures[3].init(this, "textures/woodenhousediffuse.png");
 
 		TskyBox.init(this, "textures/starmap_g4k.jpg");
@@ -712,7 +716,7 @@ class HuntGame : public BaseProject {
 
         //structures.emplace_back(glm::vec3(0.0f, 0.0f, 10.0f), 3, glm::vec3(1.0f, 1.0f, 1.0f), 0.0f, "Cottage");
         //structures.emplace_back(glm::vec3(10.0f, 0.0f, -10.0f), 3, glm::vec3(1.0f, 1.0f, 1.0f), 0.0f, "House");
-        //structures.emplace_back(glm::vec3(4.0f, 0.0f, -10.0f), 1, glm::vec3(0.01f, 0.01f, 0.01f), -90.0f, "fence");
+        structures.emplace_back(glm::vec3(4.0f, 0.0f, -10.0f), 2, glm::vec3(0.01f, 0.01f, 0.01f), 0.0f, "lightpole");
         //structures.emplace_back(glm::vec3(5.5f, 0.0f, -10.0f), 1, glm::vec3(0.01f, 0.01f, 0.01f), -90.0f, "fence");
 
         //ANIMALS
@@ -1458,6 +1462,15 @@ class HuntGame : public BaseProject {
 		gubo.beta = BETA;
 		gubo.cIn = C_IN;
 		gubo.cOut = C_OUT;
+
+		for(int i = 0; i <1; i++) {
+			gubo.lightColor[i] = glm::vec4(1.0f, 0.0f, 0.0f, 1.0f);
+			gubo.lightDirArray[i].v = glm::vec3(0.0f, 1.0f, 0.0f);
+			//gubo.lightPos[i].v = glm::vec3(towerPos.x, 1.0f, towerPos.y + i);
+			gubo.lightPos[i].v = glm::vec3(0.0f, 1.0f, 0.0f);
+
+		}
+
 		DSGlobal.map(currentImage, &gubo, 0);
 
 		EmissionUniformBufferObject emissionUbo{};

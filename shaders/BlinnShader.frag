@@ -1,78 +1,89 @@
 #version 450
 #extension GL_ARB_separate_shader_objects : enable
 
-// this defines the variable received from the Vertex Shader
-// the locations must match the one of its out variables
 layout(location = 0) in vec3 fragPos;
 layout(location = 1) in vec3 fragNorm;
 layout(location = 2) in vec2 fragUV;
 
-// This defines the color computed by this shader. Generally is always location 0.
 layout(location = 0) out vec4 outColor;
 
-// Here the Uniform buffers are defined. In this case, the Global Uniforms of Set 0
-// The texture of Set 1 (binding 1), and the Material parameters (Set 1, binding 2)
-// are used. Note that each definition must match the one used in the CPP code
 layout(set = 0, binding = 0) uniform GlobalUniformBufferObject {
-	vec3 lightDir;
-	vec4 dayLightColor;
-	vec3 eyePos;
-	vec4 nightLightColor;
-	float ambient;
-	vec3 pointLightColor;
-	vec3 userDir;
-	float gFactor;
-	float beta;
-	float cIn;
-	float cOut;
+    vec3 lightDir;
+    vec4 dayLightColor;
+    vec3 eyePos;
+    vec4 nightLightColor;
+    float ambient;
+    vec3 pointLightColor;
+    vec3 userDir;
+    float gFactor;
+    float beta;
+    float cIn;
+    float cOut;
+    vec3 lightDirArray[1];
+	vec3 lightPos[1];
+	vec4 lightColor[1];
 } gubo;
 
 layout(set = 1, binding = 2) uniform BlinnParUniformBufferObject {
-	float Pow;
-	float scaleUV;
+    float Pow;
+    float scaleUV;
 } mubo;
 
 layout(set = 1, binding = 1) uniform sampler2D tex;
 
-// The main shader, implementing a simple Blinn + Lambert + constant Ambient BRDF model
-// The scene is lit by a single Spot Light
+// blinn phong specular component
+vec3 calcSpecular(vec3 norm, vec3 lightDir, vec3 eyeDir, float shininess) {
+    vec3 halfDir = normalize(lightDir + eyeDir);
+    float specFactor = pow(max(dot(norm, halfDir), 0.0), shininess);
+    return vec3(specFactor);
+}
+
+// calculate diffuse lighting
+vec3 calcDiffuse(vec3 norm, vec3 lightDir, vec3 textureColor, float ambientIntensity) {
+    float diffuseFactor = max(dot(norm, lightDir), 0.0);
+    return textureColor * (1.0 - ambientIntensity) * diffuseFactor;
+}
+
 void main() {
+    vec3 norm = normalize(fragNorm);
+    vec3 eyeDir = normalize(gubo.eyePos - fragPos);
+    vec3 textureColor = texture(tex, fragUV * mubo.scaleUV).rgb;
 
-	float ambientIntensity = (gubo.ambient - (-1.0f)) / (1.0f - (-1.0f)) * (0.09f - 0.005f) + 0.005f;
-	vec3 Norm = normalize(fragNorm);
-	vec3 EyeDir = normalize(gubo.eyePos - fragPos);
-	
-	vec3 lightDir = normalize(gubo.lightDir);
-	vec3 lightColor = gubo.dayLightColor.rgb;
-	// vec3 specularLightColor = 0.5 * gubo.dayLightColor.rgb + 0.5 * vec3(1.0);
+    // ambient 
+    float ambientIntensity = mix(0.005f, 0.09f, (gubo.ambient + 1.0f) * 0.5f);
+    vec3 ambient = textureColor * ambientIntensity;
 
-	vec3 Diffuse = texture(tex, fragUV * mubo.scaleUV).rgb * (1-ambientIntensity) * max(dot(Norm, lightDir),0.0);
-	vec3 Specular = vec3(pow(max(dot(Norm, normalize(lightDir + EyeDir)),0.0), mubo.Pow));
-	vec3 Ambient = texture(tex, fragUV * mubo.scaleUV).rgb * ambientIntensity;
+    // sun
+    vec3 lightDir = normalize(gubo.lightDir);
+    vec3 sunlightDiffuse = calcDiffuse(norm, lightDir, textureColor, ambientIntensity);
+    vec3 sunlightSpecular = calcSpecular(norm, lightDir, eyeDir, mubo.Pow);
+    vec3 sunlight = (sunlightDiffuse + sunlightSpecular) * gubo.dayLightColor.rgb;
 
-	vec3 nightDiffuse = texture(tex, fragUV * mubo.scaleUV).rgb * (1-ambientIntensity) * max(dot(Norm, -lightDir),0.0);
-	vec3 nightSpecular = vec3(pow(max(dot(Norm, normalize(-lightDir + EyeDir)),0.0), mubo.Pow));
-	// vec3 nightLightColor = {0.2, 0.2, 0.2};
-	
-	vec3 nightLightColor = gubo.nightLightColor.rgb;
-	vec3 sunLight = Diffuse * lightColor  + Specular * lightColor;
-	vec3 moonLight = (nightDiffuse + nightSpecular) * nightLightColor;
-	// vec3 col  = Diffuse * lightColor  + Specular * specularLightColor + Ambient;
+    // moon
+    vec3 moonlightDiffuse = calcDiffuse(norm, -lightDir, textureColor, ambientIntensity);
+    vec3 moonlightSpecular = calcSpecular(norm, -lightDir, eyeDir, mubo.Pow);
+    vec3 moonlight = (moonlightDiffuse + moonlightSpecular) * gubo.nightLightColor.rgb;
 
-	vec3 pointLightDir = EyeDir;
-	vec3 pointLightColor = pow(gubo.gFactor / length(gubo.eyePos - fragPos), gubo.beta) * gubo.pointLightColor;
+    // torch 
+    vec3 pointLightDir = eyeDir;
+    float distanceFactor = pow(gubo.gFactor / length(gubo.eyePos - fragPos), gubo.beta);
+    vec3 pointLightColor = distanceFactor * gubo.pointLightColor;
+    float spotlightEffect = clamp((dot(pointLightDir, -gubo.userDir) - gubo.cOut) / (gubo.cIn - gubo.cOut), 0.0, 1.0);
+    
+    vec3 pointDiffuse = calcDiffuse(norm, pointLightDir, textureColor, ambientIntensity);
+    vec3 pointSpecular = calcSpecular(norm, pointLightDir, eyeDir, mubo.Pow);
+    vec3 pointLight = (pointDiffuse + pointSpecular) * spotlightEffect * pointLightColor;
 
-	float dim = clamp((dot(pointLightDir, -gubo.userDir) - gubo.cOut) / (gubo.cIn - gubo.cOut),0.0,1.0);
 
-	vec3 pointDiffuse = texture(tex, fragUV * mubo.scaleUV).rgb * (1-ambientIntensity) * max(dot(Norm, pointLightDir),0.0);
-	vec3 pointSpecular = vec3(pow(max(dot(Norm, normalize(pointLightDir + EyeDir)),0.0), mubo.Pow));
+     pointLightDir = normalize(gubo.lightDirArray[0] - fragPos);
+     distanceFactor = pow(gubo.gFactor / length(gubo.lightPos[0] - fragPos), gubo.beta);
+     pointLightColor = distanceFactor *2 * gubo.lightColor[0].rbg;
+     spotlightEffect = clamp((dot(pointLightDir, -gubo.userDir) - gubo.cOut) / (gubo.cIn - gubo.cOut), 0.0, 1.0);
+    
+     pointDiffuse = calcDiffuse(norm, pointLightDir, textureColor, ambientIntensity);
+     pointSpecular = calcSpecular(norm, pointLightDir, eyeDir, mubo.Pow);
+    vec3 pointLightTower1 = (pointDiffuse + pointSpecular) * spotlightEffect * pointLightColor;
 
-	vec3 pointLight = (pointDiffuse + pointSpecular) * dim * pointLightColor;
-
-	vec3 col  = sunLight + moonLight + pointLight + Ambient;
-	
-	outColor = vec4(col, 1.0f);
-//	outColor = vec4(gubo.eyePos/5.0+vec3(0.5),1.0);
-//	outColor = vec4(0.5*Norm+vec3(0.5),1.0);
-//	outColor = vec4(fragPos/5.0+vec3(0.5),1.0);
+    vec3 finalColor = sunlight + moonlight + pointLight + ambient + pointLightTower1;
+    outColor = vec4(finalColor, 1.0f);
 }
