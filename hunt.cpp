@@ -306,7 +306,7 @@ class HuntGame : public BaseProject {
 	// Model MGameOver;
 	Model MVegRocks[12], MStructures[4], MAnimals[10];
 
-	glm::vec3 towerPos = glm::vec3(-23.0f, -1.0f, 24.0f);
+	glm::vec3 towerPos = glm::vec3(-23.0f, 0.0f, 24.0f);
 
     std::vector<Instance> balls;
     std::vector<Instance> vegRocks; 

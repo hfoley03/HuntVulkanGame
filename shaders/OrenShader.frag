@@ -65,7 +65,13 @@ void main() {
 
     vec3 Diffuse = calcDiffuse(textureColor, ambientIntensity, cosThetaI, cosThetaR, sinThetaI, sinThetaR);
     vec3 sunLight = Diffuse * gubo.dayLightColor.rgb;
-    vec3 moonLight = Diffuse * gubo.nightLightColor.rgb;
+
+    calculateLightingAngles(Norm, -gubo.lightDir, cosThetaI, sinThetaI);
+    calculateLightingAngles(Norm, gubo.lightDir, cosThetaR, sinThetaR);
+
+    vec3 DiffuseNight = calcDiffuse(textureColor, ambientIntensity, cosThetaI, cosThetaR, sinThetaI, sinThetaR);
+
+    vec3 moonLight = DiffuseNight * gubo.nightLightColor.rgb;
 
     vec3 spotLightDir = EyeDir;
     float dim = calculateSpotlightEffect(spotLightDir, Norm, gubo.userDir);

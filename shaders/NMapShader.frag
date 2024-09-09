@@ -58,12 +58,11 @@ void main() {
 	vec3 Bitan = cross(N, Tan) * fragTan.w;
 	mat3 tbn = mat3(Tan, Bitan, N);
 
-
     vec3 nMap = texture(texNM, fragUV* mubo.scaleUV).rgb;
     vec3 perturbedNormal = normalize(nMap * 2.0 - 1.0);
 
     vec3 Norm = normalize(perturbedNormal * tbn);
-    
+
     vec3 EyeDir = normalize(gubo.eyePos - fragPos);
     
     float ambientIntensity = mix(0.005f, 0.09f, (gubo.ambient + 1.0f) * 0.5f);
@@ -76,8 +75,14 @@ void main() {
 
     vec3 Diffuse = calcDiffuse(textureColor, ambientIntensity, cosThetaI, cosThetaR, sinThetaI, sinThetaR);
     vec3 sunLight = Diffuse * gubo.dayLightColor.rgb;
-    vec3 moonLight = Diffuse * gubo.nightLightColor.rgb;
+    
+    calculateLightingAngles(Norm, -gubo.lightDir, cosThetaI, sinThetaI);
+    calculateLightingAngles(Norm, gubo.lightDir, cosThetaR, sinThetaR);
 
+    vec3 DiffuseNight = calcDiffuse(textureColor, ambientIntensity, cosThetaI, cosThetaR, sinThetaI, sinThetaR);
+
+    vec3 moonLight = DiffuseNight * gubo.nightLightColor.rgb;
+    
     vec3 spotLightDir = EyeDir;
 
     float dim = calculateSpotlightEffect(spotLightDir, Norm, gubo.userDir);
