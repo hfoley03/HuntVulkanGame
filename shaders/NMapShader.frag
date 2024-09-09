@@ -71,7 +71,13 @@ void main() {
     vec3 spotLightDir = EyeDir;
     float dim = calculateSpotlightEffect(spotLightDir, Norm, gubo.userDir);
     vec3 spotLightColor = pow(gubo.gFactor / length(gubo.eyePos - fragPos), gubo.beta) * gubo.spotLightColor;
-    vec3 spotLight = Diffuse * dim * spotLightColor;
+    
+    calculateLightingAngles(Norm, spotLightDir, cosThetaI, sinThetaI);
+    calculateLightingAngles(Norm, -spotLightDir, cosThetaR, sinThetaR);
+
+    vec3 DiffuseSpot = calcDiffuse(textureColor, ambientIntensity, cosThetaI, cosThetaR, sinThetaI, sinThetaR);
+    
+    vec3 spotLight = DiffuseSpot * dim * spotLightColor;
 
     vec3 finalColor = sunLight + moonLight + spotLight + Ambient;
     outColor = vec4(finalColor, 1.0f);

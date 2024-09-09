@@ -1465,7 +1465,7 @@ class HuntGame : public BaseProject {
 
 		for(int i = 0; i <1; i++) {
 			gubo.lightColor[i] = glm::vec4(1.0f, 0.0f, 0.0f, 1.0f);
-			gubo.lightDirArray[i].v = glm::vec3(0.0f, 1.0f, 0.0f);
+			gubo.lightDirArray[i].v = glm::vec3(0.0f, -1.0f, 0.0f);
 			//gubo.lightPos[i].v = glm::vec3(towerPos.x, 1.0f, towerPos.y + i);
 			gubo.lightPos[i].v = glm::vec3(0.0f, 1.0f, 0.0f);
 

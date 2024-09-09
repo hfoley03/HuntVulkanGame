@@ -74,14 +74,15 @@ void main() {
     vec3 pointSpecular = calcSpecular(norm, pointLightDir, eyeDir, mubo.Pow);
     vec3 pointLight = (pointDiffuse + pointSpecular) * spotlightEffect * pointLightColor;
 
-
-     pointLightDir = normalize(gubo.lightDirArray[0] - fragPos);
-     distanceFactor = pow(gubo.gFactor / length(gubo.lightPos[0] - fragPos), gubo.beta);
-     pointLightColor = distanceFactor *2 * gubo.lightColor[0].rbg;
-     spotlightEffect = clamp((dot(pointLightDir, -gubo.userDir) - gubo.cOut) / (gubo.cIn - gubo.cOut), 0.0, 1.0);
+    // other point light
+    pointLightDir = normalize(gubo.lightDirArray[0] - fragPos);
+    distanceFactor = pow(gubo.gFactor / length(gubo.lightPos[0] - fragPos), gubo.beta);
+    pointLightColor = distanceFactor *2 * gubo.lightColor[0].rbg;
+    spotlightEffect = clamp((dot(pointLightDir, -gubo.userDir) - gubo.cOut) / (gubo.cIn - gubo.cOut), 0.0, 1.0);
     
-     pointDiffuse = calcDiffuse(norm, pointLightDir, textureColor, ambientIntensity);
-     pointSpecular = calcSpecular(norm, pointLightDir, eyeDir, mubo.Pow);
+    pointDiffuse = calcDiffuse(norm, pointLightDir, textureColor, ambientIntensity);
+    pointSpecular = calcSpecular(norm, pointLightDir, eyeDir, mubo.Pow);
+
     vec3 pointLightTower1 = (pointDiffuse + pointSpecular) * spotlightEffect * pointLightColor;
 
     vec3 finalColor = sunlight + moonlight + pointLight + ambient + pointLightTower1;
