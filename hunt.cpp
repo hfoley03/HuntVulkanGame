@@ -193,6 +193,8 @@ struct NMapVertex {
 	glm::vec3 pos;
 	glm::vec3 norm;
 	glm::vec2 UV;
+	glm::vec4 tan;
+
 };
 
 struct EmissionVertex {
@@ -392,7 +394,7 @@ class HuntGame : public BaseProject {
 		DSLNMap.init(this, {
 					{0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT, sizeof(NMapUniformBufferObject), 1},
 					{1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 0, 1},
-					{2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 0, 1},
+					{2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 1, 1},
 					{3, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(NMapMatParUniformBufferObject), 1}
 				});
 		DSLEmission.init(this, {
@@ -444,7 +446,9 @@ class HuntGame : public BaseProject {
 				  {0, 1, VK_FORMAT_R32G32B32_SFLOAT, offsetof(NMapVertex, norm),
 				         sizeof(glm::vec3), NORMAL},
 				  {0, 2, VK_FORMAT_R32G32_SFLOAT, offsetof(NMapVertex, UV),
-				         sizeof(glm::vec2), UV}
+				         sizeof(glm::vec2), UV},
+ 				{0, 3, VK_FORMAT_R32G32B32A32_SFLOAT, offsetof(NMapVertex, tan), sizeof(glm::vec4), TANGENT}
+
 				});
 
 		VDEmission.init(this, {
@@ -493,7 +497,7 @@ class HuntGame : public BaseProject {
 		MBall.init(this, &VDBlinn, "models/Sphere.obj", OBJ);
 		MskyBox.init(this, &VDskyBox, "models/SkyBoxCube.obj", OBJ);
 		MGun.init(this, &VDBlinn, "models/gun.obj", OBJ);
-		MTower.init(this, &VDNMap, "models/structure/tower.obj", OBJ);
+		MTower.init(this, &VDNMap, "models/structure/tower.gltf", GLTF);
 
         
         MAnimals[0].init(this, &VDBlinn, "models/animals/rhinoceros_001.mgcg", MGCG);
@@ -957,7 +961,7 @@ class HuntGame : public BaseProject {
 	// with their buffers and textures
 
 	void soShootMe(){
-				::printVec3(ray.origin);
+				::printVec3(ray.direction);
 		float t0, t1;
 		for (int index = 0; index < NANIMAL; index++) {
 			if(animals[index].visible){
@@ -1671,7 +1675,7 @@ int main(int argc, char* argv[]) {
     std::cout << "Seed: " << seed << std::endl;
 
     // dayCyclePhase = ((float)rand() / RAND_MAX) * (2.0f * M_PI);
-    dayCyclePhase = (0.80f * M_PI);
+    dayCyclePhase = (1.2 * M_PI);
 
     std::cout << "dayCyclePhase: " << dayCyclePhase << std::endl;
 	

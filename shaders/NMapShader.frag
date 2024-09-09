@@ -4,6 +4,8 @@
 layout(location = 0) in vec3 fragPos;
 layout(location = 1) in vec3 fragNorm;
 layout(location = 2) in vec2 fragUV;
+layout(location = 3) in vec4 fragTan;
+
 
 layout(location = 0) out vec4 outColor;
 
@@ -51,9 +53,17 @@ float calculateSpotlightEffect(vec3 spotLightDir, vec3 norm, vec3 userDir) {
 
 void main() {
     vec3 N = normalize(fragNorm);
-    vec3 nMap = texture(texNM, fragUV).rgb;
+	
+    vec3 Tan = normalize(fragTan.xyz - N * dot(fragTan.xyz, N));
+	vec3 Bitan = cross(N, Tan) * fragTan.w;
+	mat3 tbn = mat3(Tan, Bitan, N);
+
+
+    vec3 nMap = texture(texNM, fragUV* mubo.scaleUV).rgb;
     vec3 perturbedNormal = normalize(nMap * 2.0 - 1.0);
-    vec3 Norm = normalize(perturbedNormal);
+
+    vec3 Norm = normalize(perturbedNormal * tbn);
+    
     vec3 EyeDir = normalize(gubo.eyePos - fragPos);
     
     float ambientIntensity = mix(0.005f, 0.09f, (gubo.ambient + 1.0f) * 0.5f);
@@ -69,15 +79,16 @@ void main() {
     vec3 moonLight = Diffuse * gubo.nightLightColor.rgb;
 
     vec3 spotLightDir = EyeDir;
+
     float dim = calculateSpotlightEffect(spotLightDir, Norm, gubo.userDir);
     vec3 spotLightColor = pow(gubo.gFactor / length(gubo.eyePos - fragPos), gubo.beta) * gubo.spotLightColor;
     
     calculateLightingAngles(Norm, spotLightDir, cosThetaI, sinThetaI);
     calculateLightingAngles(Norm, -spotLightDir, cosThetaR, sinThetaR);
 
-    vec3 DiffuseSpot = calcDiffuse(textureColor, ambientIntensity, cosThetaI, cosThetaR, sinThetaI, sinThetaR);
-    
-    vec3 spotLight = DiffuseSpot * dim * spotLightColor;
+    vec3 DiffuseSpotLight = calcDiffuse(textureColor, ambientIntensity, cosThetaI, cosThetaR, sinThetaI, sinThetaR);
+
+    vec3 spotLight = DiffuseSpotLight * dim * spotLightColor;
 
     vec3 finalColor = sunLight + moonLight + spotLight + Ambient;
     outColor = vec4(finalColor, 1.0f);
