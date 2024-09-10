@@ -1494,7 +1494,7 @@ class HuntGame : public BaseProject {
 
 		nmapUbo.mMat = glm::translate(glm::mat4(1.0f),
 								towerPos) 
-								* glm::rotate(glm::mat4(1.0f), glm::radians(0.0f),glm::vec3(0.0f, 1.0f, 0.0f))
+								* glm::rotate(glm::mat4(1.0f), glm::radians(180.0f),glm::vec3(0.0f, 1.0f, 0.0f))
 								* glm::rotate(glm::mat4(1), glm::radians(0.0f),glm::vec3(1.0f, 0.0f, 0.0f)) * baseTr;
 
 		nmapUbo.mvpMat = ViewPrj * nmapUbo.mMat;
