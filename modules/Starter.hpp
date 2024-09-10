@@ -417,10 +417,23 @@ protected:
     void initWindow() {
         glfwInit();
 
+		GLFWmonitor* monitor = glfwGetPrimaryMonitor();
+
+		int monitorCount;
+		GLFWmonitor** monitors = glfwGetMonitors(&monitorCount);
+
+		if (monitorCount > 1) {
+			GLFWmonitor* monitor = monitors[1];
+		}
+
+		const GLFWvidmode* mode = glfwGetVideoMode(monitor);
+
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
         glfwWindowHint(GLFW_RESIZABLE, windowResizable);
 
-        window = glfwCreateWindow(windowWidth, windowHeight, windowTitle.c_str(), nullptr, nullptr);
+        window = glfwCreateWindow(mode->width, mode->height, windowTitle.c_str(), monitor, nullptr);
+
+        // window = glfwCreateWindow(windowWidth, windowHeight, windowTitle.c_str(), nullptr, nullptr);
 
         glfwSetWindowUserPointer(window, this);
         glfwSetFramebufferSizeCallback(window, framebufferResizeCallback);
