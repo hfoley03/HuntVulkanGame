@@ -332,7 +332,7 @@ class HuntGame : public BaseProject {
 	float startTime = 0.0f;
 	float currTime = 0.0f;
 	float lastTime = 0.0f;
-	int currTimeIndex = GAMEDURATION;
+	int currTimeIndex = 0;
 	int currAnimalIndex = 0;
 	// float dayCyclePhase = 3.0f *M_PI/2.0f;
 		
@@ -784,16 +784,15 @@ class HuntGame : public BaseProject {
 
 		char bufTime[GAMEDURATION][100];
 
-		for (int i = 0; i < GAMEDURATION; i++) {
+		outTimeText.push_back({1, "", 0, 0});
+
+		for (int i = 1; i <= GAMEDURATION; i++) {
 			
 			strcpy(bufTime[i], "Time left: ");
-			strcat(bufTime[i], std::to_string(GAMEDURATION - i).c_str());
+			strcat(bufTime[i], std::to_string(i).c_str());
 			strcat(bufTime[i], " seconds");
         	outTimeText.push_back({1, bufTime[i], 0, 0});	
 		}
-		outTimeText.push_back({1, "", 0, 0});
-
-		timeTxt.init(this, &outTimeText);
 
 		char bufAnimal[NANIMAL][100];
 
@@ -806,7 +805,7 @@ class HuntGame : public BaseProject {
 		}
 
 		txt.init(this, &outText);
-		
+		timeTxt.init(this, &outTimeText);
 		animalTxt.init(this, &outAnimalText);
 		
 
@@ -999,7 +998,7 @@ class HuntGame : public BaseProject {
 					currAnimalIndex --;
 					if (aliveAnimals == 0) {
 						currScene = GAMEWIN;
-						currTimeIndex = GAMEDURATION;
+						currTimeIndex = 0;
 					}
 					RebuildPipeline();
 				}
@@ -1134,7 +1133,7 @@ class HuntGame : public BaseProject {
 		
 		if(autoTime) {
 			cTime = cTime + deltaT;
-			cTime = (cTime > turnTime) ? (cTime - turnTime) : cTime;
+			// cTime = (cTime > turnTime) ? (cTime - turnTime) : cTime;
 		}
 
 		static float tTime = 0.0;
@@ -1413,6 +1412,8 @@ class HuntGame : public BaseProject {
 					aliveAnimals = NANIMAL;
 					startTime = cTime;
 					currAnimalIndex = NANIMAL;
+					lastTime = 0.0f;
+					currTimeIndex = GAMEDURATION;
 					RebuildPipeline();
 				}
 				std::cout << "Scene : " << currScene << "\n";
@@ -1446,17 +1447,19 @@ class HuntGame : public BaseProject {
 		if (currScene==MATCH) {
 
 			currTime = cTime - startTime;
-			currTimeIndex = (int) currTime;
 
 			if (currTime > lastTime + 1.0f) {
+				std::cout << "currTimet: " << currTime << "\n";
+				std::cout << "lastTime: " << lastTime << "\n";
+				currTimeIndex = GAMEDURATION - (int) currTime;
 				lastTime = currTime;
 				RebuildPipeline();
 			}
 			if (currTime > (float) GAMEDURATION) {
-				currTimeIndex = GAMEDURATION;
+				currTimeIndex = 0;
 				currAnimalIndex = 0;
 				currScene = GAMEOVER;
-				lastTime = 0.0f;
+				// lastTime = 0.0f;
 				RebuildPipeline();
 			}
 		}
