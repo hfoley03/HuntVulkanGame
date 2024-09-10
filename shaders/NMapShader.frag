@@ -62,7 +62,7 @@ void main() {
     vec3 perturbedNormal = normalize(nMap * 2.0 - 1.0);
 
     vec3 Norm = normalize(perturbedNormal * tbn);
-
+    Norm = normalize(fragNorm);
     vec3 EyeDir = normalize(gubo.eyePos - fragPos);
     
     float ambientIntensity = mix(0.005f, 0.09f, (gubo.ambient + 1.0f) * 0.5f);
@@ -70,14 +70,14 @@ void main() {
     vec3 Ambient = textureColor * ambientIntensity;
 
     float cosThetaI, sinThetaI, cosThetaR, sinThetaR;
-    calculateLightingAngles(Norm, -gubo.lightDir, cosThetaI, sinThetaI);
-    calculateLightingAngles(Norm, gubo.lightDir, cosThetaR, sinThetaR);
+    calculateLightingAngles(Norm, gubo.lightDir, cosThetaI, sinThetaI);
+    calculateLightingAngles(Norm, -gubo.lightDir, cosThetaR, sinThetaR);
 
     vec3 Diffuse = calcDiffuse(textureColor, ambientIntensity, cosThetaI, cosThetaR, sinThetaI, sinThetaR);
     vec3 sunLight = Diffuse * gubo.dayLightColor.rgb;
     
-    calculateLightingAngles(Norm, gubo.lightDir, cosThetaI, sinThetaI);
-    calculateLightingAngles(Norm, -gubo.lightDir, cosThetaR, sinThetaR);
+    calculateLightingAngles(Norm, -gubo.lightDir, cosThetaI, sinThetaI);
+    calculateLightingAngles(Norm, gubo.lightDir, cosThetaR, sinThetaR);
 
     vec3 DiffuseNight = calcDiffuse(textureColor, ambientIntensity, cosThetaI, cosThetaR, sinThetaI, sinThetaR);
 
