@@ -1851,6 +1851,7 @@ std::cout << "Starting createInstance()\n"  << std::flush;
 
     const float MOUSE_RES = 2.0f;
     glfwSetInputMode(window, GLFW_STICKY_MOUSE_BUTTONS, GLFW_TRUE);
+	glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
 
     r.y = m_dx / MOUSE_RES;
     r.x = m_dy / MOUSE_RES;
