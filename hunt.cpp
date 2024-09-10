@@ -63,6 +63,9 @@ std::vector<SingleText> outText = {
 		"Press <ESC> to exit."}, 0, 0},
 };
 
+std::vector<SingleText> outTimeText;
+std::vector<SingleText> outAnimalText;
+
 // THE NUMBER OF INSTANCES OF ANIMALS, VEGITATION/ROCKS, STRUCTURES
 #define NANIMAL 40
 #define NVEGROCK 80
@@ -87,9 +90,6 @@ std::vector<SingleText> outText = {
 // #define C_OUT 0.5401793718338013
 #define C_IN 0.99
 #define C_OUT 0.97
-
-std::vector<SingleText> outTimeText;
-std::vector<std::string> textStorage;
 
 struct BlinnUniformBufferObject {
 	alignas(16) glm::mat4 mvpMat;
@@ -291,7 +291,7 @@ class HuntGame : public BaseProject {
 	Pipeline PBlinn, POren, PEmission, PHUD, PskyBox, PNMAp;
 
 	// Scenes and texts
-    TextMaker txt, timeTxt;
+    TextMaker txt, timeTxt, animalTxt;
     
     // Models
     Model MAx,Msun, Mmoon, Mground, MCrosshair, MScope, MskyBox, MMenuScreen, MGun, MBall, MTower;
@@ -337,6 +337,7 @@ class HuntGame : public BaseProject {
 	float currTime = 0.0f;
 	float lastTime = 0.0f;
 	int currTimeIndex = GAMEDURATION;
+	int currAnimalIndex = 0;
 	// float dayCyclePhase = 3.0f *M_PI/2.0f;
 		
 	glm::vec3 CamPos = glm::vec3(0.0, 0.1, 5.0);
@@ -784,19 +785,33 @@ class HuntGame : public BaseProject {
 
 		std::cout << "Initializing text\n";
 
-		char buf[GAMEDURATION][100];
+		char bufTime[GAMEDURATION][100];
 
 		for (int i = 0; i < GAMEDURATION; i++) {
 			
-			strcpy(buf[i], "Time left: ");
-			strcat(buf[i], std::to_string(GAMEDURATION - i).c_str());
-			strcat(buf[i], " seconds");
-        	outTimeText.push_back({1, buf[i], 0, 0});	
+			strcpy(bufTime[i], "Time left: ");
+			strcat(bufTime[i], std::to_string(GAMEDURATION - i).c_str());
+			strcat(bufTime[i], " seconds");
+        	outTimeText.push_back({1, bufTime[i], 0, 0});	
 		}
 		outTimeText.push_back({1, "", 0, 0});
 
-		txt.init(this, &outText);
 		timeTxt.init(this, &outTimeText);
+
+		char bufAnimal[NANIMAL][100];
+
+		outAnimalText.push_back({3, {"", "", ""}, 0, 0});
+		for (int i = 1; i <= NANIMAL; i++) {
+			
+			strcpy(bufAnimal[i], "Animals left: ");
+			strcat(bufAnimal[i], std::to_string(i).c_str());
+        	outAnimalText.push_back({3, {"", "", bufAnimal[i]}, 0, 0});	
+		}
+
+		txt.init(this, &outText);
+		
+		animalTxt.init(this, &outAnimalText);
+		
 
 		std::cout << "Initialization completed!\n";
 		std::cout << "Uniform Blocks in the Pool  : " << DPSZs.uniformBlocksInPool << "\n";
@@ -852,6 +867,7 @@ class HuntGame : public BaseProject {
 
 		txt.pipelinesAndDescriptorSetsInit();	
 		timeTxt.pipelinesAndDescriptorSetsInit();
+		animalTxt.pipelinesAndDescriptorSetsInit();
 
 		std::cout << "Descriptor Set init!\n";
 
@@ -896,6 +912,7 @@ class HuntGame : public BaseProject {
         };
 		txt.pipelinesAndDescriptorSetsCleanup();
 		timeTxt.pipelinesAndDescriptorSetsCleanup();
+		animalTxt.pipelinesAndDescriptorSetsCleanup();
 
         std::cout << "Descriptor Set cleanup!\n";
 
@@ -965,6 +982,7 @@ class HuntGame : public BaseProject {
 
 		txt.localCleanup();	
 		timeTxt.localCleanup();	
+		animalTxt.localCleanup();
 	}
 	
 	// Here it is the creation of the command buffer:
@@ -980,8 +998,10 @@ class HuntGame : public BaseProject {
 					std::cout<< "Sphere HIT" << std::endl;
 					animals[index].visible = false;
 					aliveAnimals--;
+					currAnimalIndex --;
 					if (aliveAnimals == 0) {
 						currScene = GAMEWIN;
+						currTimeIndex = GAMEDURATION;
 					}
 					RebuildPipeline();
 				}
@@ -1092,6 +1112,7 @@ class HuntGame : public BaseProject {
 
 		txt.populateCommandBuffer(commandBuffer, currentImage, currScene);
 		timeTxt.populateCommandBuffer(commandBuffer, currentImage, currTimeIndex);
+		animalTxt.populateCommandBuffer(commandBuffer, currentImage, currAnimalIndex);
 	}
 
 	// Here is where you update the uniforms.
@@ -1393,6 +1414,7 @@ class HuntGame : public BaseProject {
 					}
 					aliveAnimals = NANIMAL;
 					startTime = cTime;
+					currAnimalIndex = NANIMAL;
 					RebuildPipeline();
 				}
 				std::cout << "Scene : " << currScene << "\n";
@@ -1434,8 +1456,9 @@ class HuntGame : public BaseProject {
 			}
 			if (currTime > (float) GAMEDURATION) {
 				currTimeIndex = GAMEDURATION;
-				lastTime = 0.0f;
+				currAnimalIndex = 0;
 				currScene = GAMEOVER;
+				lastTime = 0.0f;
 				RebuildPipeline();
 			}
 		}
