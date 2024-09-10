@@ -19,9 +19,6 @@ layout(set = 0, binding = 0) uniform GlobalUniformBufferObject {
     float beta;
     float cIn;
     float cOut;
-    vec3 lightDirArray[1];
-	vec3 lightPos[1];
-	vec4 lightColor[1];
 } gubo;
 
 layout(set = 1, binding = 2) uniform BlinnParUniformBufferObject {
@@ -43,6 +40,7 @@ vec3 calcDiffuse(vec3 norm, vec3 lightDir, vec3 textureColor, float ambientInten
     float diffuseFactor = max(dot(norm, lightDir), 0.0);
     return textureColor * (1.0 - ambientIntensity) * diffuseFactor;
 }
+
 
 void main() {
     vec3 norm = normalize(fragNorm);
@@ -73,18 +71,8 @@ void main() {
     vec3 pointDiffuse = calcDiffuse(norm, pointLightDir, textureColor, ambientIntensity);
     vec3 pointSpecular = calcSpecular(norm, pointLightDir, eyeDir, mubo.Pow);
     vec3 pointLight = (pointDiffuse + pointSpecular) * spotlightEffect * pointLightColor;
-
-    // other point light
-    pointLightDir = normalize(gubo.lightDirArray[0] - fragPos);
-    distanceFactor = pow(gubo.gFactor / length(gubo.lightPos[0] - fragPos), gubo.beta);
-    pointLightColor = distanceFactor *2 * gubo.lightColor[0].rbg;
-    spotlightEffect = clamp((dot(pointLightDir, -gubo.userDir) - gubo.cOut) / (gubo.cIn - gubo.cOut), 0.0, 1.0);
     
-    pointDiffuse = calcDiffuse(norm, pointLightDir, textureColor, ambientIntensity);
-    pointSpecular = calcSpecular(norm, pointLightDir, eyeDir, mubo.Pow);
+    vec3 finalColor = sunlight + moonlight + pointLight + ambient ;
 
-    vec3 pointLightTower1 = (pointDiffuse + pointSpecular) * spotlightEffect * pointLightColor;
-
-    vec3 finalColor = sunlight + moonlight + pointLight + ambient + pointLightTower1;
     outColor = vec4(finalColor, 1.0f);
 }

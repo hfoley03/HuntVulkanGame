@@ -70,14 +70,14 @@ void main() {
     vec3 Ambient = textureColor * ambientIntensity;
 
     float cosThetaI, sinThetaI, cosThetaR, sinThetaR;
-    calculateLightingAngles(Norm, gubo.lightDir, cosThetaI, sinThetaI);
-    calculateLightingAngles(Norm, -gubo.lightDir, cosThetaR, sinThetaR);
+    calculateLightingAngles(Norm, -gubo.lightDir, cosThetaI, sinThetaI);
+    calculateLightingAngles(Norm, gubo.lightDir, cosThetaR, sinThetaR);
 
     vec3 Diffuse = calcDiffuse(textureColor, ambientIntensity, cosThetaI, cosThetaR, sinThetaI, sinThetaR);
     vec3 sunLight = Diffuse * gubo.dayLightColor.rgb;
     
-    calculateLightingAngles(Norm, -gubo.lightDir, cosThetaI, sinThetaI);
-    calculateLightingAngles(Norm, gubo.lightDir, cosThetaR, sinThetaR);
+    calculateLightingAngles(Norm, gubo.lightDir, cosThetaI, sinThetaI);
+    calculateLightingAngles(Norm, -gubo.lightDir, cosThetaR, sinThetaR);
 
     vec3 DiffuseNight = calcDiffuse(textureColor, ambientIntensity, cosThetaI, cosThetaR, sinThetaI, sinThetaR);
 
