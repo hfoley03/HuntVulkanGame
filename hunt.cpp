@@ -309,7 +309,7 @@ class HuntGame : public BaseProject {
 	// DescriptorSet DSGameOver;
 
    // Textures
-	Texture T1, Tanimal, TGun, TGrass, Tsun, Tmoon, Tground, TCrosshair, TskyBox, Tstars, TMenuScreen;
+	Texture T1, Tanimal, TGun, TGrass, Tsun, Tmoon, Tground, TCrosshair, TskyBox, Tstars, TMenuScreen, TScope;
 	Texture TTowerNMap;
 	Texture TTowerDiff;
 	Texture TStructures[4];
@@ -597,7 +597,8 @@ class HuntGame : public BaseProject {
         TGun.init(this, "textures/gun.png");
         TGrass.init(this, "textures/grass1.jpg");
 		TTowerNMap.init(this, "textures/Tower_Nor.jpg", VK_FORMAT_R8G8B8A8_UNORM);
-		TTowerDiff.init(this, "textures/Tower_Col.jpg");		
+		TTowerDiff.init(this, "textures/Tower_Col.jpg");	
+		TScope.init(this, "textures/scope.png");	
 		
 		// TMenuScreen.init(this, "textures/startmenu_background.jpg");
 		// TGameOver.init(this, "textures/gameover_background.png");
@@ -818,7 +819,7 @@ class HuntGame : public BaseProject {
 		DSground.init(this, &DSLBlinn, {&TGrass});
         DSAx.init(this, &DSLBlinn, {&T1});
         DSCrosshair.init(this, &DSLHUD, {&TCrosshair});
-		DSScope.init(this, &DSLHUD, {&TGun});
+		DSScope.init(this, &DSLHUD, {&TScope});
 		DSskyBox.init(this, &DSLskyBox, {&TskyBox, &Tstars});
 		DSGun.init(this, &DSLBlinn, {&TGun});
 		DSMenuScreen.init(this, &DSLHUD, {&TMenuScreen});
@@ -900,6 +901,7 @@ class HuntGame : public BaseProject {
 
 	void localCleanup() {	
 		TTowerNMap.cleanup();
+		TScope.cleanup();
 		Tsun.cleanup();
 		Tmoon.cleanup();
 		Tground.cleanup();
