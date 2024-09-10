@@ -327,7 +327,7 @@ class HuntGame : public BaseProject {
 	int mmm = 0;
 
 	// Other application parameters
-	int currScene = 0;
+	int currScene = STARTMENU;
 	int subpass = 0;
 	int aliveAnimals = NANIMAL;
 	float startTime = 0.0f;
@@ -1405,7 +1405,7 @@ class HuntGame : public BaseProject {
 				debounce = true;
 				curDebounce = GLFW_KEY_ENTER;
 
-				if (currScene == STARTMENU || GAMEOVER || GAMEWIN) {
+				if (currScene != MATCH) {
 					currScene = MATCH;
 					for (int index = 0; index < NANIMAL; index++) {
 						animals[index].visible = true;
@@ -1450,13 +1450,16 @@ class HuntGame : public BaseProject {
 			currTime = cTime - startTime;
 
 			if (currTime > lastTime + UPDATETIME) {
-				std::cout << "currTimet: " << currTime << "\n";
-				std::cout << "lastTime: " << lastTime << "\n";
+				// std::cout << "currTimet: " << currTime << "\n";
+				// std::cout << "lastTime: " << lastTime << "\n";
 				currTimeIndex = GAMEDURATION - (int) currTime;
 				lastTime = currTime;
 				RebuildPipeline();
 			}
 			if (currTime > (float) GAMEDURATION) {
+
+				// std::cout << "currTimet: " << currTime << "\n";
+				// std::cout << "lastTime: " << lastTime << "\n";
 				currTimeIndex = 0;
 				currAnimalIndex = 0;
 				currScene = GAMEOVER;
