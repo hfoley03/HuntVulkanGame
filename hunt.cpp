@@ -6,6 +6,7 @@
 #include "utils.hpp"
 #include <cstdlib> 
 #include <ctime>
+#include <string>
 
 bool isDebugMode = false;
 float dayCyclePhase;
@@ -62,18 +63,6 @@ std::vector<SingleText> outText = {
 		"Press <ESC> to exit."}, 0, 0},
 };
 
-// std::vector<SingleText> outText = {
-// 	{4, {"Welcome user!!",
-// 		"",
-// 		"This is a hunting game where your current goal is to catch all of the animals in the shortest time possible.",
-// 		"Whenever you're ready, press ‹ENTER> to start the game!"}, 0, 0},
-// 	{0, {"","","",""}, 0, 0},
-// 	{4, {"Well done, you found all the animals in the map!!",
-// 		"You have completed your task in 0 minutes and 0 seconds.",
-// 		"Press <ENTER> to start a new game.",
-// 		"Press <ESC> to exit."}, 0, 0},
-// };
-
 // THE NUMBER OF INSTANCES OF ANIMALS, VEGITATION/ROCKS, STRUCTURES
 #define NANIMAL 40
 #define NVEGROCK 80
@@ -87,7 +76,7 @@ std::vector<SingleText> outText = {
 #define GAMEWIN 2
 #define GAMEOVER 3
 
-#define GAMEDURATION 60.0f
+#define GAMEDURATION 120	// seconds
 #define ZOUT_ROT_SPEED glm::radians(120.0f);
 #define ZIN_ROT_SPEED glm::radians(60.0f);
 
@@ -98,6 +87,9 @@ std::vector<SingleText> outText = {
 // #define C_OUT 0.5401793718338013
 #define C_IN 0.99
 #define C_OUT 0.97
+
+std::vector<SingleText> outTimeText;
+std::vector<std::string> textStorage;
 
 struct BlinnUniformBufferObject {
 	alignas(16) glm::mat4 mvpMat;
@@ -299,7 +291,7 @@ class HuntGame : public BaseProject {
 	Pipeline PBlinn, POren, PEmission, PHUD, PskyBox, PNMAp;
 
 	// Scenes and texts
-    TextMaker txt;
+    TextMaker txt, timeTxt;
     
     // Models
     Model MAx,Msun, Mmoon, Mground, MCrosshair, MScope, MskyBox, MMenuScreen, MGun, MBall, MTower;
@@ -341,7 +333,10 @@ class HuntGame : public BaseProject {
 	int currScene = 0;
 	int subpass = 0;
 	int aliveAnimals = NANIMAL;
-	float startTime;
+	float startTime = 0.0f;
+	float currTime = 0.0f;
+	float lastTime = 0.0f;
+	int currTimeIndex = GAMEDURATION;
 	// float dayCyclePhase = 3.0f *M_PI/2.0f;
 		
 	glm::vec3 CamPos = glm::vec3(0.0, 0.1, 5.0);
@@ -788,7 +783,20 @@ class HuntGame : public BaseProject {
 		DPSZs.setsInPool = 500;
 
 		std::cout << "Initializing text\n";
+
+		char buf[GAMEDURATION][100];
+
+		for (int i = 0; i < GAMEDURATION; i++) {
+			
+			strcpy(buf[i], "Time left: ");
+			strcat(buf[i], std::to_string(GAMEDURATION - i).c_str());
+			strcat(buf[i], " seconds");
+        	outTimeText.push_back({1, buf[i], 0, 0});	
+		}
+		outTimeText.push_back({1, "", 0, 0});
+
 		txt.init(this, &outText);
+		timeTxt.init(this, &outTimeText);
 
 		std::cout << "Initialization completed!\n";
 		std::cout << "Uniform Blocks in the Pool  : " << DPSZs.uniformBlocksInPool << "\n";
@@ -842,7 +850,8 @@ class HuntGame : public BaseProject {
 			
 		DSGlobal.init(this, &DSLGlobal, {});
 
-		txt.pipelinesAndDescriptorSetsInit();		
+		txt.pipelinesAndDescriptorSetsInit();	
+		timeTxt.pipelinesAndDescriptorSetsInit();
 
 		std::cout << "Descriptor Set init!\n";
 
@@ -886,6 +895,7 @@ class HuntGame : public BaseProject {
             DSBall.cleanup();
         };
 		txt.pipelinesAndDescriptorSetsCleanup();
+		timeTxt.pipelinesAndDescriptorSetsCleanup();
 
         std::cout << "Descriptor Set cleanup!\n";
 
@@ -953,7 +963,8 @@ class HuntGame : public BaseProject {
 		PHUD.destroy();
 		PskyBox.destroy();
 
-		txt.localCleanup();		
+		txt.localCleanup();	
+		timeTxt.localCleanup();	
 	}
 	
 	// Here it is the creation of the command buffer:
@@ -1080,6 +1091,7 @@ class HuntGame : public BaseProject {
 
 
 		txt.populateCommandBuffer(commandBuffer, currentImage, currScene);
+		timeTxt.populateCommandBuffer(commandBuffer, currentImage, currTimeIndex);
 	}
 
 	// Here is where you update the uniforms.
@@ -1405,12 +1417,30 @@ class HuntGame : public BaseProject {
 		glm::mat4 ViewPrj =  M * Mv;
 		glm::mat4 baseTr = glm::mat4(1.0f);		
 
-		ray = calculateRayFromScreenCenter(Mv, M);
+		ray = calculateRayFromScreenCenter(Mv, M);	
 
-		if (currScene==MATCH && (cTime - startTime > GAMEDURATION)) {
-			currScene = GAMEOVER;
-			RebuildPipeline();
+		
+
+		
+
+		if (currScene==MATCH) {
+
+			currTime = cTime - startTime;
+			currTimeIndex = (int) currTime;
+
+			if (currTime > lastTime + 1.0f) {
+				lastTime = currTime;
+				RebuildPipeline();
+			}
+			if (currTime > (float) GAMEDURATION) {
+				currTimeIndex = GAMEDURATION;
+				lastTime = 0.0f;
+				currScene = GAMEOVER;
+				RebuildPipeline();
+			}
 		}
+
+		
 
 		// updates global uniforms
 		// Global
