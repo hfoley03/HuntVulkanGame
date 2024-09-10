@@ -144,10 +144,6 @@ struct GlobalUniformBufferObject {
 	alignas(4) float beta;
 	alignas(4) float cIn;
 	alignas(4) float cOut;
-	struct { alignas(16) glm::vec3 v;} lightDirArray[1];
-	struct { alignas(16) glm::vec3 v;} lightPos[1];
-	alignas(16) glm::vec4 lightColor[1];
-
 };
 
 struct SkyBoxUniformBufferObject {
@@ -313,7 +309,7 @@ class HuntGame : public BaseProject {
 	// DescriptorSet DSGameOver;
 
    // Textures
-	Texture T1, Tanimal, TGun, TGrass, Tsun, Tmoon, Tground, TCrosshair, TskyBox, Tstars, TMenuScreen;
+	Texture T1, Tanimal, TGun, TGrass, Tsun, Tmoon, Tground, TCrosshair, TskyBox, Tstars, TMenuScreen, TScope;
 	Texture TTowerNMap;
 	Texture TTowerDiff;
 	Texture TStructures[4];
@@ -602,7 +598,8 @@ class HuntGame : public BaseProject {
         TGun.init(this, "textures/gun.png");
         TGrass.init(this, "textures/grass1.jpg");
 		TTowerNMap.init(this, "textures/Tower_Nor.jpg", VK_FORMAT_R8G8B8A8_UNORM);
-		TTowerDiff.init(this, "textures/Tower_Col.jpg");		
+		TTowerDiff.init(this, "textures/Tower_Col.jpg");	
+		TScope.init(this, "textures/scope.png");	
 		
 		// TMenuScreen.init(this, "textures/startmenu_background.jpg");
 		// TGameOver.init(this, "textures/gameover_background.png");
@@ -837,7 +834,7 @@ class HuntGame : public BaseProject {
 		DSground.init(this, &DSLBlinn, {&TGrass});
         DSAx.init(this, &DSLBlinn, {&T1});
         DSCrosshair.init(this, &DSLHUD, {&TCrosshair});
-		DSScope.init(this, &DSLHUD, {&TGun});
+		DSScope.init(this, &DSLHUD, {&TScope});
 		DSskyBox.init(this, &DSLskyBox, {&TskyBox, &Tstars});
 		DSGun.init(this, &DSLBlinn, {&TGun});
 		DSMenuScreen.init(this, &DSLHUD, {&TMenuScreen});
@@ -921,6 +918,7 @@ class HuntGame : public BaseProject {
 
 	void localCleanup() {	
 		TTowerNMap.cleanup();
+		TScope.cleanup();
 		Tsun.cleanup();
 		Tmoon.cleanup();
 		Tground.cleanup();
@@ -1130,7 +1128,7 @@ class HuntGame : public BaseProject {
 		static float autoTime = true;
 		static float cTime = 0.0;
 		float turnTime = 72.0f * 10.0f;
-		if (isDebugMode)
+		if (!isDebugMode)
 			turnTime = 72.0f;
 		const float angTurnTimeFact = 2.0f * M_PI / turnTime;
 		
@@ -1520,14 +1518,6 @@ class HuntGame : public BaseProject {
 		gubo.cIn = C_IN;
 		gubo.cOut = C_OUT;
 
-		for(int i = 0; i <1; i++) {
-			gubo.lightColor[i] = glm::vec4(1.0f, 0.0f, 0.0f, 1.0f);
-			gubo.lightDirArray[i].v = glm::vec3(0.0f, -1.0f, 0.0f);
-			//gubo.lightPos[i].v = glm::vec3(towerPos.x, 1.0f, towerPos.y + i);
-			gubo.lightPos[i].v = glm::vec3(0.0f, 1.0f, 0.0f);
-
-		}
-
 		DSGlobal.map(currentImage, &gubo, 0);
 
 		EmissionUniformBufferObject emissionUbo{};
@@ -1646,7 +1636,7 @@ class HuntGame : public BaseProject {
 	                                           (ray.origin + ray.direction * (10.0f + 20.0f*sin(cTime)))) 
 	 											* glm::rotate(glm::mat4(1.0f), glm::radians(90.0f),glm::vec3(1.0f, 0.0f, 0.0f))
 	 											* glm::rotate(glm::scale(glm::mat4(1), glm::vec3(0.1,0.1,0.1)), glm::radians(instance.angle),glm::vec3(0.0f, 0.0f, 1.0f)) * baseTr;
-	        	blinnUbo.mvpMat = ViewPrj * blinnUbo.mMat;
+				blinnUbo.mvpMat = ViewPrj * blinnUbo.mMat;
 	        	blinnUbo.nMat = glm::inverse(glm::transpose(blinnUbo.mMat));
 	            DSBalls[model].map(currentImage, &blinnUbo, 0);
 				blinnMatParUbo.Power = 2000.0;

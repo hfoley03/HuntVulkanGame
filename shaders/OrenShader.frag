@@ -19,9 +19,6 @@ layout(set = 0, binding = 0) uniform GlobalUniformBufferObject {
 	float beta;
 	float cIn;
 	float cOut;
-    vec3 lightDirArray[1];
-	vec3 lightPos[1];
-	vec4 lightColor[1];
 } gubo;
 
 layout(set = 1, binding = 2) uniform BlinnParUniformBufferObject {
