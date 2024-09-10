@@ -19,6 +19,8 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/quaternion.hpp>
 #include <glm/gtx/transform2.hpp>
+
+
 float randomFloat(float min, float max) {
     float random = static_cast<float>(std::rand()) / static_cast<float>(RAND_MAX);
     return min + random * (max - min);
@@ -93,8 +95,7 @@ bool checkCollision(glm::vec3 playerPos, float playerRad, glm::vec3 objectPos, f
 	return distSquared < radSummedSquared;
 }
 
-
-
 void printVec3(glm::vec3 vecThree){
     std::cout << "Vec3 Values: " << vecThree.x << ", " << vecThree.y << ", " << vecThree.z << "\n";
 }
+

@@ -4,6 +4,7 @@
 #include "modules/Starter.hpp"
 #include "modules/TextMaker.hpp"
 #include "utils.hpp"
+#include "objectInstances.hpp"
 #include <cstdlib> 
 #include <ctime>
 #include <string>
@@ -200,22 +201,6 @@ struct skyBoxVertex {
 	glm::vec3 pos;
 };
 
-
-// class used to create instances of an object
-class Instance {
-public:
-    glm::vec3 pos;      // Instance position
-    int modelID;        // Model ID used to get the model of the object
-    glm::vec3 scale;    // Scale
-    float angle;        // Angle for rotation
-    std::string desc;   // Description of the instance
-    bool visible = true;
-	float angle2 = 0.0f;
-
-    Instance(const glm::vec3& position, int id, const glm::vec3& scl, float ang, const std::string& description)
-        : pos(position), modelID(id), scale(scl), angle(ang), desc(description) {}
-};
-
 void generateScopeVertices(std::vector<HUDVertex>& vertices, const glm::vec2& center, float radius, int segmentCount, float Ar) {
     // four screen corners
 	std::vector<HUDVertex> quadVertices = {
@@ -276,6 +261,11 @@ void generateScopeIndices(std::vector<unsigned int>& indices, int segmentCount) 
     }
 }
 
+    std::vector<Instance> balls;
+    std::vector<Instance> vegRocks; 
+    std::vector<Instance> structures;
+    std::vector<Instance> animals;
+
 // MAIN ! 
 class HuntGame : public BaseProject {
 	protected:
@@ -296,11 +286,6 @@ class HuntGame : public BaseProject {
 	Model MVegRocks[12], MStructures[4], MAnimals[10];
 
 	glm::vec3 towerPos = glm::vec3(-23.0f, 0.0f, 24.0f);
-
-    std::vector<Instance> balls;
-    std::vector<Instance> vegRocks; 
-    std::vector<Instance> structures;
-    std::vector<Instance> animals;
 
     // Descriptor Sets
 	DescriptorSet DSGlobal, DSAx, DSCrosshair, DSScope, DSsun, DSmoon, DSground, DSskyBox, DSGun, DSMenuScreen, DSTower;
@@ -492,7 +477,6 @@ class HuntGame : public BaseProject {
 		MGun.init(this, &VDBlinn, "models/gun.obj", OBJ);
 		MTower.init(this, &VDNMap, "models/structure/tower.gltf", GLTF);
 
-        
         MAnimals[0].init(this, &VDBlinn, "models/animals/rhinoceros_001.mgcg", MGCG);
         MAnimals[1].init(this, &VDBlinn, "models/animals/tiger_001.mgcg", MGCG);
         MAnimals[2].init(this, &VDBlinn, "models/animals/wolf_002.mgcg", MGCG);
@@ -521,8 +505,6 @@ class HuntGame : public BaseProject {
         MStructures[1].init(this, &VDBlinn, "models/structure/fence.obj", OBJ);
         MStructures[2].init(this, &VDBlinn, "models/structure/fence.obj", OBJ);
         MStructures[3].init(this, &VDBlinn, "models/structure/woodhouse.obj", OBJ);
-
-		
 
 		// building up vertices and indices for HUD crosshairs to use
     	int mainStride = sizeof(HUDVertex);  
@@ -617,158 +599,12 @@ class HuntGame : public BaseProject {
 		Tstars.init(this, "textures/bluecloud_up.jpg");
 
 
-		//corner rocks
-        vegRocks.emplace_back(glm::vec3(70.0f, -1.0f, -70.0f), 4, glm::vec3(1.5f, 3.0f, 1.5f), 120.0f, "Top Right");
-        vegRocks.emplace_back(glm::vec3(-70.0f, -3.0f, -70.0f), 4, glm::vec3(2.0f, 3.3f, 2.0f), 120.0f, "Top Left");
-        vegRocks.emplace_back(glm::vec3(70.0f, -1.0f, 70.0f), 4, glm::vec3(2.0f, 2.5f, 2.0f), 120.0f, "Back Right");
-        vegRocks.emplace_back(glm::vec3(-70.0f, -1.0f, 70.0f), 4, glm::vec3(2.5f, 3.5f, 2.5f), 120.0f, "Back Left");
-        
-        // Rocks around perimeter 
-        float dist = 10.0f;
-        float prev_dist = -60.0f;
-        for(int i = 0; i < 12; i++){
-        	float scaler = 5.0f + randomFloat(-1.0f, 2.0f);
-	        vegRocks.emplace_back(glm::vec3(prev_dist + dist, 0.0f, -60.0f + randomFloat(-10.0f, 10.0f)), (int)randomFloat(8.0f, 11.0f), glm::vec3(scaler, scaler+ randomFloat(0.0f, 2.0f), scaler), randomFloat(0.0f, 360.0f), "rock");
-	        prev_dist = prev_dist + dist;
-        }
-        
-        prev_dist = -60.0f;
-        for(int i = 0; i < 12; i++){
-        	float scaler = 5.0f + randomFloat(-1.0f, 2.0f);
-	        vegRocks.emplace_back(glm::vec3(prev_dist + dist, 0.0f, 60.0f + randomFloat(-10.0f, 10.0f)), (int)randomFloat(8.0f, 11.0f), glm::vec3(scaler, scaler+ randomFloat(0.0f, 2.0f), scaler), randomFloat(0.0f, 360.0f), "rock");
-	        prev_dist = prev_dist + dist;
-        }
+		// from objectInstances
+		placeVegRocks(vegRocks);
+		placeAnimals(animals);
+		placeStructures(structures);
 
-        prev_dist = -60.0f;
-        for(int i = 0; i < 12; i++){
-        	float scaler = 5.0f + randomFloat(-1.0f, 2.0f);
-	        vegRocks.emplace_back(glm::vec3( 60.0f + randomFloat(-10.0f, 10.0f) , 0.0f, prev_dist + dist), (int)randomFloat(8.0f, 11.0f), glm::vec3(scaler, scaler+ randomFloat(0.0f, 2.0f), scaler), randomFloat(0.0f, 360.0f), "rock");
-	        prev_dist = prev_dist + dist;
-        }
-
-        prev_dist = -60.0f;
-        for(int i = 0; i < 12; i++){
-        	float scaler = 5.0f + randomFloat(-1.0f, 2.0f);
-	        vegRocks.emplace_back(glm::vec3( -60.0f + randomFloat(-10.0f, 10.0f) , 0.0f, prev_dist + dist), (int)randomFloat(8.0f, 11.0f), glm::vec3(scaler, scaler + randomFloat(0.0f, 2.0f), scaler), randomFloat(0.0f, 360.0f), "rock");
-	        prev_dist = prev_dist + dist;
-        }
-
-        // TREES
-        vegRocks.emplace_back(glm::vec3(40.0f, 0.0f, -32.0f), 1, glm::vec3(1.0f, 1.0f, 1.0f), 0.0f, "Tree");
-        vegRocks.emplace_back(glm::vec3(20.0f, 0.0f, -29.0f), 3, glm::vec3(1.0f, 1.0f, 1.0f), 0.0f, "Tree");
-        vegRocks.emplace_back(glm::vec3(10.0f, 0.0f, -30.0f), 1, glm::vec3(1.0f, 1.0f, 1.0f), 0.0f, "Tree");
-        vegRocks.emplace_back(glm::vec3(-5.0f, 0.0f, -38.0f), 2, glm::vec3(1.0f, 1.0f, 1.0f), 0.0f, "Tree");
-        vegRocks.emplace_back(glm::vec3(-22.0f, 0.0f, -25.0f), 3, glm::vec3(1.0f, 1.0f, 1.0f), 0.0f, "Tree");
-
-        vegRocks.emplace_back(glm::vec3(-43.0f, 0.0f, -40.0f), 1,glm::vec3(1.0f, 1.0f, 1.0f), 0.0f, "Tree");
-
-        vegRocks.emplace_back(glm::vec3(-33.0f, 0.0f, -30.0f), 2,glm::vec3(1.0f, 1.0f, 1.0f), 0.0f, "Tree");
-        vegRocks.emplace_back(glm::vec3(-23.0f, 0.0f, -10.0f), 1,glm::vec3(1.5f, 2.0f, 1.5f), 0.0f, "Tree");
-        vegRocks.emplace_back(glm::vec3(-40.0f, 0.0f, 	6.0f), 3,glm::vec3(1.0f, 1.0f, 1.0f), 0.0f, "Tree");
-        vegRocks.emplace_back(glm::vec3(-30.0f, 0.0f, 14.0f), 2,glm::vec3(1.0f, 1.0f, 1.0f), 0.0f, "Tree");
-
-        vegRocks.emplace_back(glm::vec3(-38.0f, 0.0f, 40.0f), 1,glm::vec3(1.0f, 1.0f, 1.0f), 180.0f, "Tree");
-
-        vegRocks.emplace_back(glm::vec3(-18.0f, 0.0f, 40.0f), 3,glm::vec3(1.0f, 1.0f, 1.0f), 180.0f, "Tree");
-        vegRocks.emplace_back(glm::vec3( 0.0f, 0.0f, 20.0f), 2,glm::vec3(1.0f, 1.0f, 1.0f), 180.0f, "Tree");
-        vegRocks.emplace_back(glm::vec3( 8.0f, 0.0f, 33.0f), 3,glm::vec3(1.0f, 1.0f, 1.0f), 180.0f, "Tree");
-        vegRocks.emplace_back(glm::vec3( 22.0f, 0.0f, 41.0f), 2,glm::vec3(1.0f, 1.0f, 1.0f), 180.0f, "Tree");
-
-        vegRocks.emplace_back(glm::vec3(40.0f, 0.0f, 20.0f), 1, glm::vec3(1.0f, 1.0f, 1.0f), 90.0f, "Tree");
-
-        vegRocks.emplace_back(glm::vec3(30.0f, 0.0f, -30.0f), 2,glm::vec3(1.0f, 1.0f, 1.0f), 0.0f, "Tree");
-        vegRocks.emplace_back(glm::vec3(43.0f, 0.0f, -10.0f), 1,glm::vec3(1.5f, 2.0f, 1.5f), 0.0f, "Tree");
-        vegRocks.emplace_back(glm::vec3(23.0f, 0.0f, 	6.0f), 3,glm::vec3(1.0f, 1.0f, 1.0f), 0.0f, "Tree");
-        vegRocks.emplace_back(glm::vec3(43.0f, 0.0f, 14.0f), 2,glm::vec3(1.0f, 1.0f, 1.0f), 0.0f, "Tree");
-
-		// three trees 1 rock
-		vegRocks.emplace_back(glm::vec3(5.0f, 0.0f, -5.0f), 1, glm::vec3(1.0f, 1.0f, 1.0f), 0.0f, "Tree");
-		vegRocks.emplace_back(glm::vec3(2.0f, 0.0f, -2.0f), 1, glm::vec3(1.0f, 1.0f, 1.0f), 0.0f, "Tree");
-		vegRocks.emplace_back(glm::vec3(4.0f, 0.0f, -1.0f), 2, glm::vec3(1.0f, 1.0f, 1.0f), 0.0f, "Tree");
-		vegRocks.emplace_back(glm::vec3(3.0f, 0.0f, -3.0f), 10, glm::vec3(1.50f, 3.0f, 1.5f), 0.0f, "Tree");
-
-		vegRocks.emplace_back(glm::vec3(-10.0f, -1.0f, -5.0f), 3, glm::vec3(1.0f, 1.0f, 1.0f), 120.0f, "Tree");
-		vegRocks.emplace_back(glm::vec3(-13.0f, -2.0f, -5.0f), 3, glm::vec3(1.0f, 1.0f, 1.0f), 120.0f, "Tree");
-		vegRocks.emplace_back(glm::vec3(-11.0f, 0.0f, -8.0f), 3, glm::vec3(1.0f, 1.0f, 1.0f), 120.0f, "Tree");
-
-		vegRocks.emplace_back(glm::vec3( 15.0f, -2.0f, 10.0f), 5, glm::vec3(1.0f, 1.0f, 1.0f), 120.0f, "Rock");
-
-        /// STRUCTURES
-
-
-		// Fences 
-		for(int i = 0; i < 34; i++){
-			structures.emplace_back(glm::vec3(-40.0f +  2.5f*i, 0.0f, -40.0f), 1, glm::vec3(0.01f, 0.01f, 0.01f), -90.0f, "fence1");
-		}
-		for(int i = 0; i < 34; i++){
-			structures.emplace_back(glm::vec3(-40.0f +  2.5f*i, 0.0f, 45.0f), 1, glm::vec3(0.01f, 0.01f, 0.01f), -90.0f, "fence1"); //direction of spawning
-		}
-		for(int i = 0; i < 34; i++){
-			structures.emplace_back(glm::vec3(43.0, 0.0f, -38.0f +  2.5f*i), 1, glm::vec3(0.01f, 0.01f, 0.01f), -90.0f, "fence2");
-			structures[68+i].angle2 = 90.0f;
-		}	
-		for(int i = 0; i < 34; i++){
-			structures.emplace_back(glm::vec3(-40.0, 0.0f, -37.6f +  2.5f*i), 1, glm::vec3(0.01f, 0.01f, 0.01f), -90.0f, "fence2");
-			structures[102+i].angle2 = 90.0f;
-		}		
-
-        //structures.emplace_back(glm::vec3(0.0f, 0.0f, 10.0f), 3, glm::vec3(1.0f, 1.0f, 1.0f), 0.0f, "Cottage");
-        //structures.emplace_back(glm::vec3(10.0f, 0.0f, -10.0f), 3, glm::vec3(1.0f, 1.0f, 1.0f), 0.0f, "House");
-        structures.emplace_back(glm::vec3(4.0f, 0.0f, -10.0f), 2, glm::vec3(0.01f, 0.01f, 0.01f), 0.0f, "lightpole");
-        //structures.emplace_back(glm::vec3(5.5f, 0.0f, -10.0f), 1, glm::vec3(0.01f, 0.01f, 0.01f), -90.0f, "fence");
-
-        //ANIMALS
-
-
-		animals.emplace_back(glm::vec3(2.0f, 0.0f, 10.0f), 0, glm::vec3(1.0f, 1.0f, 1.0f), randomFloat(0.0f, 360.0f), "animal");
-		animals.emplace_back(glm::vec3(5.0f, 0.0f, 30.0f), 1, glm::vec3(1.0f, 1.0f, 1.0f), randomFloat(0.0f, 360.0f), "animal");
-		animals.emplace_back(glm::vec3(7.0f, 0.0f, 6.0f), 2, glm::vec3(1.0f, 1.0f, 1.0f), randomFloat(0.0f, 360.0f), "animal");
-		animals.emplace_back(glm::vec3(9.0f, 0.0f, 20.0f), 3, glm::vec3(1.0f, 1.0f, 1.0f), randomFloat(0.0f, 360.0f), "animal");
-		animals.emplace_back(glm::vec3(11.0f, 0.0f, 0.0f), 4, glm::vec3(1.0f, 1.0f, 1.0f), randomFloat(0.0f, 360.0f), "animal");
-
-		animals.emplace_back(glm::vec3(14.0f, 0.0f, 5.0f), 5, glm::vec3(1.0f, 1.0f, 1.0f), randomFloat(0.0f, 360.0f), "animal");
-		animals.emplace_back(glm::vec3(25.0f, 0.0f, 14.0f), 6, glm::vec3(1.0f, 1.0f, 1.0f), randomFloat(0.0f, 360.0f), "animal");
-		animals.emplace_back(glm::vec3(37.0f, 0.0f, 30.0f), 7, glm::vec3(1.0f, 1.0f, 1.0f), randomFloat(0.0f, 360.0f), "animal");
-		animals.emplace_back(glm::vec3(19.0f, 0.0f, 20.0f), 8, glm::vec3(1.0f, 1.0f, 1.0f), randomFloat(0.0f, 360.0f), "animal");
-		animals.emplace_back(glm::vec3(31.0f, 0.0f, 09.0f), 9, glm::vec3(1.0f, 1.0f, 1.0f), randomFloat(0.0f, 360.0f), "animal");
-
-		animals.emplace_back(glm::vec3(-38.0f, 0.0f, 20.0f), 0, glm::vec3(1.0f, 1.0f, 1.0f), randomFloat(0.0f, 360.0f), "animal");
-		animals.emplace_back(glm::vec3(-5.0f, 0.0f, 30.0f), 1, glm::vec3(1.0f, 1.0f, 1.0f), randomFloat(0.0f, 360.0f), "animal");
-		animals.emplace_back(glm::vec3(-17.0f, 0.0f, 6.0f), 2, glm::vec3(1.0f, 1.0f, 1.0f), randomFloat(0.0f, 360.0f), "animal");
-		animals.emplace_back(glm::vec3(-9.0f, 0.0f, 20.0f), 3, glm::vec3(1.0f, 1.0f, 1.0f), randomFloat(0.0f, 360.0f), "animal");
-		animals.emplace_back(glm::vec3(-11.0f, 0.0f, 0.0f), 4, glm::vec3(1.0f, 1.0f, 1.0f), randomFloat(0.0f, 360.0f), "animal");
-
-		animals.emplace_back(glm::vec3(-39.0f, 0.0f, 5.0f), 5, glm::vec3(1.0f, 1.0f, 1.0f), randomFloat(0.0f, 360.0f), "animal");
-		animals.emplace_back(glm::vec3(-25.0f, 0.0f, 14.0f), 6, glm::vec3(1.0f, 1.0f, 1.0f), randomFloat(0.0f, 360.0f), "animal");
-		animals.emplace_back(glm::vec3(-37.0f, 0.0f, 33.0f), 7, glm::vec3(1.0f, 1.0f, 1.0f), randomFloat(0.0f, 360.0f), "animal");
-		animals.emplace_back(glm::vec3(-19.0f, 0.0f, 38.0f), 8, glm::vec3(1.0f, 1.0f, 1.0f), randomFloat(0.0f, 360.0f), "animal");
-		animals.emplace_back(glm::vec3(-31.0f, 0.0f, 09.0f), 9, glm::vec3(1.0f, 1.0f, 1.0f), randomFloat(0.0f, 360.0f), "animal");
-
-		animals.emplace_back(glm::vec3(-10.0f, 0.0f, -22.0f), 4, glm::vec3(1.0f, 1.0f, 1.0f), randomFloat(0.0f, 360.0f), "animal");
-		animals.emplace_back(glm::vec3(-25.0f, 0.0f, -30.0f), 3, glm::vec3(1.0f, 1.0f, 1.0f), randomFloat(0.0f, 360.0f), "animal");
-		animals.emplace_back(glm::vec3(-37.0f, 0.0f, -6.0f), 2, glm::vec3(1.0f, 1.0f, 1.0f), randomFloat(0.0f, 360.0f), "animal");
-		animals.emplace_back(glm::vec3(-19.0f, 0.0f, -22.0f), 1, glm::vec3(1.0f, 1.0f, 1.0f), randomFloat(0.0f, 360.0f), "animal");
-		animals.emplace_back(glm::vec3(-31.0f, 0.0f, -10.0f), 0, glm::vec3(1.0f, 1.0f, 1.0f), randomFloat(0.0f, 360.0f), "animal");
-
-		animals.emplace_back(glm::vec3(-39.0f, 0.0f, -15.0f), 9, glm::vec3(1.0f, 1.0f, 1.0f), randomFloat(0.0f, 360.0f), "animal");
-		animals.emplace_back(glm::vec3(-25.0f, 0.0f, -4.0f), 8, glm::vec3(1.0f, 1.0f, 1.0f), randomFloat(0.0f, 360.0f), "animal");
-		animals.emplace_back(glm::vec3(-37.0f, 0.0f, -13.0f), 7, glm::vec3(1.0f, 1.0f, 1.0f), randomFloat(0.0f, 360.0f), "animal");
-		animals.emplace_back(glm::vec3(-19.0f, 0.0f, -28.0f), 6, glm::vec3(1.0f, 1.0f, 1.0f), randomFloat(0.0f, 360.0f), "animal");
-		animals.emplace_back(glm::vec3(-31.0f, 0.0f, -19.0f), 5, glm::vec3(1.0f, 1.0f, 1.0f), randomFloat(0.0f, 360.0f), "animal");
-
-		animals.emplace_back(glm::vec3(10.0f, 0.0f, -32.0f), 4, glm::vec3(1.0f, 1.0f, 1.0f), randomFloat(0.0f, 360.0f), "animal");
-		animals.emplace_back(glm::vec3(25.0f, 0.0f, -30.0f), 3, glm::vec3(1.0f, 1.0f, 1.0f), randomFloat(0.0f, 360.0f), "animal");
-		animals.emplace_back(glm::vec3(37.0f, 0.0f, -26.0f), 2, glm::vec3(1.0f, 1.0f, 1.0f), randomFloat(0.0f, 360.0f), "animal");
-		animals.emplace_back(glm::vec3(19.0f, 0.0f, -22.0f), 1, glm::vec3(1.0f, 1.0f, 1.0f), randomFloat(0.0f, 360.0f), "animal");
-		animals.emplace_back(glm::vec3(31.0f, 0.0f, -10.0f), 0, glm::vec3(1.0f, 1.0f, 1.0f), randomFloat(0.0f, 360.0f), "animal");
-
-		animals.emplace_back(glm::vec3(29.0f, 0.0f, 15.0f), 9, glm::vec3(1.0f, 1.0f, 1.0f), randomFloat(0.0f, 360.0f), "animal");
-		animals.emplace_back(glm::vec3(35.0f, 0.0f, 4.0f), 8, glm::vec3(1.0f, 1.0f, 1.0f), randomFloat(0.0f, 360.0f), "animal");
-		animals.emplace_back(glm::vec3(7.0f, 0.0f, 13.0f), 7, glm::vec3(1.0f, 1.0f, 1.0f), randomFloat(0.0f, 360.0f), "animal");
-		animals.emplace_back(glm::vec3(19.0f, 0.0f, 28.0f), 6, glm::vec3(1.0f, 1.0f, 1.0f), randomFloat(0.0f, 360.0f), "animal");
-		animals.emplace_back(glm::vec3(36.0f, 0.0f, 19.0f), 5, glm::vec3(1.0f, 1.0f, 1.0f), randomFloat(0.0f, 360.0f), "animal");
-
-        // balls for visualiing ray
+        // balls used for debugging
         for(int i = 0; i < NBALLS; i ++){
 	        balls.emplace_back(glm::vec3(0.0f + i, 0.0f, 0.0f), i, glm::vec3(0.1f, 0.1f, 0.1f), 0.0f, "ball");
         }
@@ -799,7 +635,6 @@ class HuntGame : public BaseProject {
 
 		outAnimalText.push_back({3, {"", "", ""}, 0, 0});
 		for (int i = 1; i <= NANIMAL; i++) {
-			
 			strcpy(bufAnimal[i], "Animals left: ");
 			strcat(bufAnimal[i], std::to_string(i).c_str());
         	outAnimalText.push_back({3, {"", "", bufAnimal[i]}, 0, 0});	
@@ -809,7 +644,6 @@ class HuntGame : public BaseProject {
 		timeTxt.init(this, &outTimeText);
 		animalTxt.init(this, &outAnimalText);
 		
-
 		std::cout << "Initialization completed!\n";
 		std::cout << "Uniform Blocks in the Pool  : " << DPSZs.uniformBlocksInPool << "\n";
 		std::cout << "Textures in the Pool        : " << DPSZs.texturesInPool << "\n";
@@ -841,7 +675,6 @@ class HuntGame : public BaseProject {
 		DSTower.init(this, &DSLNMap, {&TTowerDiff, &TTowerNMap});
 
 		// DSGameOver.init(this, &DSLHUD, {&TGameOver});
-
 
         for (DescriptorSet &DSAnimal: DSAnimals) {
             DSAnimal.init(this, &DSLBlinn, {&Tanimal});
@@ -928,6 +761,8 @@ class HuntGame : public BaseProject {
         TGun.cleanup();	
 		TMenuScreen.cleanup();
 		TTowerDiff.cleanup();
+		TskyBox.cleanup();
+		Tstars.cleanup();
 		// TGameOver.cleanup();
 
         for (Texture &Tstruct: TStructures) {
@@ -944,6 +779,8 @@ class HuntGame : public BaseProject {
         MGun.cleanup();
 		MMenuScreen.cleanup();
 		MTower.cleanup();
+		MskyBox.cleanup();
+
 		// MGameOver.cleanup();
 
         for (Model &MAnimal: MAnimals) {
@@ -956,11 +793,7 @@ class HuntGame : public BaseProject {
             MStructure.cleanup();
         }
 
-		TskyBox.cleanup();
-		Tstars.cleanup();
-		MskyBox.cleanup();
 		
-
 		// Cleanup descriptor set layouts
 		DSLBlinn.cleanup();
 		DSLNMap.cleanup();
@@ -987,7 +820,7 @@ class HuntGame : public BaseProject {
 	// You send to the GPU all the objects you want to draw,
 	// with their buffers and textures
 
-	void soShootMe(){
+	void shootGun(){
 				::printVec3(ray.direction);
 		float t0, t1;
 		for (int index = 0; index < NANIMAL; index++) {
@@ -1309,22 +1142,7 @@ class HuntGame : public BaseProject {
 								
 				// Shoots only during the match
 				if (currScene == MATCH) {
-					soShootMe();
-					// ::printVec3(ray.origin);
-					// float t0, t1;
-					// for (int index = 0; index < NANIMAL; index++) {
-					// 	if(animals[index].visible){
-					// 		if(rayIntersectsSphere(ray.origin, ray.direction, animals[index].pos, 0.5, t0, t1)){ 
-					// 			std::cout<< "Sphere HIT" << std::endl;
-					// 			animals[index].visible = false;
-					// 			aliveAnimals--;
-					// 			if (aliveAnimals == 0) {
-					// 				currScene = GAMEWIN;
-					// 			}
-					// 			RebuildPipeline();
-					// 		}
-					// 	}
-					// }
+					shootGun();
 				}
 			}
 		} else {
@@ -1438,12 +1256,7 @@ class HuntGame : public BaseProject {
 		glm::mat4 Mv = ViewMatrix;
 		glm::mat4 ViewPrj =  M * Mv;
 		glm::mat4 baseTr = glm::mat4(1.0f);		
-
 		ray = calculateRayFromScreenCenter(Mv, M);	
-
-		
-
-		
 
 		if (currScene==MATCH) {
 
@@ -1467,8 +1280,6 @@ class HuntGame : public BaseProject {
 				RebuildPipeline();
 			}
 		}
-
-		
 
 		// updates global uniforms
 		// Global
@@ -1665,13 +1476,10 @@ class HuntGame : public BaseProject {
 		// VEG ROCKs
         for (int model = 0; model < NVEGROCK; model++) {
         	const Instance& instance = vegRocks[model];
-
  			orenUbo.mMat = glm::translate(glm::mat4(1.0f),
                                            instance.pos) 
  											* glm::rotate(glm::mat4(1.0f), glm::radians(0.0f),glm::vec3(1.0f, 0.0f, 0.0f))
  											* glm::rotate(glm::scale(glm::mat4(1), instance.scale), glm::radians(instance.angle),glm::vec3(0.0f, 1.0f, 0.0f)) * baseTr;
-
-
         	orenUbo.mvpMat = ViewPrj * orenUbo.mMat;
         	orenUbo.nMat = glm::inverse(glm::transpose(orenUbo.mMat));
 
@@ -1679,7 +1487,7 @@ class HuntGame : public BaseProject {
         	DSVegRocks[model].map(currentImage, &orenMatParUbo, 2);
         }
 
-				NMapUniformBufferObject nmapUbo{};
+		NMapUniformBufferObject nmapUbo{};
 		NMapMatParUniformBufferObject nmapMatParUbo{};
 
         nmapUbo.mMat = glm::mat4(1);
