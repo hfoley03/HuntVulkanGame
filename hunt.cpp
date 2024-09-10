@@ -80,6 +80,7 @@ std::vector<SingleText> outAnimalText;
 #define GAMEOVER 3
 
 #define GAMEDURATION 120	// seconds
+#define UPDATETIME 10.0f		// seconds
 #define ZOUT_ROT_SPEED glm::radians(120.0f);
 #define ZIN_ROT_SPEED glm::radians(60.0f);
 
@@ -1448,7 +1449,7 @@ class HuntGame : public BaseProject {
 
 			currTime = cTime - startTime;
 
-			if (currTime > lastTime + 1.0f) {
+			if (currTime > lastTime + UPDATETIME) {
 				std::cout << "currTimet: " << currTime << "\n";
 				std::cout << "lastTime: " << lastTime << "\n";
 				currTimeIndex = GAMEDURATION - (int) currTime;
