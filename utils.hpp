@@ -27,16 +27,12 @@ float randomFloat(float min, float max) {
 }
 
 bool rayIntersectsSphere(const glm::vec3& rayOrigin, const glm::vec3& rayDirection, const glm::vec3& sphereCenter, float sphereRadius, float& t0, float& t1) {
-    glm::vec3 L = glm::vec3(sphereCenter.x, sphereCenter.y + 0.25f, sphereCenter.z) - rayOrigin;
-    float tca = glm::dot(L, rayDirection);
-    float d2 = glm::dot(L, L) - tca * tca;
+    glm::vec3 L = glm::vec3(sphereCenter.x, sphereCenter.y + 0.25f, sphereCenter.z) - rayOrigin;  // ray to sph vec
+    float tca = glm::dot(L, rayDirection); // projection of L onto ray, dist along ray to closest point to sph centre
+    float d2 = glm::dot(L, L) - tca * tca; //pythag
     float radius2 = sphereRadius * sphereRadius;
-    if (d2 > radius2) return false;
-    float thc = sqrt(radius2 - d2);
-    t0 = tca - thc;
-    t1 = tca + thc;
+    return d2 <= radius2; //pythag condition met
 
-    return true;
 }
 
 struct Ray {
