@@ -9,63 +9,13 @@
 #include <ctime>
 #include <string>
 
-bool isDebugMode = false;
-float dayCyclePhase;
+bool isDebugMode = false;	// Debug mode
+float dayCyclePhase;		// Starting moment of the day
 
-std::vector<SingleText> outText = {
-	{16, {"Welcome user!!",
-		"",
-		"This is a hunting game where your current goal is to catch all of the animals",
-		"in the shortest time possible.",
-		"",
-		"",
-		"You have been given a rifle:",
-		"",
-		"- Press <W, A,S, D> to move",
-		"- Press <SPACE_BAR> or left-click with the mouse to shoot.",
-		"- Press <Z> to zoom in and out.",
-		"- Press <U> to turn on/off the torch.",
-		"- Press the arrow keys or use the mouse to look around and aim at your target.",
-		"",
-		"",
-		"Whenever you're ready, press <ENTER> to start the game!"}, 0, 0},
-	{0, {"","","",""}, 0, 0},
-	{16, {"YOU WIN!!",
-		"",
-		"Well done, you found all the animals in the map!!",
-		"",
-		"You managed to complete your task in the time given.",
-		"",
-		"",
-		"",
-		"",
-		"",
-		"",
-		"",
-		"",
-		"Press <ENTER> to start a new game.",
-		"",
-		"Press <ESC> to exit."}, 0, 0},
-	{16, {"GAMEOVER :(",
-		"",
-		"I'm sorry, but time is up",
-		"",
-		"You didn't manage to completed your task in the time given.",
-		"",
-		"",
-		"",
-		"",
-		"",
-		"",
-		"",
-		"",
-		"Press <ENTER> to start a new game.",
-		"",
-		"Press <ESC> to exit."}, 0, 0},
-};
-
-std::vector<SingleText> outTimeText;
-std::vector<SingleText> outAnimalText;
+// TEXTS
+std::vector<SingleText> outText;		// Menu screen
+std::vector<SingleText> outTimeText;	// Time counter
+std::vector<SingleText> outAnimalText;	// Animal counter
 
 // THE NUMBER OF INSTANCES OF ANIMALS, VEGITATION/ROCKS, STRUCTURES
 #define NANIMAL 40
@@ -80,18 +30,21 @@ std::vector<SingleText> outAnimalText;
 #define GAMEWIN 2
 #define GAMEOVER 3
 
+// GAME PARAMETERS
 #define GAMEDURATION 120	// seconds
-#define UPDATETIME 10.0f		// seconds
+#define UPDATETIME 10.0f	// seconds
+
+// MOVEMENTS
 #define ZOUT_ROT_SPEED glm::radians(120.0f);
 #define ZIN_ROT_SPEED glm::radians(60.0f);
 
 // LIGHTS PARAMETERS
 #define G_FACTOR 1.0f
 #define BETA 0.75f
-// #define C_IN 0.4591524628390111
-// #define C_OUT 0.5401793718338013
 #define C_IN 0.99
 #define C_OUT 0.97
+
+// UNIFORM BUFFERS
 
 struct BlinnUniformBufferObject {
 	alignas(16) glm::mat4 mvpMat;
@@ -166,6 +119,8 @@ struct UniformBufferObject {
     alignas(16) glm::mat4 mMat;
     alignas(16) glm::mat4 nMat;
 };
+
+// VERTEX STRUCTURES
 
 struct BlinnVertex {
 	glm::vec3 pos;
@@ -261,10 +216,10 @@ void generateScopeIndices(std::vector<unsigned int>& indices, int segmentCount) 
     }
 }
 
-    std::vector<Instance> balls;
-    std::vector<Instance> vegRocks; 
-    std::vector<Instance> structures;
-    std::vector<Instance> animals;
+std::vector<Instance> balls;
+std::vector<Instance> vegRocks; 
+std::vector<Instance> structures;
+std::vector<Instance> animals;
 
 // MAIN ! 
 class HuntGame : public BaseProject {
@@ -277,29 +232,24 @@ class HuntGame : public BaseProject {
 
 	Pipeline PBlinn, POren, PEmission, PHUD, PskyBox, PNMAp;
 
-	// Scenes and texts
+	// Texts
     TextMaker txt, timeTxt, animalTxt;
     
     // Models
     Model MAx,Msun, Mmoon, Mground, MCrosshair, MScope, MskyBox, MMenuScreen, MGun, MBall, MTower;
-	// Model MGameOver;
 	Model MVegRocks[12], MStructures[4], MAnimals[10];
 
 	glm::vec3 towerPos = glm::vec3(-23.0f, 0.0f, 24.0f);
 
     // Descriptor Sets
 	DescriptorSet DSGlobal, DSAx, DSCrosshair, DSScope, DSsun, DSmoon, DSground, DSskyBox, DSGun, DSMenuScreen, DSTower;
-
 	DescriptorSet DSAnimals[NANIMAL], DSVegRocks[NVEGROCK], DSStructures[NSTRUCTURES], DSBalls[NBALLS];
-
-	// DescriptorSet DSGameOver;
 
    // Textures
 	Texture T1, Tanimal, TGun, TGrass, Tsun, Tmoon, Tground, TCrosshair, TskyBox, Tstars, TMenuScreen, TScope;
 	Texture TTowerNMap;
 	Texture TTowerDiff;
 	Texture TStructures[4];
-	// Texture TGameOver;
 
 	VkFilter magFilter = VK_FILTER_NEAREST;
 	VkFilter minFilter = VK_FILTER_NEAREST;
@@ -313,14 +263,12 @@ class HuntGame : public BaseProject {
 
 	// Other application parameters
 	int currScene = STARTMENU;
-	int subpass = 0;
 	int aliveAnimals = NANIMAL;
 	float startTime = 0.0f;
 	float currTime = 0.0f;
 	float lastTime = 0.0f;
 	int currTimeIndex = 0;
 	int currAnimalIndex = 0;
-	// float dayCyclePhase = 3.0f *M_PI/2.0f;
 		
 	glm::vec3 CamPos = glm::vec3(0.0, 0.1, 5.0);
 	glm::vec3 PlayerPos = glm::vec3(0.0, 0.1, 5.0);
@@ -390,8 +338,6 @@ class HuntGame : public BaseProject {
     			{0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 0, 1},
 				{1, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(HUDParUniformBufferObject), 1},
 				});
-
-
         
 		// Vertex descriptors
 		VDBlinn.init(this, {
@@ -457,9 +403,7 @@ class HuntGame : public BaseProject {
 		// Pipelines [Shader couples]
 		PBlinn.init(this, &VDBlinn,  "shaders/BlinnVert.spv",    "shaders/BlinnFrag.spv", {&DSLGlobal, &DSLBlinn});
 		POren.init(this, &VDOren,  "shaders/OrenVert.spv",    "shaders/OrenFrag.spv", {&DSLGlobal, &DSLOren});
-		
-		PNMAp.init(this, &VDNMap,  "shaders/NMapVert.spv", "shaders/NMapFrag.spv", {&DSLGlobal, &DSLNMap});
-		
+		PNMAp.init(this, &VDNMap,  "shaders/NMapVert.spv", "shaders/NMapFrag.spv", {&DSLGlobal, &DSLNMap});		
 		PEmission.init(this, &VDEmission,  "shaders/EmissionVert.spv",    "shaders/EmissionFrag.spv", {&DSLEmission});
 		PskyBox.init(this, &VDskyBox, "shaders/SkyBoxVert.spv", "shaders/SkyBoxFrag.spv", {&DSLskyBox});
 		PskyBox.setAdvancedFeatures(VK_COMPARE_OP_LESS_OR_EQUAL, VK_POLYGON_MODE_FILL,
@@ -537,21 +481,15 @@ class HuntGame : public BaseProject {
 		MScope.indices.insert(MScope.indices.end(), indices.begin(), indices.end());
 		MScope.initMesh(this, &VDHUD);
  
-		// Define the 4 vertices of the quad
-		// std::vector<HUDVertex> menuScreenVertices = {
-		//     {{-0.9f, -0.9f}, {0.0f, 0.0f}},  
-		//     {{ 0.9f, -0.9f}, {1.0f, 0.0f}},  
-		//     {{ 0.9f,  0.9f}, {1.0f, 1.0f}},  
-		//     {{-0.9f,  0.9f}, {0.0f, 1.0f}},
-		// };
+		// Menu Screen Model vertices and indices defintion
+
+		// vertices
 		std::vector<HUDVertex> menuScreenVertices = {
 		    {{-1.0f, -1.0f}, {0.0f, 0.0f}},  
 		    {{ 1.0f, -1.0f}, {1.0f, 0.0f}},  
 		    {{ 1.0f,  1.0f}, {1.0f, 1.0f}},  
 		    {{-1.0f,  1.0f}, {0.0f, 1.0f}},
 		};
-
-		// Insert the vertices
 		for (const auto& vertex : menuScreenVertices) {
 		    std::vector<unsigned char> menuScreenVertexData(mainStride, 0);
 		    HUDVertex* MSV_vertex = (HUDVertex*)(&menuScreenVertexData[0]);
@@ -560,15 +498,11 @@ class HuntGame : public BaseProject {
 		    MSV_vertex->UV = vertex.UV;
 		    
 		    MMenuScreen.vertices.insert(MMenuScreen.vertices.end(), menuScreenVertexData.begin(), menuScreenVertexData.end());
-			// MGameOver.vertices.insert(MGameOver.vertices.end(), menuScreenVertexData.begin(), menuScreenVertexData.end());
 		}
-
+		// indices
 		std::vector<unsigned int> msquadIndices = {0, 1, 2, 2, 3, 0};
-
 		MMenuScreen.indices.insert(MMenuScreen.indices.end(), msquadIndices.begin(), msquadIndices.end());
 		MMenuScreen.initMesh(this, &VDHUD);
-		// MGameOver.indices.insert(MGameOver.indices.end(), msquadIndices.begin(), msquadIndices.end());
-		// MGameOver.initMesh(this, &VDHUD);
 
 
         // Create the textures
@@ -583,12 +517,7 @@ class HuntGame : public BaseProject {
 		TTowerNMap.init(this, "textures/Tower_Nor.jpg", VK_FORMAT_R8G8B8A8_UNORM);
 		TTowerDiff.init(this, "textures/Tower_Col.jpg");	
 		TScope.init(this, "textures/scope.png");	
-		
-		// TMenuScreen.init(this, "textures/startmenu_background.jpg");
-		// TGameOver.init(this, "textures/gameover_background.png");
-
 		TMenuScreen.init(this, "textures/black_background.jpg");
-		// TGameOver.init(this, "textures/black_background.jpg");
         
         TStructures[0].init(this, "textures/cottage_diffuse.png");
         TStructures[1].init(this, "textures/fenceDiffuse.jpg");
@@ -617,12 +546,38 @@ class HuntGame : public BaseProject {
 		DPSZs.texturesInPool = 500;
 		DPSZs.setsInPool = 500;
 
+		// Texts initialization
+
 		std::cout << "Initializing text\n";
 
+		// menu screen
+		outText = {
+			{16, {"Welcome user!!", "",
+				"This is a hunting game where your current goal is to catch all of the animals",
+				"in the shortest time possible.", "", "",
+				"You have been given a rifle:", "",
+				"- Press <W, A,S, D> to move",
+				"- Press <SPACE_BAR> to shoot.",
+				"- Press <Z> to zoom in and out.",
+				"- Press <U> to turn on/off the torch.",
+				"- Press the arrow keys or use the mouse to look around and aim at your target.", "", "",
+				"Whenever you're ready, press <ENTER> to start the game!"}, 0, 0},
+			{0, {"","","",""}, 0, 0},
+			{16, {"YOU WIN!!", "",
+				"Well done, you found all the animals in the map!!", "",
+				"You managed to complete your task in the time given.", "", "", "", "", "", "", "", "",
+				"Press <ENTER> to start a new game.", "",
+				"Press <ESC> to exit."}, 0, 0},
+				{16, {"GAMEOVER :(", "",
+				"I'm sorry, but time is up", "",
+				"You didn't manage to completed your task in the time given.", "", "", "", "", "", "", "", "",
+				"Press <ENTER> to start a new game.", "",
+				"Press <ESC> to exit."}, 0, 0},
+		};
+
+		// time counter
 		char bufTime[GAMEDURATION][100];
-
 		outTimeText.push_back({1, "", 0, 0});
-
 		for (int i = 1; i <= GAMEDURATION; i++) {
 			
 			strcpy(bufTime[i], "Time left: ");
@@ -631,8 +586,8 @@ class HuntGame : public BaseProject {
         	outTimeText.push_back({1, bufTime[i], 0, 0});	
 		}
 
+		// animal counter
 		char bufAnimal[NANIMAL][100];
-
 		outAnimalText.push_back({3, {"", "", ""}, 0, 0});
 		for (int i = 1; i <= NANIMAL; i++) {
 			strcpy(bufAnimal[i], "Animals left: ");
@@ -640,6 +595,7 @@ class HuntGame : public BaseProject {
         	outAnimalText.push_back({3, {"", "", bufAnimal[i]}, 0, 0});	
 		}
 
+		// actual initialization
 		txt.init(this, &outText);
 		timeTxt.init(this, &outTimeText);
 		animalTxt.init(this, &outAnimalText);
@@ -654,6 +610,7 @@ class HuntGame : public BaseProject {
 	
 	// Here you create your pipelines and Descriptor Sets!
 	void pipelinesAndDescriptorSetsInit() {
+
 		// This creates a new pipeline (with the current surface), using its shaders
 		PBlinn.create();
 		PNMAp.create();
@@ -706,6 +663,7 @@ class HuntGame : public BaseProject {
 	// Here you destroy your pipelines and Descriptor Sets!
 	// All the object classes defined in Starter.hpp have a method .cleanup() for this purpose
 	void pipelinesAndDescriptorSetsCleanup() {
+
 		// Cleanup pipelines
 		PBlinn.cleanup();
 		PNMAp.cleanup();
@@ -725,8 +683,6 @@ class HuntGame : public BaseProject {
 		DSGun.cleanup();
 		DSTower.cleanup();
 		DSMenuScreen.cleanup();
-		// DSGameOver.cleanup();
-
 
         for (DescriptorSet &DSAnimal: DSAnimals) {
             DSAnimal.cleanup();
@@ -745,7 +701,6 @@ class HuntGame : public BaseProject {
 		animalTxt.pipelinesAndDescriptorSetsCleanup();
 
         std::cout << "Descriptor Set cleanup!\n";
-
 	}
 
 
@@ -763,7 +718,6 @@ class HuntGame : public BaseProject {
 		TTowerDiff.cleanup();
 		TskyBox.cleanup();
 		Tstars.cleanup();
-		// TGameOver.cleanup();
 
         for (Texture &Tstruct: TStructures) {
             Tstruct.cleanup();
@@ -781,8 +735,6 @@ class HuntGame : public BaseProject {
 		MTower.cleanup();
 		MskyBox.cleanup();
 
-		// MGameOver.cleanup();
-
         for (Model &MAnimal: MAnimals) {
             MAnimal.cleanup();
         }
@@ -793,7 +745,6 @@ class HuntGame : public BaseProject {
             MStructure.cleanup();
         }
 
-		
 		// Cleanup descriptor set layouts
 		DSLBlinn.cleanup();
 		DSLNMap.cleanup();
@@ -842,6 +793,7 @@ class HuntGame : public BaseProject {
 	
 	void populateCommandBuffer(VkCommandBuffer commandBuffer, int currentImage) {
 
+		// Oren-Nayar Pipeline
 		POren.bind(commandBuffer);
 		DSGlobal.bind(commandBuffer, POren, 0, currentImage);
 		for (int index = 0; index < NVEGROCK; index++) {
@@ -851,18 +803,15 @@ class HuntGame : public BaseProject {
             vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(MVegRocks[instance.modelID].indices.size()), 1, 0, 0, 0);
         }
 
+		// Normal Map Pipeline
 		PNMAp.bind(commandBuffer);
 		MTower.bind(commandBuffer);
 		DSGlobal.bind(commandBuffer, PNMAp, 0, currentImage);
 		DSTower.bind(commandBuffer, PNMAp, 1, currentImage);
 		vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(MTower.indices.size()), 1, 0, 0, 0);
         
-
-		// binds the pipeline
+		// Blinn Pipeline
 		PBlinn.bind(commandBuffer);
-		// The models (both index and vertex buffers)
-
-		// The descriptor sets, for each descriptor set specified in the pipeline
 		DSGlobal.bind(commandBuffer, PBlinn, 0, currentImage);	// The Global Descriptor Set (Set 0)
 
 		for (int index = 0; index < NANIMAL; index++) {
@@ -871,7 +820,6 @@ class HuntGame : public BaseProject {
             DSAnimals[index].bind(commandBuffer, PBlinn, 1, currentImage);
             vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(MAnimals[instance.modelID].indices.size()), 1, 0, 0, 0);
         }
-
 
 		for (int index = 0; index < NSTRUCTURES; index++) {
 		    const Instance& instance = structures[index];
@@ -901,6 +849,7 @@ class HuntGame : public BaseProject {
 		vkCmdDrawIndexed(commandBuffer,
 				static_cast<uint32_t>(MGun.indices.size()), 1, 0, 0, 0);	
 
+		// Emission Pipeline
 		PEmission.bind(commandBuffer);
 		Msun.bind(commandBuffer);
 		DSsun.bind(commandBuffer, PEmission, 0, currentImage);
@@ -912,12 +861,14 @@ class HuntGame : public BaseProject {
 		vkCmdDrawIndexed(commandBuffer,
 				static_cast<uint32_t>(Mmoon.indices.size()), 1, 0, 0, 0);
 
+		// SkyBox Pipeline
 		PskyBox.bind(commandBuffer);
 		MskyBox.bind(commandBuffer);
 		DSskyBox.bind(commandBuffer, PskyBox, 0, currentImage);
 		vkCmdDrawIndexed(commandBuffer,
 					static_cast<uint32_t>(MskyBox.indices.size()), 1, 0, 0, 0);
 
+		// HUD Pipeline
 		PHUD.bind(commandBuffer);
 		MCrosshair.bind(commandBuffer);
 		DSCrosshair.bind(commandBuffer, PHUD, 0, currentImage);
@@ -934,13 +885,7 @@ class HuntGame : public BaseProject {
 		vkCmdDrawIndexed(commandBuffer,
 				static_cast<uint32_t>(MMenuScreen.indices.size()), 1, 0, 0, 0);
 
-		// MGameOver.bind(commandBuffer);
-		// DSGameOver.bind(commandBuffer, PHUD, 0, currentImage);
-		// vkCmdDrawIndexed(commandBuffer,
-		// 		static_cast<uint32_t>(MGameOver.indices.size()), 1, 0, 0, 0);
-
-
-
+		// Text Pipeline
 		txt.populateCommandBuffer(commandBuffer, currentImage, currScene);
 		timeTxt.populateCommandBuffer(commandBuffer, currentImage, currTimeIndex);
 		animalTxt.populateCommandBuffer(commandBuffer, currentImage, currAnimalIndex);
@@ -949,10 +894,9 @@ class HuntGame : public BaseProject {
 	// Here is where you update the uniforms.
 	// Very likely this will be where you will be writing the logic of your application.
 	void updateUniformBuffer(uint32_t currentImage) {
+
 		static bool debounce = false;
-		static int curDebounce = 0;
-
-
+		static int curDebounce = 0; 
 		float deltaT;
 		glm::vec3 m = glm::vec3(0.0f), r = glm::vec3(0.0f);
 		bool fire = false;
@@ -979,40 +923,38 @@ class HuntGame : public BaseProject {
 			tTime = (tTime > TturnTime) ? (tTime - TturnTime) : tTime;
 		}
 
+		// Day and night cycle through time
 		float dayTime = sin(cTime * angTurnTimeFact + dayCyclePhase);
 		
+		const float MOVE_SPEED = 10.0f;
 		float ROT_SPEED = glm::radians(120.0f);
 
+		// Differnet rotation speeds for zoom in and out
 		if (cameraZoom==zoomOutAngle) {
 			ROT_SPEED = ZOUT_ROT_SPEED;
 		} else {
 			ROT_SPEED = ZIN_ROT_SPEED;
 		}
-
-		const float MOVE_SPEED = 10.0f;
 		
 		static float CamPitch = glm::radians(0.0f);
 		static float CamYaw   = M_PI;
 
 		HUDParUniformBufferObject crosshairParUBO = {};
 		HUDParUniformBufferObject menuScreenParUBO = {};
-		// HUDParUniformBufferObject gameOverParUBO = {};
 
+		// HUD elements transparency
 		crosshairParUBO.alpha = 1.0f;
 		menuScreenParUBO.alpha = 0.9f;
-		// gameOverParUBO.alpha = 0.9f;
 
 		if (currScene == STARTMENU) {
 			
 			crosshairParUBO.visible = false;
 			menuScreenParUBO.visible = true;
-			// gameOverParUBO.visible = false;
 
 		} else if (currScene == MATCH) {
 
 			crosshairParUBO.visible = true;
 			menuScreenParUBO.visible = false;
-			// gameOverParUBO.visible = false;
 			
 			if (!isDebugMode)
 			{
@@ -1113,11 +1055,11 @@ class HuntGame : public BaseProject {
 														* ViewMatrix;
 			}
 			PlayerPos = extractPlayerPositionFromViewMatrix(ViewMatrix);
+
 		} else if (currScene == GAMEOVER || currScene == GAMEWIN) {
 
 			crosshairParUBO.visible = false;
 			menuScreenParUBO.visible = true;
-			// gameOverParUBO.visible = true;
 
 		} else {
 			std::cout << "Error, wrong scene : " << currScene << "\n";
@@ -1131,9 +1073,6 @@ class HuntGame : public BaseProject {
 		}
 
 		DSMenuScreen.map(currentImage, &menuScreenParUBO, 1);
-		// DSGameOver.map(currentImage, &gameOverParUBO, 1);
-
-		static float subpassTimer = 0.0;
 
 		if(glfwGetKey(window, GLFW_KEY_SPACE)) {
 			if(!debounce) {
@@ -1157,7 +1096,7 @@ class HuntGame : public BaseProject {
 			glfwSetWindowShouldClose(window, GL_TRUE);
 		}
 
-	
+		// Zoom in and out
 		if(glfwGetKey(window, GLFW_KEY_Z)) {
 			if(!debounce) {
 				debounce = true;
@@ -1218,6 +1157,7 @@ class HuntGame : public BaseProject {
 			}
 		}
 		
+		// Go to the next scene
 		if(glfwGetKey(window, GLFW_KEY_ENTER)) {
 			if(!debounce) {
 				debounce = true;
@@ -1262,17 +1202,16 @@ class HuntGame : public BaseProject {
 
 			currTime = cTime - startTime;
 
+			// Time counter update
 			if (currTime > lastTime + UPDATETIME) {
-				// std::cout << "currTimet: " << currTime << "\n";
-				// std::cout << "lastTime: " << lastTime << "\n";
+
 				currTimeIndex = GAMEDURATION - (int) currTime;
 				lastTime = currTime;
 				RebuildPipeline();
 			}
+			// game over condition
 			if (currTime > (float) GAMEDURATION) {
 
-				// std::cout << "currTimet: " << currTime << "\n";
-				// std::cout << "lastTime: " << lastTime << "\n";
 				currTimeIndex = 0;
 				currAnimalIndex = 0;
 				currScene = GAMEOVER;
@@ -1284,14 +1223,15 @@ class HuntGame : public BaseProject {
 		// updates global uniforms
 		// Global
 		GlobalUniformBufferObject gubo{};
-		// gubo.lightDir = glm::vec3(cos(glm::radians(135.0f)) * cos(cTime * angTurnTimeFact), sin(glm::radians(135.0f)), cos(glm::radians(135.0f)) * sin(cTime * angTurnTimeFact));
-		gubo.lightDir = glm::vec3(cos(cTime * angTurnTimeFact + dayCyclePhase), dayTime, 0.0f);
 
+		// Direct light parameters
+		gubo.lightDir = glm::vec3(cos(cTime * angTurnTimeFact + dayCyclePhase), dayTime, 0.0f);
 		float intensity = glm::min(0.0f, dayTime);
 		float maxDegree = 0.342f;
 		float dayIntensity = dayTime;
 		float nightIntensity = -dayTime;
 
+		// Day and night intensities update
 		if (dayIntensity > 0.0f) {
 			dayIntensity = 1.0f;
 		} else if (dayIntensity < -maxDegree) {
@@ -1299,7 +1239,6 @@ class HuntGame : public BaseProject {
 		} else {
 			dayIntensity = (dayIntensity + maxDegree) / maxDegree;
 		}
-
 		if (nightIntensity > maxDegree) {
 			nightIntensity = 1.0f;
 		} else if (nightIntensity < -maxDegree) {
@@ -1308,29 +1247,34 @@ class HuntGame : public BaseProject {
 			nightIntensity = (nightIntensity + maxDegree) / (2*maxDegree);
 		}
 		
+		// Sunlight color (with sunset and sunrise)
 		gubo.dayLightColor = glm::vec4(
 			1.0f * dayIntensity, 
 			(0.2f + 0.8f * abs(dayTime)) * dayIntensity, 
 			abs(dayTime * dayIntensity),
 			1.0f
 			);
-		
+		// Moonlight color
 		gubo.nightLightColor = glm::vec4(
 			0.1f * nightIntensity * 0.25f, 
 			0.4f * nightIntensity * 0.25f, 
 			0.4f * nightIntensity * 0.25f, 
 			1.0f
 			);
+
+		// User position and direction (torch light)
 		gubo.eyePos = glm::vec3(glm::inverse(ViewMatrix) * glm::vec4(0, 0, 0, 1));
 		gubo.userDir = extractPlayerDirectionFromViewMatrix(ViewMatrix);
-		gubo.ambient = dayTime;
 
-		// Torch light
+		gubo.ambient = dayTime;		// Dyinamic ambient light
+
+		// Torch light toggle
 		if (isTorchOn)
 			gubo.pointLightColor = glm::vec3(1.0f, 1.0f, 0.3f);	// On
 		else
 			gubo.pointLightColor = glm::vec3(0.0f);				// Off
 
+		// Spotlight paramters
 		gubo.gFactor = G_FACTOR;
 		gubo.beta = BETA;
 		gubo.cIn = C_IN;
@@ -1521,10 +1465,8 @@ int main(int argc, char* argv[]) {
     }
     if (isDebugMode) {
         std::cout << "Running in Debug mode" << std::endl;
-        // Debug-specific code here
     } else {
         std::cout << "Running in Release mode" << std::endl;
-        // Release-specific code here
     }
 	auto now = std::chrono::high_resolution_clock::now();
     auto duration = now.time_since_epoch();
@@ -1532,8 +1474,8 @@ int main(int argc, char* argv[]) {
     srand(seed);
     std::cout << "Seed: " << seed << std::endl;
 
-    // dayCyclePhase = ((float)rand() / RAND_MAX) * (2.0f * M_PI);
-    dayCyclePhase = (1.2 * M_PI);
+    dayCyclePhase = ((float)rand() / RAND_MAX) * (2.0f * M_PI);
+    // dayCyclePhase = (1.2 * M_PI);
 
     std::cout << "dayCyclePhase: " << dayCyclePhase << std::endl;
 	
