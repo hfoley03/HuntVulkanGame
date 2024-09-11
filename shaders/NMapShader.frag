@@ -52,17 +52,18 @@ float calculateSpotlightEffect(vec3 spotLightDir, vec3 norm, vec3 userDir) {
 }
 
 void main() {
-    vec3 N = normalize(fragNorm);
-	
-    vec3 Tan = normalize(fragTan.xyz - N * dot(fragTan.xyz, N));
+	vec3 N = normalize(fragNorm);
+
+	vec3 Tan = normalize(fragTan.xyz - N * dot(fragTan.xyz, N));
 	vec3 Bitan = cross(N, Tan) * fragTan.w;
 	mat3 tbn = mat3(Tan, Bitan, N);
 
     vec3 nMap = texture(texNM, fragUV* mubo.scaleUV).rgb;
-    vec3 perturbedNormal = normalize(nMap * 2.0 - 1.0);
 
-    vec3 Norm = normalize(perturbedNormal * tbn);
-    Norm = normalize(fragNorm);
+    vec3 adjustedNormal = nMap.rgb * 2.0 - vec3(1.0, 1.0, 1.0); 
+    adjustedNormal.y *= -1.0; 
+    vec3 Norm = normalize(tbn * adjustedNormal); 
+
     vec3 EyeDir = normalize(gubo.eyePos - fragPos);
     
     float ambientIntensity = mix(0.005f, 0.09f, (gubo.ambient + 1.0f) * 0.5f);
