@@ -12,9 +12,5 @@ Aiming can be done with or without a scope, and during the night a torch can be 
 ![Alt text](resources/night_screen.jpeg?raw=true "Night time scene")
 ![Alt text](resources/end_screen.jpeg?raw=true "End menu")
 
-#### Nice to haves:
-- Shadows
-- Gun Smoke
-- Animation for animal hit
 
 
