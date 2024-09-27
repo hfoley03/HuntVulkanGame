@@ -1,11 +1,17 @@
 # Computer Graphics Project: Hunting Game 
 ### Harry Foley & Marcello Grati
 
-Idea: simple 3D animal hunting game.
+Simple 3D animal hunting game in Vulkan.
 
 The goal of the game is to hunt all of the animals inside of the map in the time given.
 The user is free to roam around the map, trying to find them all and shooting at them with its rifle.
 Aiming can be done with or without a scope, and during the night a torch can be activated to improve the visibility
+
+## Features 
+
+- Custom shaders implemeneting Blinn-Phong, Oren-Nayar, Normal Mapping and Sky Box techniques
+- Collision Detection
+- Ray-Sphere Intersection for Shooting Mechanics
 
 ![Alt text](resources/start_screen.jpeg?raw=true "Starting menu")
 ![Alt text](resources/day_screen.jpeg?raw=true "Day time scene")
