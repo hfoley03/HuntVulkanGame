@@ -1,5 +1,6 @@
 # Computer Graphics Project: Hunting Game 
 ### Harry Foley & Marcello Grati
+#### Grade Awarded: 30/30 Cum Laude
 
 Simple 3D animal hunting game in Vulkan.
 
@@ -9,7 +10,7 @@ Aiming can be done with or without a scope, and during the night a torch can be 
 
 ## Features 
 
-- Custom shaders implemeneting Blinn-Phong, Oren-Nayar, Normal Mapping and Sky Box techniques
+- Custom shaders implementing Blinn-Phong, Oren-Nayar, Normal Mapping and Sky Box techniques
 - Collision Detection
 - Ray-Sphere Intersection for Shooting Mechanics
 
