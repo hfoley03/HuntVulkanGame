@@ -1,6 +1,6 @@
 #include "modules/Starter.hpp"
 #include "modules/TextMaker.hpp"
-// #include "modules/generateScope.h"
+#include "generateScope.hpp"
 
 #include "utils.hpp"
 #include "objectInstances.hpp"
