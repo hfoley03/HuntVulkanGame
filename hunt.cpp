@@ -2,7 +2,7 @@
 
 // MAIN ! 
 class HuntGame : public BaseProject {
-	protected:
+	private:
 	Ray ray;
 
 	DescriptorSetLayout DSLGlobal, DSLBlinn, DSLOren, DSLEmission, DSLHUD, DSLskyBox, DSLNMap;
@@ -767,8 +767,7 @@ class HuntGame : public BaseProject {
 		if(glfwGetKey(window, GLFW_KEY_SPACE)) {
 			if(!debounce) {
 				debounce = true;
-				curDebounce = GLFW_KEY_SPACE;
-								
+				curDebounce = GLFW_KEY_SPACE;		
 				// Shoots only during the match
 				if (currScene == MATCH) {
 					shootGun();
@@ -878,6 +877,7 @@ class HuntGame : public BaseProject {
 
 		}
 	}
+	
 	// update the uniforms.
 	// game logic
 	void updateUniformBuffer(uint32_t currentImage) {
