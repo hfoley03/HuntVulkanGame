@@ -77,11 +77,11 @@ class HuntGame : public BaseProject {
 		Ar = (float)w / (float)h;
 	}
 	
-	// Here you load and setup all your Vulkan Models and Texutures.
-	// Here you also create your Descriptor set layouts and load the shaders for the pipelines
+	// load Vulkan Models and Texutures.
+	// Descriptor set layouts and load the shaders for the pipelines
 	void localInit() {
-		        std::string correctPath = "/Users/harryfoley/Development/computer_graphics/ProjectHunt/hunt";
-        chdir(correctPath.c_str());  // Change to the correct working directory
+		std::string correctPath = "/Users/harryfoley/Development/computer_graphics/ProjectHunt/hunt";
+        chdir(correctPath.c_str());  
         std::cout << "New working directory set: " << correctPath << std::endl;
 
 		// Descriptor Layouts [what will be passed to the shaders]
@@ -320,17 +320,12 @@ class HuntGame : public BaseProject {
         }
 
 		// Descriptor pool sizes
-		// WARNING!!!!!!!!
-		// Must be set before initializing the text and the scene
-		// Update the number of elements to correctly size the descriptor sets pool
 		DPSZs.uniformBlocksInPool = 600;
 		DPSZs.texturesInPool = 500;
 		DPSZs.setsInPool = 500;
 
 		// Texts initialization
-
 		std::cout << "Initializing text\n";
-
 		// menu screen
 		outText = {
 			{16, {"Welcome user!!", "",
@@ -360,7 +355,6 @@ class HuntGame : public BaseProject {
 		char bufTime[GAMEDURATION][100];
 		outTimeText.push_back({1, "", 0, 0});
 		for (int i = 1; i <= GAMEDURATION; i++) {
-			
 			strcpy(bufTime[i], "Time left: ");
 			strcat(bufTime[i], std::to_string(i).c_str());
 			strcat(bufTime[i], " seconds");
@@ -441,10 +435,8 @@ class HuntGame : public BaseProject {
 
 	}
 
-	// Here you destroy your pipelines and Descriptor Sets!
-	// All the object classes defined in Starter.hpp have a method .cleanup() for this purpose
+	// destroy pipelines and Descriptor Sets
 	void pipelinesAndDescriptorSetsCleanup() {
-
 		// Cleanup pipelines
 		PBlinn.cleanup();
 		PNMAp.cleanup();
@@ -548,8 +540,8 @@ class HuntGame : public BaseProject {
 		animalTxt.localCleanup();
 	}
 	
-	// Here it is the creation of the command buffer:
-	// You send to the GPU all the objects you want to draw,
+	// creation of the command buffer:
+	// send to the GPU all the objects you want to draw,
 	// with their buffers and textures
 
 	void shootGun(){
@@ -672,84 +664,38 @@ class HuntGame : public BaseProject {
 		animalTxt.populateCommandBuffer(commandBuffer, currentImage, currAnimalIndex);
 	}
 
-	// Here is where you update the uniforms.
-	// Very likely this will be where you will be writing the logic of your application.
-	void updateUniformBuffer(uint32_t currentImage) {
-
-		static bool debounce = false;
-		static int curDebounce = 0; 
-		float deltaT;
-		glm::vec3 m = glm::vec3(0.0f), r = glm::vec3(0.0f);
-		bool fire = false;
-		getSixAxis(deltaT, m, r, fire);
-		
-		static float autoTime = true;
-		static float cTime = 0.0;
-		float turnTime = 72.0f * 10.0f;
-		if (!isDebugMode)
-			turnTime = 72.0f;
-		const float angTurnTimeFact = 2.0f * M_PI / turnTime;
-		
-		if(autoTime) {
-			cTime = cTime + deltaT;
-			// cTime = (cTime > turnTime) ? (cTime - turnTime) : cTime;
+	void checkPlayerObjectCollisions(glm::vec3& playerPos, glm::vec3&  firstPlayerPos, glm::vec3& lastPlayerPos){
+		for( auto vegRock : vegRocks){
+			float objRadius = 1.0f;
+			if(vegRock.desc == "Rock"){
+				objRadius = 2.0f;
+			}
+			if (checkCollision(playerPos + firstPlayerPos, 0.5f, vegRock.pos, objRadius)) {
+				//std::cout << "collided" << "\n";
+				//std::cout << vegRocks[index].scale.x << "\n";
+				//std::cout << vegRocks[index].desc << "\n";
+				glm::vec3 collision_direction = glm::normalize( (playerPos + firstPlayerPos) - vegRock.pos);
+				collision_direction = glm::vec3(collision_direction.x, 0.0f, collision_direction.z);
+				float pushback_distance = (2.5f) - glm::length((playerPos + firstPlayerPos) - vegRock.pos);
+				playerPos = lastPlayerPos;  // stick 
+			}					
 		}
-
-		static float tTime = 0.0;
-		const float TturnTime = 60.0f;
-		const float TangTurnTimeFact = 1.0f / TturnTime;
 		
-		if(autoTime) {
-			tTime = tTime + deltaT;
-			tTime = (tTime > TturnTime) ? (tTime - TturnTime) : tTime;
+		if (checkCollision(playerPos + firstPlayerPos, 0.5f,towerPos, 1.3f )) {
+			glm::vec3 collision_direction = glm::normalize( (playerPos + firstPlayerPos) - towerPos);
+			collision_direction = glm::vec3(collision_direction.x, 0.0f, collision_direction.z);
+			float pushback_distance = (2.5f) - glm::length((playerPos + firstPlayerPos) - towerPos);
+			playerPos = lastPlayerPos;  // stick 
 		}
+	}
 
-		// Day and night cycle through time
-		float dayTime = sin(cTime * angTurnTimeFact + dayCyclePhase);
-		
+	void updatePlayerPos(float& CamPitch, float& CamYaw, float deltaT, glm::vec3 m, glm::vec3 r, float ROT_SPEED){
 		const float MOVE_SPEED = 10.0f;
-		float ROT_SPEED = glm::radians(120.0f);
-
-		// Differnet rotation speeds for zoom in and out
-		if (cameraZoom==zoomOutAngle) {
-			ROT_SPEED = ZOUT_ROT_SPEED;
-		} else {
-			ROT_SPEED = ZIN_ROT_SPEED;
-		}
 		
-		static float CamPitch = glm::radians(0.0f);
-		static float CamYaw   = M_PI;
-
-		HUDParUniformBufferObject crosshairParUBO = {};
-		HUDParUniformBufferObject menuScreenParUBO = {};
-
-		// HUD elements transparency
-		crosshairParUBO.alpha = 1.0f;
-		menuScreenParUBO.alpha = 0.9f;
-
-		if (currScene == STARTMENU) {
-			
-			crosshairParUBO.visible = false;
-			menuScreenParUBO.visible = true;
-
-		} else if (currScene == MATCH) {
-
-			crosshairParUBO.visible = true;
-			menuScreenParUBO.visible = false;
-			
-			if (!isDebugMode)
+		if (!isDebugMode)
 			{
 				glm::vec3 FirstPos = glm::vec3(2, 1, 5);
 				glm::vec3 Pos = glm::vec3(0, 0, 0);
-
-				glm::vec3 player_position = Pos + FirstPos;
-
-				float Yaw = 0;
-
-				// static float CamPitch = glm::radians(0.0f);
-				// static float CamYaw   = M_PI;
-				static float CamRoll  = 0.0f;
-
 				static float dampedVelz = 0.0f;
 				static float dampedVelx = 0.0f;
 
@@ -789,30 +735,7 @@ class HuntGame : public BaseProject {
 					Pos = glm::vec3( Pos.x, Pos.y, -44.5f);
 				}
 
-        		for (int index = 51; index < NVEGROCK; index++) {
-					float objRadius = 1.0f;
-					if(vegRocks[index].desc == "Rock"){
-						objRadius = 2.0f;
-					}
-						if (checkCollision(Pos + FirstPos, 0.5f, vegRocks[index].pos, objRadius)) {
-							//std::cout << "collided" << "\n";
-							//std::cout << vegRocks[index].scale.x << "\n";
-							//std::cout << vegRocks[index].desc << "\n";
-							glm::vec3 collision_direction = glm::normalize( (Pos + FirstPos) - vegRocks[index].pos);
-							collision_direction = glm::vec3(collision_direction.x, 0.0f, collision_direction.z);
-							float pushback_distance = (2.5f) - glm::length((Pos + FirstPos) - vegRocks[index].pos);
-							//Pos = Pos + pushback_distance * collision_direction; // bouncy
-							Pos = lastPos;  // stick 
-						}
-				}
-
-				if (checkCollision(Pos + FirstPos, 0.5f,towerPos, 1.3f ) ) {
-							glm::vec3 collision_direction = glm::normalize( (Pos + FirstPos) - towerPos);
-							collision_direction = glm::vec3(collision_direction.x, 0.0f, collision_direction.z);
-							float pushback_distance = (2.5f) - glm::length((Pos + FirstPos) - towerPos);
-							Pos = lastPos;  // stick 
-				}
-
+				checkPlayerObjectCollisions(Pos, FirstPos, lastPos);
 			
 				CamPitch = (CamPitch < -0.25*M_PI ? -0.25*M_PI : (CamPitch > 0.25*M_PI ? 0.25*M_PI : CamPitch));
 
@@ -836,25 +759,11 @@ class HuntGame : public BaseProject {
 														* ViewMatrix;
 			}
 			PlayerPos = extractPlayerPositionFromViewMatrix(ViewMatrix);
+	}
 
-		} else if (currScene == GAMEOVER || currScene == GAMEWIN) {
-
-			crosshairParUBO.visible = false;
-			menuScreenParUBO.visible = true;
-
-		} else {
-			std::cout << "Error, wrong scene : " << currScene << "\n";
-		}
-
-		// Updates descriptor sets
-		DSCrosshair.map(currentImage, &crosshairParUBO, 1);
-
-		if(cameraZoom == zoomInAngle){
-			DSScope.map(currentImage, &crosshairParUBO, 1);
-		}
-
-		DSMenuScreen.map(currentImage, &menuScreenParUBO, 1);
-
+	void handleInput(float cTime, float tTime){
+		static bool debounce = false;
+		static int curDebounce = 0; 
 		if(glfwGetKey(window, GLFW_KEY_SPACE)) {
 			if(!debounce) {
 				debounce = true;
@@ -968,9 +877,90 @@ class HuntGame : public BaseProject {
 		if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS) {
 
 		}
+	}
+	// update the uniforms.
+	// game logic
+	void updateUniformBuffer(uint32_t currentImage) {
+		float deltaT;
+		glm::vec3 m = glm::vec3(0.0f), r = glm::vec3(0.0f);
+		bool fire = false;
+		getSixAxis(deltaT, m, r, fire);
+		
+		static float autoTime = true;
+		static float cTime = 0.0;
+		float turnTime = 72.0f * 10.0f;
+		if (!isDebugMode)
+			turnTime = 72.0f;
+		const float angTurnTimeFact = 2.0f * M_PI / turnTime;
+		
+		if(autoTime) {
+			cTime = cTime + deltaT;
+		}
 
+		static float tTime = 0.0;
+		const float TturnTime = 60.0f;
+		const float TangTurnTimeFact = 1.0f / TturnTime;
+		
+		if(autoTime) {
+			tTime = tTime + deltaT;
+			tTime = (tTime > TturnTime) ? (tTime - TturnTime) : tTime;
+		}
 
-		// Here is where you actually update your uniforms
+		// Day and night cycle through time
+		float dayTime = sin(cTime * angTurnTimeFact + dayCyclePhase);
+		
+		float ROT_SPEED = glm::radians(120.0f);
+
+		// Differnet rotation speeds for zoom in and out
+		if (cameraZoom==zoomOutAngle) {
+			ROT_SPEED = ZOUT_ROT_SPEED;
+		} else {
+			ROT_SPEED = ZIN_ROT_SPEED;
+		}
+		
+		static float CamPitch = glm::radians(0.0f);
+		static float CamYaw   = M_PI;
+
+		HUDParUniformBufferObject crosshairParUBO = {};
+		HUDParUniformBufferObject menuScreenParUBO = {};
+
+		// HUD elements transparency
+		crosshairParUBO.alpha = 1.0f;
+		menuScreenParUBO.alpha = 0.9f;
+
+		if (currScene == STARTMENU) {
+			
+			crosshairParUBO.visible = false;
+			menuScreenParUBO.visible = true;
+
+		} else if (currScene == MATCH) {
+
+			crosshairParUBO.visible = true;
+			menuScreenParUBO.visible = false;
+			
+		updatePlayerPos(CamPitch, CamYaw, deltaT, m, r, ROT_SPEED);
+
+		} else if (currScene == GAMEOVER || currScene == GAMEWIN) {
+
+			crosshairParUBO.visible = false;
+			menuScreenParUBO.visible = true;
+
+		} else {
+			std::cout << "Error, wrong scene : " << currScene << "\n";
+		}
+
+		// Updates descriptor sets
+		DSCrosshair.map(currentImage, &crosshairParUBO, 1);
+
+		if(cameraZoom == zoomInAngle){
+			DSScope.map(currentImage, &crosshairParUBO, 1);
+		}
+
+		DSMenuScreen.map(currentImage, &menuScreenParUBO, 1);
+
+		handleInput(cTime, tTime);
+
+		// update  uniforms
 		glm::mat4 M = glm::perspective(glm::radians(cameraZoom), Ar, 0.1f, 160.0f);
 		M[1][1] *= -1;
 
@@ -996,7 +986,6 @@ class HuntGame : public BaseProject {
 				currTimeIndex = 0;
 				currAnimalIndex = 0;
 				currScene = GAMEOVER;
-				// lastTime = 0.0f;
 				RebuildPipeline();
 			}
 		}
@@ -1232,7 +1221,6 @@ class HuntGame : public BaseProject {
 	}
 };
 
-// This is the main: probably you do not need to touch this!
 int main(int argc, char* argv[]) {
 
     if (argc > 1) { // Check if any arguments are provided
@@ -1256,11 +1244,9 @@ int main(int argc, char* argv[]) {
     std::cout << "Seed: " << seed << std::endl;
 
     dayCyclePhase = ((float)rand() / RAND_MAX) * (2.0f * M_PI);
-    // dayCyclePhase = (1.2 * M_PI);
 
     std::cout << "dayCyclePhase: " << dayCyclePhase << std::endl;
 	
-
     HuntGame app;
 
     try {
