@@ -10,6 +10,7 @@ struct BlinnUniformBufferObject {
 struct BlinnMatParUniformBufferObject {
 	alignas(4) float Power;
 	alignas(4) float scaleUV;
+	alignas(4) float noiseLevel;
 };
 
 struct OrenUniformBufferObject {
@@ -21,6 +22,7 @@ struct OrenUniformBufferObject {
 struct OrenMatParUniformBufferObject {
 	alignas(4)  float Roughness;
 	alignas(4) 	float scaleUV;
+	alignas(4)  float noiseLevel;
 };
 
 struct NMapUniformBufferObject {

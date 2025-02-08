@@ -128,7 +128,7 @@ void HuntGame::localInit() {
 	MAx.init(this, &VDBlinn, "models/axis.obj", OBJ);
 	Msun.init(this, &VDEmission, "models/Sphere.obj", OBJ);
 	Mmoon.init(this, &VDEmission, "models/Sphere.obj", OBJ);
-	Mground.init(this, &VDBlinn, "models/LargePlane.obj", OBJ);
+	Mground.init(this, &VDOren, "models/LargePlane.obj", OBJ);
 	MBall.init(this, &VDBlinn, "models/Sphere.obj", OBJ);
 	MskyBox.init(this, &VDskyBox, "models/SkyBoxCube.obj", OBJ);
 	MGun.init(this, &VDBlinn, "models/gun.obj", OBJ);
@@ -163,7 +163,7 @@ void HuntGame::localInit() {
 	MStructures[2].init(this, &VDBlinn, "models/structure/fence.obj", OBJ);
 	MStructures[3].init(this, &VDBlinn, "models/structure/woodhouse.obj", OBJ);
 
-	// building up vertices and indices for HUD crosshairs to use
+// building up vertices and indices for HUD crosshairs to use
 	int mainStride = sizeof(HUDVertex);  
 	std::vector<HUDVertex> quadVertices = {
 		{{-0.1f, -0.1f}, {0.0f, 0.0f}},  
@@ -223,6 +223,7 @@ void HuntGame::localInit() {
 	Tmoon.init(this, "textures/2k_moon.jpg");
 	Tground.init(this, "textures/2k_sun.jpg");
 	T1.init(this,   "textures/Textures.png");
+	Tgreen.init(this, "textures/greenlighter.png");
 	Tanimal.init(this, "textures/Textures-Animals.png");
 	TCrosshair.init(this, "textures/cros.png");
 	TGun.init(this, "textures/gun.png");
@@ -327,7 +328,8 @@ void HuntGame::pipelinesAndDescriptorSetsInit() {
 	// Here you define the data set
 	DSsun.init(this, &DSLEmission, {&Tsun});
 	DSmoon.init(this, &DSLEmission, {&Tmoon});
-	DSground.init(this, &DSLBlinn, {&TGrass});
+	// DSground.init(this, &DSLBlinn, {&Tgreen});
+	DSground.init(this, &DSLOren, {&Tgreen});
 	DSAx.init(this, &DSLBlinn, {&T1});
 	DSCrosshair.init(this, &DSLHUD, {&TCrosshair});
 	DSScope.init(this, &DSLHUD, {&TScope});
@@ -414,6 +416,7 @@ void HuntGame::localCleanup() {
 	Tmoon.cleanup();
 	Tground.cleanup();
 	T1.cleanup();
+	Tgreen.cleanup();
 	Tanimal.cleanup();
 	TCrosshair.cleanup();
 	TGun.cleanup();	
@@ -475,7 +478,7 @@ void HuntGame::localCleanup() {
 // with their buffers and textures
 void HuntGame::populateCommandBuffer(VkCommandBuffer commandBuffer, int currentImage) {
 
-	// Oren-Nayar Pipeline
+// Oren-Nayar Pipeline
 	POren.bind(commandBuffer);
 	DSGlobal.bind(commandBuffer, POren, 0, currentImage);
 	for (int index = 0; index < NVEGROCK; index++) {
@@ -484,6 +487,11 @@ void HuntGame::populateCommandBuffer(VkCommandBuffer commandBuffer, int currentI
 		DSVegRocks[index].bind(commandBuffer, POren, 1, currentImage);
 		vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(MVegRocks[gameObject.modelID].indices.size()), 1, 0, 0, 0);
 	}
+
+	Mground.bind(commandBuffer);
+	DSground.bind(commandBuffer, POren, 1, currentImage);
+	vkCmdDrawIndexed(commandBuffer,
+			static_cast<uint32_t>(Mground.indices.size()), 1, 0, 0, 0);	
 
 	// Normal Map Pipeline
 	PNMAp.bind(commandBuffer);
@@ -516,10 +524,10 @@ void HuntGame::populateCommandBuffer(VkCommandBuffer commandBuffer, int currentI
 		vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(MBall.indices.size()), 1, 0, 0, 0);
 	}
 
-	Mground.bind(commandBuffer);
-	DSground.bind(commandBuffer, PBlinn, 1, currentImage);
-	vkCmdDrawIndexed(commandBuffer,
-			static_cast<uint32_t>(Mground.indices.size()), 1, 0, 0, 0);	
+	// Mground.bind(commandBuffer);
+	// DSground.bind(commandBuffer, PBlinn, 1, currentImage);
+	// vkCmdDrawIndexed(commandBuffer,
+	// 		static_cast<uint32_t>(Mground.indices.size()), 1, 0, 0, 0);	
 
 	MAx.bind(commandBuffer);
 	DSAx.bind(commandBuffer, PBlinn, 1, currentImage);
@@ -1021,22 +1029,25 @@ void HuntGame::updateUniformBuffer(uint32_t currentImage) {
 	blinnUbo.mvpMat = ViewPrj;
 	blinnMatParUbo.Power = 200.0;
 	blinnMatParUbo.scaleUV = 1.0;
+	blinnMatParUbo.noiseLevel = 0.0;
+
 
 	// AXIS
 	DSAx.map(currentImage, &blinnUbo, 0); 
 	DSAx.map(currentImage, &blinnMatParUbo, 2);
 
 	// GROUND
-	blinnUbo.mMat = glm::translate(glm::scale(glm::mat4(1), glm::vec3(4,1,4)),
-										glm::vec3( 0 , 0, 0)) 
-										* glm::rotate(glm::mat4(1.0f), glm::radians(0.0f),glm::vec3(1.0f, 0.0f, 0.0f)) * baseTr;
-	blinnUbo.mvpMat = ViewPrj * blinnUbo.mMat;
-	blinnUbo.nMat = glm::inverse(glm::transpose(blinnUbo.mMat));
+	// blinnUbo.mMat = glm::translate(glm::scale(glm::mat4(1), glm::vec3(4,1,4)),
+	// 									glm::vec3( 0 , 0, 0)) 
+	// 									* glm::rotate(glm::mat4(1.0f), glm::radians(0.0f),glm::vec3(1.0f, 0.0f, 0.0f)) * baseTr;
+	// blinnUbo.mvpMat = ViewPrj * blinnUbo.mMat;
+	// blinnUbo.nMat = glm::inverse(glm::transpose(blinnUbo.mMat));
 
-	DSground.map(currentImage, &blinnUbo, 0); //DSground
-	blinnMatParUbo.scaleUV = 50.0;
-	blinnMatParUbo.Power = 200000.0;
-	DSground.map(currentImage, &blinnMatParUbo, 2);
+	// DSground.map(currentImage, &blinnUbo, 0); //DSground
+	// blinnMatParUbo.scaleUV = 1.0;
+	// blinnMatParUbo.noiseLevel = 1.0;
+	// blinnMatParUbo.Power = 200000.0;
+	// DSground.map(currentImage, &blinnMatParUbo, 2);
 
 	// GUN
 	glm::mat4 gunModelMatrix = 
@@ -1051,6 +1062,7 @@ void HuntGame::updateUniformBuffer(uint32_t currentImage) {
 
 	blinnMatParUbo.Power = 20.0;
 	blinnMatParUbo.scaleUV = 1.0;
+	blinnMatParUbo.noiseLevel = 0.0;
 
 	if(cameraZoom == zoomOutAngle){
 		DSGun.map(currentImage, &blinnUbo, 0);
@@ -1060,6 +1072,9 @@ void HuntGame::updateUniformBuffer(uint32_t currentImage) {
 	// ANIMALS
 
 	updateLiveAnimals(deltaT);
+
+	blinnMatParUbo.scaleUV = 1.0;
+	blinnMatParUbo.noiseLevel = 0.0;
 
 	for (int model = 0; model < NANIMAL; model++) {
 		const GameObject& gameObject = animals[model];
@@ -1125,7 +1140,7 @@ void HuntGame::updateUniformBuffer(uint32_t currentImage) {
 	orenUbo.mvpMat = ViewPrj;
 	orenMatParUbo.scaleUV = 1.0;
 	orenMatParUbo.Roughness = 0.5;
-
+	orenMatParUbo.noiseLevel = 0.0;
 	// VEG ROCKs
 	for (int model = 0; model < NVEGROCK; model++) {
 		const GameObject& gameObject = vegRocks[model];
@@ -1139,6 +1154,17 @@ void HuntGame::updateUniformBuffer(uint32_t currentImage) {
 		DSVegRocks[model].map(currentImage, &orenUbo, 0);
 		DSVegRocks[model].map(currentImage, &orenMatParUbo, 2);
 	}
+
+	// oren ground
+	orenUbo.mMat = glm::translate(glm::scale(glm::mat4(1), glm::vec3(4,1,4)),
+										glm::vec3( 0 , 0, 0)) 
+										* glm::rotate(glm::mat4(1.0f), glm::radians(0.0f),glm::vec3(1.0f, 0.0f, 0.0f)) * baseTr;
+	orenUbo.mvpMat = ViewPrj * orenUbo.mMat;
+	orenUbo.nMat = glm::inverse(glm::transpose(orenUbo.mMat));
+
+	DSground.map(currentImage, &orenUbo, 0); //DSground
+	orenMatParUbo.noiseLevel = 1.0;
+	DSground.map(currentImage, &orenMatParUbo, 2);
 
 	NMapUniformBufferObject nmapUbo{};
 	NMapMatParUniformBufferObject nmapMatParUbo{};
