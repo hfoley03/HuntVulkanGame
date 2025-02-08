@@ -1,6 +1,5 @@
 #include "hunt.h"
 
-
 void HuntGame::setWindowParameters() {
 	// window size, titile and initial background
 	windowWidth = 800;
@@ -11,7 +10,6 @@ void HuntGame::setWindowParameters() {
 	Ar = (float)windowWidth / (float)windowHeight;
 }
 
-// What to do when the window changes size
 void HuntGame::onWindowResize(int w, int h) {
 	std::cout << "Window resized to: " << w << " x " << h << "\n";
 	Ar = (float)w / (float)h;
@@ -71,7 +69,6 @@ void HuntGame::localInit() {
 				{0, 2, VK_FORMAT_R32G32_SFLOAT, offsetof(BlinnVertex, UV),
 						sizeof(glm::vec2), UV}
 			});
-
 	VDOren.init(this, {
 				{0, sizeof(OrenVertex), VK_VERTEX_INPUT_RATE_VERTEX}
 			}, {
@@ -82,7 +79,6 @@ void HuntGame::localInit() {
 				{0, 2, VK_FORMAT_R32G32_SFLOAT, offsetof(OrenVertex, UV),
 						sizeof(glm::vec2), UV}
 			});
-
 	VDNMap.init(this, {
 				{0, sizeof(NMapVertex), VK_VERTEX_INPUT_RATE_VERTEX}
 			}, {
@@ -93,9 +89,7 @@ void HuntGame::localInit() {
 				{0, 2, VK_FORMAT_R32G32_SFLOAT, offsetof(NMapVertex, UV),
 						sizeof(glm::vec2), UV},
 			{0, 3, VK_FORMAT_R32G32B32A32_SFLOAT, offsetof(NMapVertex, tan), sizeof(glm::vec4), TANGENT}
-
 			});
-
 	VDEmission.init(this, {
 				{0, sizeof(EmissionVertex), VK_VERTEX_INPUT_RATE_VERTEX}
 			}, {
@@ -104,14 +98,12 @@ void HuntGame::localInit() {
 				{0, 1, VK_FORMAT_R32G32_SFLOAT, offsetof(EmissionVertex, UV),
 						sizeof(glm::vec2), UV}
 			});
-
 	VDskyBox.init(this, {
 				{0, sizeof(skyBoxVertex), VK_VERTEX_INPUT_RATE_VERTEX}
 			}, {
 				{0, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(skyBoxVertex, pos),
 						sizeof(glm::vec3), POSITION}
 			});
-
 	VDHUD.init(this, {
 				{0, sizeof(HUDVertex), VK_VERTEX_INPUT_RATE_VERTEX}
 			}, {
@@ -248,8 +240,6 @@ void HuntGame::localInit() {
 	TskyBox.init(this, "textures/starmap_g4k.jpg");
 	Tstars.init(this, "textures/bluecloud_up.jpg");
 
-
-	// from objectInstances
 	placeVegRocks(vegRocks);
 	placeAnimals(animals);
 	placeStructures(structures);
@@ -357,8 +347,8 @@ void HuntGame::pipelinesAndDescriptorSetsInit() {
 	};
 
 	for (int index = 0; index < NSTRUCTURES; index++) {
-		const Instance& instance = structures[index];
-		DSStructures[index].init(this, &DSLBlinn, {&TStructures[instance.modelID]});
+		const GameObject& gameObject = structures[index];
+		DSStructures[index].init(this, &DSLBlinn, {&TStructures[gameObject.modelID]});
 	}
 
 	for (DescriptorSet &DSBall: DSBalls) {
@@ -483,37 +473,16 @@ void HuntGame::localCleanup() {
 // creation of the command buffer:
 // send to the GPU all the objects you want to draw,
 // with their buffers and textures
-
-void HuntGame::shootGun(){
-			::printVec3(ray.direction);
-	float t0, t1;
-	for (int index = 0; index < NANIMAL; index++) {
-		if(animals[index].visible){
-			if(rayIntersectsSphere(ray.origin, ray.direction, animals[index].pos, 0.5, t0, t1)){ 
-				std::cout<< "Sphere HIT" << std::endl;
-				animals[index].visible = false;
-				aliveAnimals--;
-				currAnimalIndex --;
-				if (aliveAnimals == 0) {
-					currScene = GAMEWIN;
-					currTimeIndex = 0;
-				}
-				RebuildPipeline();
-			}
-		}
-	}
-}
-
 void HuntGame::populateCommandBuffer(VkCommandBuffer commandBuffer, int currentImage) {
 
 	// Oren-Nayar Pipeline
 	POren.bind(commandBuffer);
 	DSGlobal.bind(commandBuffer, POren, 0, currentImage);
 	for (int index = 0; index < NVEGROCK; index++) {
-		const Instance& instance = vegRocks[index];
-		MVegRocks[instance.modelID].bind(commandBuffer);
+		const GameObject& gameObject = vegRocks[index];
+		MVegRocks[gameObject.modelID].bind(commandBuffer);
 		DSVegRocks[index].bind(commandBuffer, POren, 1, currentImage);
-		vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(MVegRocks[instance.modelID].indices.size()), 1, 0, 0, 0);
+		vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(MVegRocks[gameObject.modelID].indices.size()), 1, 0, 0, 0);
 	}
 
 	// Normal Map Pipeline
@@ -528,20 +497,20 @@ void HuntGame::populateCommandBuffer(VkCommandBuffer commandBuffer, int currentI
 	DSGlobal.bind(commandBuffer, PBlinn, 0, currentImage);	// The Global Descriptor Set (Set 0)
 
 	for (int index = 0; index < NANIMAL; index++) {
-		const Instance& instance = animals[index];
-		MAnimals[instance.modelID].bind(commandBuffer);
+		const GameObject& gameObject = animals[index];
+		MAnimals[gameObject.modelID].bind(commandBuffer);
 		DSAnimals[index].bind(commandBuffer, PBlinn, 1, currentImage);
-		vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(MAnimals[instance.modelID].indices.size()), 1, 0, 0, 0);
+		vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(MAnimals[gameObject.modelID].indices.size()), 1, 0, 0, 0);
 	}
 
 	for (int index = 0; index < NSTRUCTURES; index++) {
-		const Instance& instance = structures[index];
-		MStructures[instance.modelID].bind(commandBuffer);
+		const GameObject& gameObject = structures[index];
+		MStructures[gameObject.modelID].bind(commandBuffer);
 		DSStructures[index].bind(commandBuffer, PBlinn, 1, currentImage);
-		vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(MStructures[instance.modelID].indices.size()), 1, 0, 0, 0);
+		vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(MStructures[gameObject.modelID].indices.size()), 1, 0, 0, 0);
 	}
 	for (int index = 0; index < NBALLS; index++) {
-		const Instance& instance = balls[index];
+		const GameObject& gameObject = balls[index];
 		MBall.bind(commandBuffer);
 		DSBalls[index].bind(commandBuffer, PBlinn, 1, currentImage);
 		vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(MBall.indices.size()), 1, 0, 0, 0);
@@ -796,6 +765,7 @@ void HuntGame::handleInput(float cTime, float tTime){
 				currScene = MATCH;
 				for (int index = 0; index < NANIMAL; index++) {
 					animals[index].visible = true;
+					animals[index].setShot(false);
 				}
 				aliveAnimals = NANIMAL;
 				startTime = cTime;
@@ -818,6 +788,35 @@ void HuntGame::handleInput(float cTime, float tTime){
 	}
 }
 
+void HuntGame::shootGun(){
+	::printVec3(ray.direction);
+	float t0, t1;
+	for (auto& animal : animals) {
+		if(animal.visible){
+			if(rayIntersectsSphere(ray.origin, ray.direction, animal.pos, 0.5, t0, t1)){ 
+				std::cout<< "Animal Hit" << std::endl;
+				animal.setShot(true);
+				aliveAnimals--;
+				currAnimalIndex --;
+				if (aliveAnimals == 0) {
+					currScene = GAMEWIN;
+					currTimeIndex = 0;
+				}
+				// RebuildPipeline();
+			}
+		}
+	}
+}
+
+void HuntGame::updateLiveAnimals(float deltaT){
+	for(auto& animal_ : animals){
+		animal_.update(deltaT);
+		if(animal_.getRebuildPipeline()){
+			animal_.setRebuildPipeline(false);
+			RebuildPipeline();
+		}
+	}
+}
 // update the uniforms.
 // game logic
 void HuntGame::updateUniformBuffer(uint32_t currentImage) {
@@ -868,26 +867,24 @@ void HuntGame::updateUniformBuffer(uint32_t currentImage) {
 	crosshairParUBO.alpha = 1.0f;
 	menuScreenParUBO.alpha = 0.9f;
 
-	if (currScene == STARTMENU) {
-		
+	if (currScene == STARTMENU) 
+	{
 		crosshairParUBO.visible = false;
 		menuScreenParUBO.visible = true;
-
-	} else if (currScene == MATCH) {
-
+	} 
+	else if (currScene == MATCH) 
+	{
 		crosshairParUBO.visible = true;
 		menuScreenParUBO.visible = false;
-		
-	updatePlayerPos(CamPitch, CamYaw, deltaT, m, r, ROT_SPEED);
+		updatePlayerPos(CamPitch, CamYaw, deltaT, m, r, ROT_SPEED);
 
-	} else if (currScene == GAMEOVER || currScene == GAMEWIN) {
-
+	} 
+	else if (currScene == GAMEOVER || currScene == GAMEWIN) 
+	{
 		crosshairParUBO.visible = false;
 		menuScreenParUBO.visible = true;
+	} else std::cout << "Error, wrong scene : " << currScene << "\n";
 
-	} else {
-		std::cout << "Error, wrong scene : " << currScene << "\n";
-	}
 
 	// Updates descriptor sets
 	DSCrosshair.map(currentImage, &crosshairParUBO, 1);
@@ -1061,15 +1058,17 @@ void HuntGame::updateUniformBuffer(uint32_t currentImage) {
 	}
 
 	// ANIMALS
+
+	updateLiveAnimals(deltaT);
+
 	for (int model = 0; model < NANIMAL; model++) {
-		const Instance& instance = animals[model];
-		if(instance.visible == true)
+		const GameObject& gameObject = animals[model];
+		if(gameObject.visible == true)
 		{                  
-			
 			blinnUbo.mMat = glm::translate(glm::mat4(1.0f),
-											instance.pos) 
+											gameObject.pos) 
 											* glm::rotate(glm::mat4(1.0f), glm::radians(90.0f),glm::vec3(1.0f, 0.0f, 0.0f))
-											* glm::rotate(glm::scale(glm::mat4(1), glm::vec3(0.5,0.5,0.5)), glm::radians(instance.angle),glm::vec3(0.0f, 0.0f, 1.0f)) * baseTr;
+											* glm::rotate(glm::scale(glm::mat4(1), gameObject.scale), glm::radians(gameObject.angle),glm::vec3(0.0f, 0.0f, 1.0f)) * baseTr;
 			blinnUbo.mvpMat = ViewPrj * blinnUbo.mMat;
 			blinnUbo.nMat = glm::inverse(glm::transpose(blinnUbo.mMat));
 			DSAnimals[model].map(currentImage, &blinnUbo, 0);
@@ -1083,12 +1082,12 @@ void HuntGame::updateUniformBuffer(uint32_t currentImage) {
 
 	// STRUCUTRES
 	for (int model = 0; model < NSTRUCTURES; model++) {
-		const Instance& instance = structures[model];
+		const GameObject& gameObject = structures[model];
 
 		blinnUbo.mMat = glm::translate(glm::mat4(1.0f),
-										instance.pos) 
-										* glm::rotate(glm::mat4(1.0f), glm::radians(instance.angle2),glm::vec3(0.0f, 1.0f, 0.0f))
-										* glm::rotate(glm::scale(glm::mat4(1), instance.scale), glm::radians(instance.angle),glm::vec3(1.0f, 0.0f, 0.0f)) * baseTr;
+										gameObject.pos) 
+										* glm::rotate(glm::mat4(1.0f), glm::radians(gameObject.angle2),glm::vec3(0.0f, 1.0f, 0.0f))
+										* glm::rotate(glm::scale(glm::mat4(1), gameObject.scale), glm::radians(gameObject.angle),glm::vec3(1.0f, 0.0f, 0.0f)) * baseTr;
 
 
 		blinnUbo.mvpMat = ViewPrj * blinnUbo.mMat;
@@ -1103,11 +1102,11 @@ void HuntGame::updateUniformBuffer(uint32_t currentImage) {
 	if (isDebugMode){
 		// debugging balls glm::vec3 rayEnd = rayOrigin + rayDirection * 2.0f;
 		for (int model = 0; model < NBALLS; model++) {
-			const Instance& instance = balls[model];
+			const GameObject& gameObject = balls[model];
 			blinnUbo.mMat = glm::translate(glm::mat4(1.0f),
 											(ray.origin + ray.direction * (10.0f + 20.0f*sin(cTime)))) 
 											* glm::rotate(glm::mat4(1.0f), glm::radians(90.0f),glm::vec3(1.0f, 0.0f, 0.0f))
-											* glm::rotate(glm::scale(glm::mat4(1), glm::vec3(0.1,0.1,0.1)), glm::radians(instance.angle),glm::vec3(0.0f, 0.0f, 1.0f)) * baseTr;
+											* glm::rotate(glm::scale(glm::mat4(1), glm::vec3(0.1,0.1,0.1)), glm::radians(gameObject.angle),glm::vec3(0.0f, 0.0f, 1.0f)) * baseTr;
 			blinnUbo.mvpMat = ViewPrj * blinnUbo.mMat;
 			blinnUbo.nMat = glm::inverse(glm::transpose(blinnUbo.mMat));
 			DSBalls[model].map(currentImage, &blinnUbo, 0);
@@ -1129,11 +1128,11 @@ void HuntGame::updateUniformBuffer(uint32_t currentImage) {
 
 	// VEG ROCKs
 	for (int model = 0; model < NVEGROCK; model++) {
-		const Instance& instance = vegRocks[model];
+		const GameObject& gameObject = vegRocks[model];
 		orenUbo.mMat = glm::translate(glm::mat4(1.0f),
-										instance.pos) 
+										gameObject.pos) 
 										* glm::rotate(glm::mat4(1.0f), glm::radians(0.0f),glm::vec3(1.0f, 0.0f, 0.0f))
-										* glm::rotate(glm::scale(glm::mat4(1), instance.scale), glm::radians(instance.angle),glm::vec3(0.0f, 1.0f, 0.0f)) * baseTr;
+										* glm::rotate(glm::scale(glm::mat4(1), gameObject.scale), glm::radians(gameObject.angle),glm::vec3(0.0f, 1.0f, 0.0f)) * baseTr;
 		orenUbo.mvpMat = ViewPrj * orenUbo.mMat;
 		orenUbo.nMat = glm::inverse(glm::transpose(orenUbo.mMat));
 

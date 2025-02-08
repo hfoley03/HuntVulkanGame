@@ -13,23 +13,60 @@
 #include <glm/gtc/quaternion.hpp>
 #include <glm/gtx/transform2.hpp>
 
-// class used to create instances of an object
-class Instance {
+class GameObject {
 public:
-    glm::vec3 pos;      // Instance position
-    int modelID;        // Model ID used to get the model of the object
-    glm::vec3 scale;    // Scale
-    float angle;        // Angle for rotation
-    std::string desc;   // Description of the instance
+    glm::vec3 pos;      
+    int modelID;        
+    glm::vec3 scale;   
+    float angle;    
+    std::string desc;  
     bool visible = true;
 	float angle2 = 0.0f;
 
-    Instance(const glm::vec3& position, int id, const glm::vec3& scl, float ang, const std::string& description)
+    GameObject(const glm::vec3& position, int id, const glm::vec3& scl, float ang, const std::string& description)
         : pos(position), modelID(id), scale(scl), angle(ang), desc(description) {}
 };
 
+class LiveAnimal : public GameObject {
+public:
+	LiveAnimal(const glm::vec3& position, int id, const glm::vec3& scl, float ang, const std::string& description);
+	void update(float deltaT);
+	void setShot(bool st);
+	void setRebuildPipeline(bool rb);
+	bool getRebuildPipeline();
+private:
+	bool shot = false;
+	bool rebuildPipeline = false;
+	float shrinkingSpeed = 1.0;
+};
 
-void placeAnimals(std::vector<Instance>& animals){
+LiveAnimal::LiveAnimal(const glm::vec3& position, int id, const glm::vec3& scl, float ang, const std::string& description) 
+		: GameObject(position, id, scl, ang, description){
+
+			scale = glm::vec3(0.5f, 0.5f, 0.5f);
+		}
+
+void LiveAnimal::update(float deltaT){
+	if(shot  && visible){
+		scale -= glm::vec3(shrinkingSpeed *deltaT);
+		if(scale.x <= 0.0f){
+			scale = glm::vec3(0.0f);
+			visible = false;
+			rebuildPipeline = true;
+			std::cout << "finished shrinking" << "\n";
+		}
+	}
+}
+
+void LiveAnimal::setShot(bool st){
+	shot = st;
+	std::cout<< "Animal " << modelID << " has been shot" << "\n";
+}
+
+void LiveAnimal::setRebuildPipeline(bool rb){ rebuildPipeline = rb;}
+bool LiveAnimal::getRebuildPipeline(){ return rebuildPipeline;}
+
+void placeAnimals(std::vector<LiveAnimal>& animals){
         //ANIMALS
 		animals.emplace_back(glm::vec3(2.0f, 0.0f, 10.0f), 0, glm::vec3(1.0f, 1.0f, 1.0f), randomFloat(0.0f, 360.0f), "animal");
 		animals.emplace_back(glm::vec3(5.0f, 0.0f, 30.0f), 1, glm::vec3(1.0f, 1.0f, 1.0f), randomFloat(0.0f, 360.0f), "animal");
@@ -81,7 +118,7 @@ void placeAnimals(std::vector<Instance>& animals){
 
 }
 
-void placeVegRocks(std::vector<Instance>& vegRocks){
+void placeVegRocks(std::vector<GameObject>& vegRocks){
         //corner rocks
         vegRocks.emplace_back(glm::vec3(70.0f, -1.0f, -70.0f), 4, glm::vec3(1.5f, 3.0f, 1.5f), 120.0f, "Top Right");
         vegRocks.emplace_back(glm::vec3(-70.0f, -3.0f, -70.0f), 4, glm::vec3(2.0f, 3.3f, 2.0f), 120.0f, "Top Left");
@@ -160,7 +197,7 @@ void placeVegRocks(std::vector<Instance>& vegRocks){
 
 }
 
-void placeStructures(std::vector<Instance>& structures){
+void placeStructures(std::vector<GameObject>& structures){
         /// STRUCTURES
 
 

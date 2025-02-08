@@ -1789,6 +1789,7 @@ std::cout << "Starting createInstance()\n"  << std::flush;
     }
 	
 	void RebuildPipeline() {
+		std::cout << std::setw(10) << std::right << "Rebuild Pipeline" << "\n";
 		framebufferResized = true;
 	}
 	
