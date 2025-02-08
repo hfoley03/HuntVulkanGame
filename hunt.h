@@ -4,7 +4,7 @@
 #include "gameParameters.h"
 #include "gameStructs.h"
 #include "utils.hpp"
-#include "objectInstances.hpp"
+#include "gameObjects.hpp"
 #include <cstdlib> 
 #include <ctime>
 #include <string>
@@ -68,10 +68,11 @@ class HuntGame : public BaseProject {
 	std::vector<SingleText> outTimeText;	// Time counter
 	std::vector<SingleText> outAnimalText;	// Animal counter
 
-	std::vector<Instance> balls;
-	std::vector<Instance> vegRocks; 
-	std::vector<Instance> structures;
-	std::vector<Instance> animals;
+
+	std::vector<GameObject> balls;
+	std::vector<GameObject> vegRocks; 
+	std::vector<GameObject> structures;
+	std::vector<LiveAnimal> animals;
 
 	void setWindowParameters(); 
 	void onWindowResize(int w, int h); 
@@ -80,6 +81,7 @@ class HuntGame : public BaseProject {
 	void pipelinesAndDescriptorSetsCleanup();
 	void localCleanup(); 
 	void shootGun();
+	void updateLiveAnimals(float deltaT);
 	void populateCommandBuffer(VkCommandBuffer commandBuffer, int currentImage);
 	void checkPlayerObjectCollisions(glm::vec3& playerPos, glm::vec3&  firstPlayerPos, glm::vec3& lastPlayerPos);
 	void updatePlayerPos(float& CamPitch, float& CamYaw, float deltaT, glm::vec3 m, glm::vec3 r, float ROT_SPEED);
