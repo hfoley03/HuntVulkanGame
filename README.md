@@ -15,6 +15,8 @@ Aiming can be done with or without a scope, and during the night a torch can be 
 - Collision Detection
 - Ray-Sphere Intersection for Shooting Mechanics
 
+*Note: Files inside Modules folder are taken from the Computer Graphics course*
+
 ![Alt text](resources/start_screen.jpeg?raw=true "Starting menu")
 ![Alt text](resources/day_screen.jpeg?raw=true "Day time scene")
 ![Alt text](resources/night_screen.jpeg?raw=true "Night time scene")
