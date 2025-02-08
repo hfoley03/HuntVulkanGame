@@ -1,4 +1,5 @@
-# Computer Graphics Project: Hunting Game 
+# Hunting Game 
+## Politecnico di Milano Computer Graphics
 ### Harry Foley & Marcello Grati
 #### Grade Awarded: 30/30 Cum Laude
 
