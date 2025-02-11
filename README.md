@@ -14,6 +14,7 @@ Aiming can be done with or without a scope, and during the night a torch can be 
 - Custom shaders implementing Blinn-Phong, Oren-Nayar, Normal Mapping and Sky Box techniques
 - Collision Detection
 - Ray-Sphere Intersection for Shooting Mechanics
+- Birds flying in flocks using boid swarms
 
 *Note: Files inside Modules folder are taken from the Computer Graphics course*
 
