@@ -3,7 +3,9 @@
 #include "generateScope.hpp"
 #include "gameParameters.h"
 #include "gameStructs.h"
-#include "utils.hpp"
+#include "ray.h"
+#include "swarm/flock.h"
+// #include "utils.hpp"9
 #include "gameObjects.hpp"
 #include <cstdlib> 
 #include <ctime>
@@ -12,6 +14,8 @@
 
 class HuntGame : public BaseProject {
 	private:
+
+	Flock* flock;
 	
 	DescriptorSetLayout DSLGlobal, DSLBlinn, DSLOren, DSLEmission, DSLHUD, DSLskyBox, DSLNMap;
 	VertexDescriptor VDBlinn, VDOren, VDEmission, VDHUD, VDskyBox, VDNMap;
@@ -19,13 +23,13 @@ class HuntGame : public BaseProject {
 
     TextMaker txt, timeTxt, animalTxt;
     
-    Model MAx,Msun, Mmoon, Mground, MCrosshair, MScope, MskyBox, MMenuScreen, MGun, MBall, MTower;
+    Model MAx,Msun, Mmoon, Mground, MCrosshair, MScope, MskyBox, MMenuScreen, MGun, MBall, MTower, MBird;
 	Model MVegRocks[12], MStructures[4], MAnimals[10];
 
 	glm::vec3 towerPos = glm::vec3(-23.0f, 0.0f, 24.0f);
 
 	DescriptorSet DSGlobal, DSAx, DSCrosshair, DSScope, DSsun, DSmoon, DSground, DSskyBox, DSGun, DSMenuScreen, DSTower;
-	DescriptorSet DSAnimals[NANIMAL], DSVegRocks[NVEGROCK], DSStructures[NSTRUCTURES], DSBalls[NBALLS];
+	DescriptorSet DSAnimals[NANIMAL], DSVegRocks[NVEGROCK], DSStructures[NSTRUCTURES], DSBalls[NBALLS], DSBirds[NBIRDS];
 
 	Texture T1, Tgreen, Tanimal, TGun, TGrass, Tsun, Tmoon, Tground, TCrosshair, TskyBox, Tstars, TMenuScreen, TScope;
 	Texture TTowerNMap;
@@ -51,8 +55,8 @@ class HuntGame : public BaseProject {
 	int currAnimalIndex = 0;
 	
 	// Camera Parameters
-	glm::vec3 CamPos = glm::vec3(0.0, 0.1, 5.0);
-	glm::vec3 PlayerPos = glm::vec3(0.0, 0.1, 5.0);
+	glm::vec3 CamPos = glm::vec3(0.0, 20.0, 5.0);
+	glm::vec3 PlayerPos = glm::vec3(0.0, 80.0, 5.0);
 	glm::mat4 ViewMatrix;
 	float CamAlpha = 0.0f;
 	float CamBeta = 0.0f;	
@@ -68,8 +72,8 @@ class HuntGame : public BaseProject {
 	std::vector<SingleText> outTimeText;	// Time counter
 	std::vector<SingleText> outAnimalText;	// Animal counter
 
-
 	std::vector<GameObject> balls;
+	std::vector<GameObject> birds;
 	std::vector<GameObject> vegRocks; 
 	std::vector<GameObject> structures;
 	std::vector<LiveAnimal> animals;
@@ -89,10 +93,6 @@ class HuntGame : public BaseProject {
 	void updateUniformBuffer(uint32_t currentImage);
 };
 
-
-
-
-
-bool isDebugMode = false;	// Debug mode
-float dayCyclePhase;		// Starting moment of the day
+bool isDebugMode = false;	
+float dayCyclePhase; // Starting moment of the day
 

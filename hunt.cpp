@@ -133,6 +133,7 @@ void HuntGame::localInit() {
 	MskyBox.init(this, &VDskyBox, "models/SkyBoxCube.obj", OBJ);
 	MGun.init(this, &VDBlinn, "models/gun.obj", OBJ);
 	MTower.init(this, &VDNMap, "models/structure/tower.gltf", GLTF);
+	MBird.init(this,  &VDBlinn, "models/bird1.obj", OBJ);
 
 	MAnimals[0].init(this, &VDBlinn, "models/animals/rhinoceros_001.mgcg", MGCG);
 	MAnimals[1].init(this, &VDBlinn, "models/animals/tiger_001.mgcg", MGCG);
@@ -163,7 +164,7 @@ void HuntGame::localInit() {
 	MStructures[2].init(this, &VDBlinn, "models/structure/fence.obj", OBJ);
 	MStructures[3].init(this, &VDBlinn, "models/structure/woodhouse.obj", OBJ);
 
-// building up vertices and indices for HUD crosshairs to use
+ 	// building up vertices and indices for HUD crosshairs to use
 	int mainStride = sizeof(HUDVertex);  
 	std::vector<HUDVertex> quadVertices = {
 		{{-0.1f, -0.1f}, {0.0f, 0.0f}},  
@@ -244,6 +245,15 @@ void HuntGame::localInit() {
 	placeVegRocks(vegRocks);
 	placeAnimals(animals);
 	placeStructures(structures);
+
+	flock = new Flock(NBIRDS);
+
+	for(int i = 0 ; i < NBIRDS ; i ++){
+		birds.emplace_back( glm::vec3( flock->getBoid(i).getPosition3D(0.0f)), 4, glm::vec3(0.05f, 0.05f, 0.05f), 120.0f, "bird One");
+	}
+
+
+
 
 	// balls used for debugging
 	for(int i = 0; i < NBALLS; i ++){
@@ -339,6 +349,9 @@ void HuntGame::pipelinesAndDescriptorSetsInit() {
 	DSTower.init(this, &DSLNMap, {&TTowerDiff, &TTowerNMap});
 
 	// DSGameOver.init(this, &DSLHUD, {&TGameOver});
+	for (DescriptorSet &DSBird: DSBirds) {
+		DSBird.init(this, &DSLBlinn, {&T1});
+	};
 
 	for (DescriptorSet &DSAnimal: DSAnimals) {
 		DSAnimal.init(this, &DSLBlinn, {&Tanimal});
@@ -389,6 +402,9 @@ void HuntGame::pipelinesAndDescriptorSetsCleanup() {
 	DSTower.cleanup();
 	DSMenuScreen.cleanup();
 
+	for (DescriptorSet &DSBird: DSBirds) {
+		DSBird.cleanup();
+	}
 	for (DescriptorSet &DSAnimal: DSAnimals) {
 		DSAnimal.cleanup();
 	}
@@ -408,8 +424,10 @@ void HuntGame::pipelinesAndDescriptorSetsCleanup() {
 	std::cout << "Descriptor Set cleanup!\n";
 }
 
-
 void HuntGame::localCleanup() {	
+
+	delete flock;
+
 	TTowerNMap.cleanup();
 	TScope.cleanup();
 	Tsun.cleanup();
@@ -440,6 +458,7 @@ void HuntGame::localCleanup() {
 	MMenuScreen.cleanup();
 	MTower.cleanup();
 	MskyBox.cleanup();
+	MBird.cleanup();
 
 	for (Model &MAnimal: MAnimals) {
 		MAnimal.cleanup();
@@ -509,6 +528,14 @@ void HuntGame::populateCommandBuffer(VkCommandBuffer commandBuffer, int currentI
 		MAnimals[gameObject.modelID].bind(commandBuffer);
 		DSAnimals[index].bind(commandBuffer, PBlinn, 1, currentImage);
 		vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(MAnimals[gameObject.modelID].indices.size()), 1, 0, 0, 0);
+	}
+
+
+	for (int index = 0; index < NBIRDS; index++) {
+		const GameObject& gameObject = birds[index];
+		MBird.bind(commandBuffer);
+		DSBirds[index].bind(commandBuffer, PBlinn, 1, currentImage);
+		vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(MBird.indices.size()), 1, 0, 0, 0);
 	}
 
 	for (int index = 0; index < NSTRUCTURES; index++) {
@@ -582,15 +609,11 @@ void HuntGame::populateCommandBuffer(VkCommandBuffer commandBuffer, int currentI
 }
 
 void HuntGame::checkPlayerObjectCollisions(glm::vec3& playerPos, glm::vec3&  firstPlayerPos, glm::vec3& lastPlayerPos){
+	
 	for( auto vegRock : vegRocks){
-		float objRadius = 1.0f;
-		if(vegRock.desc == "Rock"){
-			objRadius = 2.0f;
-		}
-		if (checkCollision(playerPos + firstPlayerPos, 0.5f, vegRock.pos, objRadius)) {
-			//std::cout << "collided" << "\n";
-			//std::cout << vegRocks[index].scale.x << "\n";
-			//std::cout << vegRocks[index].desc << "\n";
+		float objRadius = (vegRock.desc == "Rock") ? 2.0f : 1.0f; 
+		if (checkCollision(playerPos + firstPlayerPos, 0.5f, vegRock.pos, objRadius)) 
+		{
 			glm::vec3 collision_direction = glm::normalize( (playerPos + firstPlayerPos) - vegRock.pos);
 			collision_direction = glm::vec3(collision_direction.x, 0.0f, collision_direction.z);
 			float pushback_distance = (2.5f) - glm::length((playerPos + firstPlayerPos) - vegRock.pos);
@@ -609,73 +632,69 @@ void HuntGame::checkPlayerObjectCollisions(glm::vec3& playerPos, glm::vec3&  fir
 void HuntGame::updatePlayerPos(float& CamPitch, float& CamYaw, float deltaT, glm::vec3 m, glm::vec3 r, float ROT_SPEED){
 	const float MOVE_SPEED = 10.0f;
 	
-	if (!isDebugMode)
-		{
-			glm::vec3 FirstPos = glm::vec3(2, 1, 5);
-			glm::vec3 Pos = glm::vec3(0, 0, 0);
-			static float dampedVelz = 0.0f;
-			static float dampedVelx = 0.0f;
+	if (!isDebugMode){
+		glm::vec3 FirstPos = glm::vec3(2, 1, 5);
+		glm::vec3 Pos = glm::vec3(0, 0, 0);
+		static float dampedVelz = 0.0f;
+		static float dampedVelx = 0.0f;
 
-			const float WALKING_SPEED = 2.0f;
+		const float WALKING_SPEED = 2.0f;
 
-			static glm::vec3 lastPos;
+		static glm::vec3 lastPos;
 
-			dampedVelz =  WALKING_SPEED * deltaT * m.z + dampedVelz;
-			dampedVelx =  WALKING_SPEED * deltaT * m.x + dampedVelx;
+		dampedVelz =  WALKING_SPEED * deltaT * m.z + dampedVelz;
+		dampedVelx =  WALKING_SPEED * deltaT * m.x + dampedVelx;
 
-			dampedVelz = dampedVelz * 0.85f;
-			dampedVelx = dampedVelx * 0.85f;
+		dampedVelz = dampedVelz * 0.85f;
+		dampedVelx = dampedVelx * 0.85f;
 
-			glm::vec3 ux = glm::vec3(cos(CamYaw), 0.0f, -sin(CamYaw));
-			glm::vec3 uz = glm::vec3(sin(CamYaw), 0.0f, cos(CamYaw));
+		glm::vec3 ux = glm::vec3(cos(CamYaw), 0.0f, -sin(CamYaw));
+		glm::vec3 uz = glm::vec3(sin(CamYaw), 0.0f, cos(CamYaw));
 
-			CamYaw -= ROT_SPEED * deltaT * r.y;
-			CamPitch -= ROT_SPEED*0.5f * deltaT * r.x;
-			
-			Pos = lastPos + ux * dampedVelx + uz * dampedVelz;
-
-			// fence perimeter bounds
-			if(Pos.x > 40.5f){
-				//std::cout << "Pos x too big "<< Pos.x << "\n";
-				Pos = glm::vec3( 40.5f, Pos.y, Pos.z);
-			}
-			if(Pos.x < -41.5f){
-				//std::cout << "Pos x too small "<< Pos.x << "\n";
-				Pos = glm::vec3( -41.5f, Pos.y, Pos.z);
-			}
-			if(Pos.z > 40.0f){
-				//std::cout << "Pos z too big "<< Pos.z << "\n";
-				Pos = glm::vec3( Pos.x, Pos.y, 40.0f);
-			}
-			if(Pos.z < -44.5f){
-				//std::cout << "Pos z too small "<< Pos.z << "\n";
-				Pos = glm::vec3( Pos.x, Pos.y, -44.5f);
-			}
-
-			checkPlayerObjectCollisions(Pos, FirstPos, lastPos);
+		CamYaw -= ROT_SPEED * deltaT * r.y;
+		CamPitch -= ROT_SPEED*0.5f * deltaT * r.x;
 		
-			CamPitch = (CamPitch < -0.25*M_PI ? -0.25*M_PI : (CamPitch > 0.25*M_PI ? 0.25*M_PI : CamPitch));
+		Pos = lastPos + ux * dampedVelx + uz * dampedVelz;
 
-			lastPos = Pos;
-
-			ViewMatrix = 
-			glm::rotate(glm::mat4(1.0), -CamPitch, glm::vec3(1,0,0)) *
-				glm::rotate(glm::mat4(1.0), -CamYaw, glm::vec3(0,1,0)) *
-				glm::translate(glm::mat4(1.0), -(Pos + FirstPos)) * glm::mat4(1.0);
-
-		} else {
-			// The Fly model update proc.
-			ViewMatrix = glm::rotate(glm::mat4(1), ROT_SPEED * r.x * deltaT,
-								glm::vec3(1, 0, 0)) * ViewMatrix;
-			ViewMatrix = glm::rotate(glm::mat4(1), ROT_SPEED * r.y * deltaT,
-								glm::vec3(0, 1, 0)) * ViewMatrix;
-			ViewMatrix = glm::rotate(glm::mat4(1), -ROT_SPEED * r.z * deltaT,
-								glm::vec3(0, 0, 1)) * ViewMatrix;
-			ViewMatrix = glm::translate(glm::mat4(1), -glm::vec3(
-								MOVE_SPEED * m.x * deltaT, MOVE_SPEED * m.y * deltaT, MOVE_SPEED * m.z * deltaT))
-													* ViewMatrix;
+		// fence perimeter bounds
+		if(Pos.x > 40.5f){
+			Pos = glm::vec3( 40.5f, Pos.y, Pos.z);
 		}
-		PlayerPos = extractPlayerPositionFromViewMatrix(ViewMatrix);
+		if(Pos.x < -41.5f){
+			Pos = glm::vec3( -41.5f, Pos.y, Pos.z);
+		}
+		if(Pos.z > 40.0f){
+			Pos = glm::vec3( Pos.x, Pos.y, 40.0f);
+		}
+		if(Pos.z < -44.5f){
+			Pos = glm::vec3( Pos.x, Pos.y, -44.5f);
+		}
+
+		checkPlayerObjectCollisions(Pos, FirstPos, lastPos);
+	
+		CamPitch = (CamPitch < -0.25*M_PI ? -0.25*M_PI : (CamPitch > 0.25*M_PI ? 0.25*M_PI : CamPitch));
+
+		lastPos = Pos;
+
+		ViewMatrix = 
+		glm::rotate(glm::mat4(1.0), -CamPitch, glm::vec3(1,0,0)) *
+			glm::rotate(glm::mat4(1.0), -CamYaw, glm::vec3(0,1,0)) *
+			glm::translate(glm::mat4(1.0), -(Pos + FirstPos)) * glm::mat4(1.0);
+
+	} 
+	else {
+		// The Fly model update proc.
+		ViewMatrix = glm::rotate(glm::mat4(1), ROT_SPEED * r.x * deltaT,
+							glm::vec3(1, 0, 0)) * ViewMatrix;
+		ViewMatrix = glm::rotate(glm::mat4(1), ROT_SPEED * r.y * deltaT,
+							glm::vec3(0, 1, 0)) * ViewMatrix;
+		ViewMatrix = glm::rotate(glm::mat4(1), -ROT_SPEED * r.z * deltaT,
+							glm::vec3(0, 0, 1)) * ViewMatrix;
+		ViewMatrix = glm::translate(glm::mat4(1), -glm::vec3(
+							MOVE_SPEED * m.x * deltaT, MOVE_SPEED * m.y * deltaT, MOVE_SPEED * m.z * deltaT))
+												* ViewMatrix;
+	}
+	PlayerPos = extractPlayerPositionFromViewMatrix(ViewMatrix);
 }
 
 void HuntGame::handleInput(float cTime, float tTime){
@@ -697,7 +716,6 @@ void HuntGame::handleInput(float cTime, float tTime){
 		}
 	}
 
-	// Standard procedure to quit when the ESC key is pressed
 	if(glfwGetKey(window, GLFW_KEY_ESCAPE)) {
 		glfwSetWindowShouldClose(window, GL_TRUE);
 	}
@@ -797,20 +815,16 @@ void HuntGame::handleInput(float cTime, float tTime){
 }
 
 void HuntGame::shootGun(){
-	::printVec3(ray.direction);
-	float t0, t1;
+	// ray.printInfo();
 	for (auto& animal : animals) {
-		if(animal.visible){
-			if(rayIntersectsSphere(ray.origin, ray.direction, animal.pos, 0.5, t0, t1)){ 
-				std::cout<< "Animal Hit" << std::endl;
-				animal.setShot(true);
-				aliveAnimals--;
-				currAnimalIndex --;
-				if (aliveAnimals == 0) {
-					currScene = GAMEWIN;
-					currTimeIndex = 0;
-				}
-				// RebuildPipeline();
+		if(animal.visible && ray.rayIntersectsSphereTarget(animal.pos, 0.5)){ 
+			std::cout<< "Animal Hit" << std::endl;
+			animal.setShot(true);
+			aliveAnimals--;
+			currAnimalIndex --;
+			if (aliveAnimals == 0) {
+				currScene = GAMEWIN;
+				currTimeIndex = 0;
 			}
 		}
 	}
@@ -825,6 +839,7 @@ void HuntGame::updateLiveAnimals(float deltaT){
 		}
 	}
 }
+
 // update the uniforms.
 // game logic
 void HuntGame::updateUniformBuffer(uint32_t currentImage) {
@@ -864,6 +879,8 @@ void HuntGame::updateUniformBuffer(uint32_t currentImage) {
 	} else {
 		ROT_SPEED = ZIN_ROT_SPEED;
 	}
+
+
 	
 	static float CamPitch = glm::radians(0.0f);
 	static float CamYaw   = M_PI;
@@ -912,7 +929,7 @@ void HuntGame::updateUniformBuffer(uint32_t currentImage) {
 	glm::mat4 Mv = ViewMatrix;
 	glm::mat4 ViewPrj =  M * Mv;
 	glm::mat4 baseTr = glm::mat4(1.0f);		
-	ray = calculateRayFromScreenCenter(Mv, M);	
+	ray.calculateRayFromScreenCenter(Mv, M);	
 
 	if (currScene==MATCH) {
 
@@ -969,6 +986,7 @@ void HuntGame::updateUniformBuffer(uint32_t currentImage) {
 		abs(dayTime * dayIntensity),
 		1.0f
 		);
+
 	// Moonlight color
 	gubo.nightLightColor = glm::vec4(
 		0.1f * nightIntensity * 0.25f, 
@@ -980,14 +998,11 @@ void HuntGame::updateUniformBuffer(uint32_t currentImage) {
 	// User position and direction (torch light)
 	gubo.eyePos = glm::vec3(glm::inverse(ViewMatrix) * glm::vec4(0, 0, 0, 1));
 	gubo.userDir = extractPlayerDirectionFromViewMatrix(ViewMatrix);
-
 	gubo.ambient = dayTime;		// Dyinamic ambient light
 
-	// Torch light toggle
-	if (isTorchOn)
-		gubo.pointLightColor = glm::vec3(1.0f, 1.0f, 0.3f);	// On
-	else
-		gubo.pointLightColor = glm::vec3(0.0f);				// Off
+	// Torch light toggle		
+	gubo.pointLightColor = isTorchOn ? glm::vec3(1.0f, 1.0f, 0.3f) : glm::vec3(0.0f);	
+
 
 	// Spotlight paramters
 	gubo.gFactor = G_FACTOR;
@@ -1056,17 +1071,20 @@ void HuntGame::updateUniformBuffer(uint32_t currentImage) {
 							* glm::rotate(glm::mat4(1.0f), (CamPitch + glm::radians(10.0f)), glm::vec3(1.0f, 0.0f, 0.0f))
 							* glm::rotate(glm::mat4(1.0f), glm::radians(90.0f),glm::vec3(0.0f, 1.0f, 0.0f))
 							* glm::translate(glm::mat4(1.0f), glm::vec3(0.45f, -0.25f, 0.0f));
-	blinnUbo.mMat = gunModelMatrix;
-	blinnUbo.mvpMat = ViewPrj * blinnUbo.mMat;
-	blinnUbo.nMat = glm::inverse(glm::transpose(blinnUbo.mMat));
+	
+	if(!isDebugMode){
+		blinnUbo.mMat = gunModelMatrix;
+		blinnUbo.mvpMat = ViewPrj * blinnUbo.mMat;
+		blinnUbo.nMat = glm::inverse(glm::transpose(blinnUbo.mMat));
 
-	blinnMatParUbo.Power = 20.0;
-	blinnMatParUbo.scaleUV = 1.0;
-	blinnMatParUbo.noiseLevel = 0.0;
+		blinnMatParUbo.Power = 20.0;
+		blinnMatParUbo.scaleUV = 1.0;
+		blinnMatParUbo.noiseLevel = 0.0;
 
-	if(cameraZoom == zoomOutAngle){
-		DSGun.map(currentImage, &blinnUbo, 0);
-		DSGun.map(currentImage, &blinnMatParUbo, 2);
+		if(cameraZoom == zoomOutAngle){
+			DSGun.map(currentImage, &blinnUbo, 0);
+			DSGun.map(currentImage, &blinnMatParUbo, 2);
+		}
 	}
 
 	// ANIMALS
@@ -1075,21 +1093,42 @@ void HuntGame::updateUniformBuffer(uint32_t currentImage) {
 
 	blinnMatParUbo.scaleUV = 1.0;
 	blinnMatParUbo.noiseLevel = 0.0;
+	if(!isDebugMode){
+		for (int model = 0; model < NANIMAL; model++) {
+			const GameObject& gameObject = animals[model];
+			if(gameObject.visible == true)
+			{                  
+				blinnUbo.mMat = glm::translate(glm::mat4(1.0f),
+												gameObject.pos) 
+												* glm::rotate(glm::mat4(1.0f), glm::radians(90.0f),glm::vec3(1.0f, 0.0f, 0.0f))
+												* glm::rotate(glm::scale(glm::mat4(1), gameObject.scale), glm::radians(gameObject.angle),glm::vec3(0.0f, 0.0f, 1.0f)) * baseTr;
+				blinnUbo.mvpMat = ViewPrj * blinnUbo.mMat;
+				blinnUbo.nMat = glm::inverse(glm::transpose(blinnUbo.mMat));
+				DSAnimals[model].map(currentImage, &blinnUbo, 0);
 
-	for (int model = 0; model < NANIMAL; model++) {
-		const GameObject& gameObject = animals[model];
+				blinnMatParUbo.Power = 2000.0;
+				DSAnimals[model].map(currentImage, &blinnMatParUbo, 2);
+			}
+		}
+	}
+
+	flock->run();
+	for (int model = 0; model < NBIRDS; model++) {
+		const GameObject& gameObject = birds[model];
 		if(gameObject.visible == true)
 		{                  
+			float angleY = (flock->getBoid(model).getAngle()) + 0.65f * M_PI;
 			blinnUbo.mMat = glm::translate(glm::mat4(1.0f),
-											gameObject.pos) 
+											flock->getBoid(model).getPosition3D(deltaT)) 
+											* glm::rotate(glm::mat4(1.0f), angleY, glm::vec3(0.0f, 1.0f, 0.0f))
 											* glm::rotate(glm::mat4(1.0f), glm::radians(90.0f),glm::vec3(1.0f, 0.0f, 0.0f))
 											* glm::rotate(glm::scale(glm::mat4(1), gameObject.scale), glm::radians(gameObject.angle),glm::vec3(0.0f, 0.0f, 1.0f)) * baseTr;
 			blinnUbo.mvpMat = ViewPrj * blinnUbo.mMat;
 			blinnUbo.nMat = glm::inverse(glm::transpose(blinnUbo.mMat));
-			DSAnimals[model].map(currentImage, &blinnUbo, 0);
+			DSBirds[model].map(currentImage, &blinnUbo, 0);
 
 			blinnMatParUbo.Power = 2000.0;
-			DSAnimals[model].map(currentImage, &blinnMatParUbo, 2);
+			DSBirds[model].map(currentImage, &blinnMatParUbo, 2);
 		}
 	}
 
@@ -1114,21 +1153,21 @@ void HuntGame::updateUniformBuffer(uint32_t currentImage) {
 		DSStructures[model].map(currentImage, &blinnMatParUbo, 2);
 	}
 
-	if (isDebugMode){
-		// debugging balls glm::vec3 rayEnd = rayOrigin + rayDirection * 2.0f;
-		for (int model = 0; model < NBALLS; model++) {
-			const GameObject& gameObject = balls[model];
-			blinnUbo.mMat = glm::translate(glm::mat4(1.0f),
-											(ray.origin + ray.direction * (10.0f + 20.0f*sin(cTime)))) 
-											* glm::rotate(glm::mat4(1.0f), glm::radians(90.0f),glm::vec3(1.0f, 0.0f, 0.0f))
-											* glm::rotate(glm::scale(glm::mat4(1), glm::vec3(0.1,0.1,0.1)), glm::radians(gameObject.angle),glm::vec3(0.0f, 0.0f, 1.0f)) * baseTr;
-			blinnUbo.mvpMat = ViewPrj * blinnUbo.mMat;
-			blinnUbo.nMat = glm::inverse(glm::transpose(blinnUbo.mMat));
-			DSBalls[model].map(currentImage, &blinnUbo, 0);
-			blinnMatParUbo.Power = 2000.0;
-			DSBalls[model].map(currentImage, &blinnMatParUbo, 2);
-		}
-	}
+	// if (isDebugMode){
+	// 	// debugging balls glm::vec3 rayEnd = rayOrigin + rayDirection * 2.0f;
+	// 	for (int model = 0; model < NBALLS; model++) {
+	// 		const GameObject& gameObject = balls[model];
+	// 		blinnUbo.mMat = glm::translate(glm::mat4(1.0f),
+	// 										(ray.getOrgin() + ray.getDirection() * (10.0f + 20.0f*sin(cTime)))) 
+	// 										* glm::rotate(glm::mat4(1.0f), glm::radians(90.0f),glm::vec3(1.0f, 0.0f, 0.0f))
+	// 										* glm::rotate(glm::scale(glm::mat4(1), glm::vec3(0.1,0.1,0.1)), glm::radians(gameObject.angle),glm::vec3(0.0f, 0.0f, 1.0f)) * baseTr;
+	// 		blinnUbo.mvpMat = ViewPrj * blinnUbo.mMat;
+	// 		blinnUbo.nMat = glm::inverse(glm::transpose(blinnUbo.mMat));
+	// 		DSBalls[model].map(currentImage, &blinnUbo, 0);
+	// 		blinnMatParUbo.Power = 2000.0;
+	// 		DSBalls[model].map(currentImage, &blinnMatParUbo, 2);
+	// 	}
+	// }
 	
 	DSGlobal.map(currentImage, &gubo, 0);
 
@@ -1141,18 +1180,21 @@ void HuntGame::updateUniformBuffer(uint32_t currentImage) {
 	orenMatParUbo.scaleUV = 1.0;
 	orenMatParUbo.Roughness = 0.5;
 	orenMatParUbo.noiseLevel = 0.0;
-	// VEG ROCKs
-	for (int model = 0; model < NVEGROCK; model++) {
-		const GameObject& gameObject = vegRocks[model];
-		orenUbo.mMat = glm::translate(glm::mat4(1.0f),
-										gameObject.pos) 
-										* glm::rotate(glm::mat4(1.0f), glm::radians(0.0f),glm::vec3(1.0f, 0.0f, 0.0f))
-										* glm::rotate(glm::scale(glm::mat4(1), gameObject.scale), glm::radians(gameObject.angle),glm::vec3(0.0f, 1.0f, 0.0f)) * baseTr;
-		orenUbo.mvpMat = ViewPrj * orenUbo.mMat;
-		orenUbo.nMat = glm::inverse(glm::transpose(orenUbo.mMat));
 
-		DSVegRocks[model].map(currentImage, &orenUbo, 0);
-		DSVegRocks[model].map(currentImage, &orenMatParUbo, 2);
+		// VEG ROCKs
+	if(!isDebugMode){
+		for (int model = 0; model < NVEGROCK; model++) {
+			const GameObject& gameObject = vegRocks[model];
+			orenUbo.mMat = glm::translate(glm::mat4(1.0f),
+											gameObject.pos) 
+											* glm::rotate(glm::mat4(1.0f), glm::radians(0.0f),glm::vec3(1.0f, 0.0f, 0.0f))
+											* glm::rotate(glm::scale(glm::mat4(1), gameObject.scale), glm::radians(gameObject.angle),glm::vec3(0.0f, 1.0f, 0.0f)) * baseTr;
+			orenUbo.mvpMat = ViewPrj * orenUbo.mMat;
+			orenUbo.nMat = glm::inverse(glm::transpose(orenUbo.mMat));
+
+			DSVegRocks[model].map(currentImage, &orenUbo, 0);
+			DSVegRocks[model].map(currentImage, &orenMatParUbo, 2);
+		}
 	}
 
 	// oren ground
@@ -1185,7 +1227,6 @@ void HuntGame::updateUniformBuffer(uint32_t currentImage) {
 	DSTower.map(currentImage, &nmapMatParUbo, 3);
 }
 
-
 int main(int argc, char* argv[]) {
 
     if (argc > 1) { // Check if any arguments are provided
@@ -1208,7 +1249,12 @@ int main(int argc, char* argv[]) {
     srand(seed);
     std::cout << "Seed: " << seed << std::endl;
 
-    dayCyclePhase = ((float)rand() / RAND_MAX) * (2.0f * M_PI);
+
+	if(isDebugMode){
+		dayCyclePhase = 0.25f * (2.0f * M_PI);
+	} else {
+		dayCyclePhase = ((float)rand() / RAND_MAX) * (2.0f * M_PI);
+	}
 
     std::cout << "dayCyclePhase: " << dayCyclePhase << std::endl;
 	

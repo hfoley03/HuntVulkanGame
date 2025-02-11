@@ -26,45 +26,6 @@ float randomFloat(float min, float max) {
     return min + random * (max - min);
 }
 
-bool rayIntersectsSphere(const glm::vec3& rayOrigin, const glm::vec3& rayDirection, const glm::vec3& sphereCenter, float sphereRadius, float& t0, float& t1) {
-    glm::vec3 L = glm::vec3(sphereCenter.x, sphereCenter.y + 0.25f, sphereCenter.z) - rayOrigin;  // ray to sph vec
-    float tca = glm::dot(L, rayDirection); // projection of L onto ray, dist along ray to closest point to sph centre
-    float d2 = glm::dot(L, L) - tca * tca; //pythag
-    float radius2 = sphereRadius * sphereRadius;
-    return d2 <= radius2; //pythag condition met
-
-}
-
-struct Ray {
-    glm::vec3 origin;
-    glm::vec3 direction;
-};
-
-
-
-// calculate ray from the screen center (crosshair)
-Ray calculateRayFromScreenCenter(const glm::mat4& viewMatrix, const glm::mat4& projectionMatrix) {
-    glm::vec2 ndcCoords(0.0f, 0.0f); // Center of the screen in NDC
-
-    //unproject the point both at the near plane and the far plane
-    glm::vec4 rayStartNDC(ndcCoords, -1.0f, 1.0f); // Near plane (Z = -1 in NDC)
-    glm::vec4 rayEndNDC(ndcCoords, 1.0f, 1.0f);    // Far plane (Z = 1 in NDC)
-
-    glm::mat4 invVP = glm::inverse(projectionMatrix * viewMatrix);
-
-    // NDC points to world space
-    glm::vec4 rayStartWorld = invVP * rayStartNDC;
-    glm::vec4 rayEndWorld = invVP * rayEndNDC;
-
-    // convert from homogeneous to 3D coordinates
-    rayStartWorld /= rayStartWorld.w;
-    rayEndWorld /= rayEndWorld.w;
-    Ray ray;
-    ray.origin = glm::vec3(rayStartWorld); 
-    ray.direction = glm::normalize(glm::vec3(rayEndWorld - rayStartWorld));  
-    return ray;
-}
-
 glm::vec3 extractPlayerPositionFromViewMatrix(const glm::mat4& viewMatrix) {
     glm::mat4 inverseViewMatrix = glm::inverse(viewMatrix);
     glm::vec3 playerPosition = glm::vec3(inverseViewMatrix[3]);
@@ -77,12 +38,11 @@ glm::vec3 extractPlayerDirectionFromViewMatrix(const glm::mat4& viewMatrix) {
     -viewMatrix[1][2],  // -z_y
     -viewMatrix[2][2]   // -z_z
     ));
-
     return forwardDirection;
 }
 
 bool checkCollision(glm::vec3 playerPos, float playerRad, glm::vec3 objectPos, float objectRad){
-	// we can ignore the z axis for collisions
+	// we can ignore the y axis for collisions
 	glm::vec2 playXZ = glm::vec2(playerPos.x, playerPos.z);
 	glm::vec2 objXZ = glm::vec2(objectPos.x, objectPos.z);
 	float distSquared = glm::length(playerPos - objectPos);
@@ -91,7 +51,11 @@ bool checkCollision(glm::vec3 playerPos, float playerRad, glm::vec3 objectPos, f
 	return distSquared < radSummedSquared;
 }
 
-void printVec3(glm::vec3 vecThree){
-    std::cout << "Vec3 Values: " << vecThree.x << ", " << vecThree.y << ", " << vecThree.z << "\n";
+void limitMagnitude(glm::vec2& vec, float max){
+    float lengthSquared = (vec.x * vec.x + vec.y * vec.y);
+    if( lengthSquared > max*max && lengthSquared > 0 ) {
+        float ratio = max/(float)sqrt(lengthSquared);
+        vec.x *= ratio;
+        vec.y *= ratio;
+    }
 }
-

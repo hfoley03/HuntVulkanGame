@@ -4,7 +4,7 @@
 #define NVEGROCK 80
 #define NSTRUCTURES 137
 #define NBALLS 1
-
+#define NBIRDS 20
 // GameScences
 #define NUMSCENES 4
 #define STARTMENU 0
